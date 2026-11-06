@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "versions": [
+    {
+      "id": "zombieswp7-1.0.0.0-sample",
+      "xapSha256": "6b88c7fbd95444d2560b4b11e6f35d40a6c0f7abc30706155dcbccd18bc333fe",
+      "dllSha256": "7b819cb562826ae4d2592ff741877e76da0e57bfbe48192aabb79319fdb36823",
+      "dllBytes": 750136,
+      "xapEntries": 127,
+      "xapUncompressedBytes": 76993533
+    }
+  ]
+}

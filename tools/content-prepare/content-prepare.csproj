@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType><AssemblyName>content-prepare</AssemblyName></PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/Port.Prepare/Port.Prepare.csproj" />
+    <EmbeddedResource Include="../../config/content-tools.json" LogicalName="content-tools.json" />
+  </ItemGroup>
+</Project>

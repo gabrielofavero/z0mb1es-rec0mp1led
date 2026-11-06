@@ -1,0 +1,5 @@
+Mono.Cecil 0.11.6
+Author: Jb Evain
+The pinned NuGet package declares the MIT license in its package metadata.
+License terms: https://licenses.nuget.org/MIT
+Project: https://github.com/jbevain/cecil

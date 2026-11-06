@@ -1,11 +1,25 @@
 using System.Reflection.Metadata;
 using System.Reflection.Metadata.Ecma335;
 using System.Reflection.PortableExecutable;
+using System.Security.Cryptography;
+using System.Text.Json;
+
+if (args.Length > 0 && args[0] == "--json")
+    return EvidenceJson.Run(args[1..]);
 
 if (args.Length is < 1 or > 2)
 {
     Console.Error.WriteLine("Usage: dotnet run --project tools/inspect_assembly -- <assembly.dll> [replacement.dll]");
     return 2;
+}
+
+using var supportedManifest = JsonDocument.Parse(File.ReadAllText("config/supported-versions.json"));
+var expectedDllHash = supportedManifest.RootElement.GetProperty("versions")[0].GetProperty("dllSha256").GetString();
+var actualDllHash = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(args[0])));
+if (!string.Equals(actualDllHash, expectedDllHash, StringComparison.OrdinalIgnoreCase))
+{
+    Console.Error.WriteLine($"Unsupported DLL: SHA-256 {actualDllHash.ToLowerInvariant()}; expected {expectedDllHash}");
+    return 1;
 }
 
 using var stream = File.OpenRead(args[0]);

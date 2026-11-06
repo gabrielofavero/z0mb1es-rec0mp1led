@@ -1,4 +1,4 @@
-# User-supplied game packages and all locally derived game material.
+# User-supplied game package in game/ and all locally derived game material.
 *.xap
 private/
 /game/*
@@ -6,7 +6,6 @@ private/
 /generated/
 /out/
 /installer/out/
-/assets/game/
 
 # Local build products.
 **/bin/

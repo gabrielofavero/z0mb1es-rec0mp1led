@@ -1,0 +1,19 @@
+# Media and phone-only behavior (Prompt 11)
+
+The supported original DLL calls `Music.LoadSong`, `Music.Start`, `Music.Update`, `Music.Stop`, `Music.Pause`, and `Music.Resume` around its `MediaPlayer` operations. `BaseTimeMgr.Pause` and `UnPause` call the original music methods. `Sound.Init` loads 19 `sfx/fx/` keys into a dictionary; `Sound.Play`, `PlayExplode`, `PlaySword`, and `PlayHit` call `SoundEffect.Play`. The port leaves those game methods intact. The content preparer supplies local Ogg companions for the original three WMA songs; all other sound XNBs are unchanged. Media playback therefore follows the original calls through FNA.
+
+The [audio portability audit](audio-portability.md) records the embedded PCM formats, Ogg Vorbis headers, and non-Windows preparation requirements.
+
+`CustomMgr.Init` originally enumerates phone media sources, then traverses a `MediaLibrary` only if any source exists. The guarded call target returns an empty source list with an informational trace, so the game does not attempt phone photo-library access on desktop. `AccelMgr` subscribes to accelerometer readings and starts the sensor; the bridge reports no connected sensor and emits no readings. `Vibration.SetVibration` calls `VibrateController.Start`; the bridge now accepts nonnegative requests, logs the missing motor once, and continues without vibration. It does not claim a rumble device exists.
+
+The original upsell menus call `Guide.ShowMarketplace`; one dialog result path creates `MarketplaceDetailTask` and calls `Show`. Both now report that the phone marketplace is unavailable and show a Windows notice when interactive. They do not open a store, grant a license, or claim a purchase. The desktop full-game trial policy makes ordinary upsell entry unlikely; a player-facing click check has not been completed. The original `Guide.BeginShowMessageBox`/`EndShowMessageBox` compatibility surface remains unsupported if a separate phone dialog path reaches it.
+
+The prepared content probe at `private/content-prepared/net10-a` passed all 96 XNB loads, including 19 sound effects and three songs. With `--exercise-audio`, it confirmed `MediaPlayer.GameHasControl` is true, started and stopped each effect, played two instances of one effect simultaneously, then checked play, pause, resume, and stop on each song. It exited while the final song was playing; the process ended with code 0 and no media exception. A 300-frame run of the original game loop with the updated bridge reached the animated menu and saved cleanly. These checks establish FNA playback and the menu path on this machine. They do not establish audible quality, exact original-game mode transitions, device rumble, or player-facing marketplace notice behavior; mode play remains Prompt 12 work.
+
+Reproduce the audio probe from the repository root after the offline build:
+
+```powershell
+dotnet tools/content-probe/bin/Release/net10.0/content-probe.dll --root private/content-prepared/net10-a --report private/content-probe/prompt11-audio.json --exercise-audio
+```
+
+The report's `audioChecks` rows should all have `passed: true`, and the command should print `CONTENT_PROBE xnb=96 failures=0`.

@@ -1,0 +1,10 @@
+<Project>
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <PathMap>$(MSBuildThisFileDirectory)=/_/</PathMap>
+    <FnaDependencyDirectory>$(MSBuildThisFileDirectory)out/deps</FnaDependencyDirectory>
+  </PropertyGroup>
+</Project>

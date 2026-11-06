@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType><AssemblyName>Port.Launcher</AssemblyName></PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Port.Bridge/Port.Bridge.csproj" />
+    <ProjectReference Include="../Port.Hooks/Port.Hooks.csproj" />
+    <Reference Include="FNA"><HintPath>$(FnaDependencyDirectory)/managed/FNA.dll</HintPath><Private>true</Private></Reference>
+    <Content Include="$(FnaDependencyDirectory)/managed/FNA.dll.config" Link="FNA.dll.config" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="$(FnaDependencyDirectory)/native/win-x64/*.dll" Link="%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="$(FnaDependencyDirectory)/native/win-x64/D3D12/*.dll" Link="D3D12/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <Target Name="CheckFnaDependencies" BeforeTargets="ResolveReferences" Condition="!Exists('$(FnaDependencyDirectory)/managed/FNA.dll')">
+    <Error Text="Pinned FNA is missing. Run scripts/bootstrap-fna.ps1 first." />
+  </Target>
+</Project>

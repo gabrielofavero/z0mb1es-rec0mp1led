@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "version": "10.0.10",
+  "packages": {
+    "microsoft.netcore.app.runtime.win-x64": "56899c9057d6981ab9f237d6489e469af043668ab34cfb4199b55f92702b06bb",
+    "microsoft.windowsdesktop.app.runtime.win-x64": "f57afeb29ba87f687cb5fd6693c82a1161e8b28e79cf380a02087f4c2ba35758",
+    "microsoft.aspnetcore.app.runtime.win-x64": "1669e0b37959ad5d6306dccc1991ee15863fd08f65dc40fd2addcaffd235d977"
+  }
+}

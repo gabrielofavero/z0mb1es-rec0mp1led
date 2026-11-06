@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "dotnetSdk": "10.0.302",
+  "targetFramework": "net10.0",
+  "ilWriter": {
+    "package": "Mono.Cecil",
+    "version": "0.11.6",
+    "archiveUrl": "https://api.nuget.org/v3-flatcontainer/mono.cecil/0.11.6/mono.cecil.0.11.6.nupkg",
+    "archiveSha256": "d2a23832aaa948ba9a01acc42b5726e34c5f995958f1b30d45c0e7c70b3a72d5",
+    "license": "MIT"
+  },
+  "netstandardReference": {
+    "version": "2.0.3",
+    "archiveUrl": "https://api.nuget.org/v3-flatcontainer/netstandard.library/2.0.3/netstandard.library.2.0.3.nupkg",
+    "archiveSha256": "3eb87644f79bcffb3c0331dbdac3c7837265f2cdf58a7bfd93e431776f77c9ba"
+  },
+  "fna": {
+    "version": "26.11",
+    "cacheFile": "FNA-2611.zip",
+    "archiveUrl": "https://fna.flibitijibibo.com/archive/FNA-2611.zip",
+    "archiveSha256": "6f48a205f32e2160032fc49e7cb0b0cfb820f5761d2a5afeb01fca894bd448d6",
+    "project": "FNA/FNA.NetStandard.csproj",
+    "license": "Microsoft Public License; bundled LzxDecoder and Mono.Xna notices in FNA/licenses"
+  },
+  "native": {
+    "source": "FNA-XNA/fnalibs-dailies",
+    "buildDate": "2026-11-06",
+    "workflowRunId": 42165304917,
+    "artifactId": 13478882166,
+    "workflowCommit": "d2150100f30521e989f7bebbe58a48b31190bd2c",
+    "expiresAt": "2027-02-04T04:55:10Z",
+    "cacheFile": "fnalibs-2026-11-06.zip",
+    "archiveUrl": "https://nightly.link/FNA-XNA/fnalibs-dailies/actions/artifacts/13478882166.zip",
+    "archiveSha256": "c79c41819651d839066314f4556e679c6b609c7f035f241dfe81d63f09dfb3e6",
+    "runtime": "win-x64",
+    "files": ["SDL3.dll", "FNA3D.dll", "FAudio.dll", "libtheorafile.dll", "D3D12/D3D12Core.dll"],
+    "license": "Retain upstream native-library notices before distribution"
+  }
+}

@@ -1,0 +1,344 @@
+using System.Collections;
+using System.Diagnostics;
+using System.Reflection;
+using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Input;
+using Microsoft.Xna.Framework.Input.Touch;
+
+namespace Port.Hooks;
+
+/// <summary>Supplies desktop contacts at the original TouchMgr input boundary.</summary>
+public static class DesktopInput
+{
+    private static Game? game;
+    private static readonly Queue<GestureSample> gestures = new();
+    private static readonly Contact[] contacts = [new(100), new(101), new(102), new(103)];
+    private static bool previousAccept;
+    private static bool previousBack;
+    private static object? focusedLevel;
+    private static int focusedIndex;
+    private static int previousDirection;
+    private static long nextNavigationTick;
+    private static FieldInfo? modeField;
+    private static FieldInfo? menuLevelsField;
+    private static MethodInfo? menuActiveMethod;
+    private static FieldInfo? menuLevelActiveField;
+    private static FieldInfo? menuLevelAlphaField;
+    private static FieldInfo? menuLevelItemsField;
+    private static FieldInfo? menuItemFlagField;
+    private static FieldInfo? menuItemPositionField;
+    private static FieldInfo? menuItemClickFrameField;
+    private static FieldInfo? menuScaleField;
+    private static Func<Vector2?>? zombieOrigin;
+    private static Func<Vector2?>? vikingOrigin;
+    public static int Samples { get; private set; }
+    public static int ActiveSamples { get; private set; }
+    public static int MouseSamples { get; private set; }
+    public static int KeyboardSamples { get; private set; }
+
+    public static void Configure(Game runningGame)
+    {
+        game = runningGame;
+        gestures.Clear();
+        foreach (var contact in contacts) contact.Reset();
+        previousAccept = previousBack = false;
+        focusedLevel = null;
+        focusedIndex = previousDirection = 0;
+        nextNavigationTick = 0;
+        Samples = ActiveSamples = MouseSamples = KeyboardSamples = 0;
+        var assembly = runningGame.GetType().Assembly;
+        const BindingFlags staticFlags = BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
+        const BindingFlags instanceFlags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+        modeField = RequireType(assembly, "IMAK3Z0MB1EGAEM.director.GameState").GetField("state", staticFlags)
+            ?? throw new MissingFieldException("GameState.state");
+        var menu = RequireType(assembly, "IMAK3Z0MB1EGAEM.menu.Menu");
+        menuLevelsField = menu.GetField("menuLevel", staticFlags)
+            ?? throw new MissingFieldException("Menu.menuLevel");
+        menuActiveMethod = menu.GetMethod("GetActive", staticFlags)
+            ?? throw new MissingMethodException("Menu.GetActive");
+        var menuLevel = RequireType(assembly, "IMAK3Z0MB1EGAEM.menu.MenuLevel");
+        menuLevelActiveField = RequireField(menuLevel, "active", instanceFlags);
+        menuLevelAlphaField = RequireField(menuLevel, "alpha", instanceFlags);
+        menuLevelItemsField = RequireField(menuLevel, "item", instanceFlags);
+        var menuItem = RequireType(assembly, "ZombiesWP7.menu.MenuItem");
+        menuItemFlagField = RequireField(menuItem, "flag", instanceFlags);
+        menuItemPositionField = RequireField(menuItem, "tiltLoc", instanceFlags);
+        menuItemClickFrameField = RequireField(menuItem, "clickFrame", instanceFlags);
+        menuScaleField = RequireField(runningGame.GetType(), "MENUSCALE", staticFlags);
+
+        var heroes = RequireType(assembly, "IMAK3Z0MB1EGAEM.character.CharMan")
+            .GetField("hero", staticFlags) ?? throw new MissingFieldException("CharMan.hero");
+        var heroLoc = RequireType(assembly, "IMAK3Z0MB1EGAEM.character.Hero")
+            .GetField("loc", instanceFlags) ?? throw new MissingFieldException("Hero.loc");
+        var zombieScreen = ScreenMethod(RequireType(assembly, "IMAK3Z0MB1EGAEM.ScrollMan"));
+        zombieOrigin = () => ScreenPosition((heroes.GetValue(null) as Array)?.GetValue(0), heroLoc, zombieScreen);
+
+        var vgame = runningGame.GetType().GetField("vgame", staticFlags)
+            ?? throw new MissingFieldException("Game1.vgame");
+        var manager = RequireType(assembly, "Viking_x86.VikingGame").GetField("charMgr", instanceFlags)
+            ?? throw new MissingFieldException("VikingGame.charMgr");
+        var characters = RequireType(assembly, "Viking_x86.character.CharacterMgr")
+            .GetField("character", instanceFlags) ?? throw new MissingFieldException("CharacterMgr.character");
+        var characterLoc = RequireType(assembly, "Viking_x86.character.Character")
+            .GetField("loc", instanceFlags) ?? throw new MissingFieldException("Character.loc");
+        var vikingScreen = ScreenMethod(RequireType(assembly, "Viking_x86.VScroll"));
+        vikingOrigin = () =>
+        {
+            var running = vgame.GetValue(null);
+            var characterManager = running is null ? null : manager.GetValue(running);
+            return ScreenPosition(characterManager is null ? null :
+                (characters.GetValue(characterManager) as Array)?.GetValue(0), characterLoc, vikingScreen);
+        };
+    }
+
+    public static GamePadState GetGamePadState(PlayerIndex player)
+    {
+        var state = GamePad.GetState(player);
+        var keyboard = Keyboard.GetState();
+        var playing = IsPlaying(ReadMode());
+        var back = (game?.IsActive ?? false) &&
+            (keyboard.IsKeyDown(Keys.Back) || keyboard.IsKeyDown(Keys.Escape) ||
+             (playing ? state.Buttons.Start == ButtonState.Pressed ||
+                 (MenuIsActive() && (state.Buttons.B == ButtonState.Pressed ||
+                                     state.Buttons.Back == ButtonState.Pressed))
+                 : state.Buttons.B == ButtonState.Pressed ||
+                   state.Buttons.Back == ButtonState.Pressed));
+        var pressed = back && !previousBack;
+        previousBack = back;
+        return pressed ? new GamePadState(Vector2.Zero, Vector2.Zero, 0, 0, Buttons.Back) :
+            state.Buttons.Back == ButtonState.Pressed ?
+                new GamePadState(Vector2.Zero, Vector2.Zero, 0, 0) : state;
+    }
+
+    public static TouchCollection GetState()
+    {
+        Samples++;
+        var native = TouchPanel.GetState();
+        if (game is null) return native;
+        var touches = new List<TouchLocation>(native.Count + contacts.Length);
+        foreach (var touch in native) touches.Add(touch);
+
+        var active = game.IsActive;
+        if (active) ActiveSamples++;
+        var keyboard = active ? Keyboard.GetState() : default;
+        var pad = active ? GamePad.GetState(PlayerIndex.One) : default;
+        var mode = ReadMode();
+        var playing = IsPlaying(mode) && !MenuIsActive();
+        var left = Direction(keyboard, Keys.A, Keys.D, Keys.W, Keys.S) +
+            new Vector2(pad.ThumbSticks.Left.X, -pad.ThumbSticks.Left.Y);
+        var right = Direction(keyboard, Keys.Left, Keys.Right, Keys.Up, Keys.Down) +
+            new Vector2(pad.ThumbSticks.Right.X, -pad.ThumbSticks.Right.Y);
+        var size = new Vector2(600, 360);
+        var screen = game.GraphicsDevice.PresentationParameters;
+        size = new Vector2(screen.BackBufferWidth, screen.BackBufferHeight);
+        var radius = 80f * size.X / 600f;
+        var leftCenter = new Vector2(120, 240) * size / new Vector2(600, 360);
+        var rightCenter = new Vector2(480, 240) * size / new Vector2(600, 360);
+        contacts[0].Sample(active && playing && left.LengthSquared() > 0.04f,
+            leftCenter + Clamp(left) * radius, touches, pressOrigin: leftCenter);
+        contacts[1].Sample(active && playing && right.LengthSquared() > 0.04f,
+            rightCenter + Clamp(right) * radius, touches, pressOrigin: rightCenter);
+
+        var mouse = Mouse.GetState();
+        var pointer = MapPointer(mouse.X, mouse.Y, game.Window.ClientBounds, size);
+        var inside = active && pointer is not null;
+        var pauseHotspot = pointer is Vector2 point && point.X > size.X - 70 &&
+            point.X < size.X - 10 && point.Y >= 0 && point.Y < 60;
+        if (inside && (mouse.LeftButton == ButtonState.Pressed || mouse.RightButton == ButtonState.Pressed)) MouseSamples++;
+        if (keyboard.IsKeyDown(Keys.W) || keyboard.IsKeyDown(Keys.A) || keyboard.IsKeyDown(Keys.S) ||
+            keyboard.IsKeyDown(Keys.D) || keyboard.IsKeyDown(Keys.Enter) ||
+            keyboard.IsKeyDown(Keys.Left) || keyboard.IsKeyDown(Keys.Right) ||
+            keyboard.IsKeyDown(Keys.Up) || keyboard.IsKeyDown(Keys.Down)) KeyboardSamples++;
+        var shoot = inside && playing && !pauseHotspot &&
+            (mouse.LeftButton == ButtonState.Pressed || mouse.RightButton == ButtonState.Pressed);
+        var origin = shoot ? (mode == 5 ? vikingOrigin?.Invoke() : zombieOrigin?.Invoke()) : null;
+        var aim = pointer is Vector2 target && origin is Vector2 player
+            ? AimDirection(target, player) : Vector2.Zero;
+        contacts[2].Sample(shoot && origin is not null && aim != Vector2.Zero,
+            rightCenter + aim * radius, touches, pressOrigin: rightCenter);
+        var pointAndClick = inside && mouse.LeftButton == ButtonState.Pressed && (!playing || pauseHotspot);
+        contacts[3].Sample(pointAndClick, pointer ?? Vector2.Zero,
+            touches, inside ? gestures : null);
+
+        var level = active ? ActiveMenuLevel() : null;
+        var items = level is null ? [] : ClickableItems(level);
+        if (!ReferenceEquals(level, focusedLevel))
+        {
+            focusedLevel = level;
+            focusedIndex = InitialFocus(items);
+            previousDirection = 0;
+            nextNavigationTick = 0;
+        }
+        else if ((focusedIndex < 0 && items.Count > 0) || focusedIndex >= items.Count)
+            focusedIndex = InitialFocus(items);
+        var direction = active ? MenuDirection(keyboard, pad) : Vector2.Zero;
+        var directionCode = direction.X < 0 ? -1 : direction.X > 0 ? 1 :
+            direction.Y < 0 ? -2 : direction.Y > 0 ? 2 : 0;
+        var now = Stopwatch.GetTimestamp();
+        var navigate = directionCode != 0 &&
+            (directionCode != previousDirection || now >= nextNavigationTick);
+        if (navigate)
+        {
+            if (level is not null)
+                focusedIndex = MenuNavigation.Next(items.Select(item => item.Position).ToArray(),
+                    focusedIndex, (int)direction.X, (int)direction.Y);
+            else if (mode == 1 && direction.X != 0)
+                gestures.Enqueue(Tap(new Vector2(direction.X < 0 ? 50 : size.X - 50, size.Y / 2)));
+            nextNavigationTick = now + (long)(Stopwatch.Frequency *
+                (directionCode != previousDirection ? 0.35 : 0.12));
+        }
+        previousDirection = directionCode;
+        if (level is not null && focusedIndex >= 0 && focusedIndex < items.Count)
+        {
+            var selected = items[focusedIndex].Item;
+            var frame = (float)menuItemClickFrameField!.GetValue(selected)!;
+            if (frame < 0.07f) menuItemClickFrameField.SetValue(selected, 0.07f);
+        }
+        var accept = active && (keyboard.IsKeyDown(Keys.Enter) ||
+            pad.Buttons.A == ButtonState.Pressed);
+        if (accept && !previousAccept)
+        {
+            if (level is not null && focusedIndex >= 0 && focusedIndex < items.Count &&
+                (float)menuLevelAlphaField!.GetValue(level)! > 0.9f)
+                gestures.Enqueue(Tap(items[focusedIndex].Position * (float)menuScaleField!.GetValue(null)!));
+            else if (level is null && mode is 1 or 2 or 4 or 6)
+                gestures.Enqueue(Tap(size / 2f));
+        }
+        previousAccept = accept;
+        return new TouchCollection(touches.ToArray());
+    }
+
+    public static bool IsGestureAvailable => TouchPanel.IsGestureAvailable || gestures.Count > 0;
+
+    public static GestureSample ReadGesture() => TouchPanel.IsGestureAvailable
+        ? TouchPanel.ReadGesture()
+        : gestures.Dequeue();
+
+    private static GestureSample Tap(Vector2 position) =>
+        new(GestureType.Tap, TimeSpan.Zero, position, Vector2.Zero, Vector2.Zero, Vector2.Zero);
+
+    private static Vector2 Direction(KeyboardState state, Keys negativeX, Keys positiveX,
+        Keys negativeY, Keys positiveY) => new(
+            (state.IsKeyDown(positiveX) ? 1 : 0) - (state.IsKeyDown(negativeX) ? 1 : 0),
+            (state.IsKeyDown(positiveY) ? 1 : 0) - (state.IsKeyDown(negativeY) ? 1 : 0));
+
+    private static Vector2 Clamp(Vector2 vector) => vector.LengthSquared() > 1
+        ? Vector2.Normalize(vector) : vector;
+
+    private static Vector2 MenuDirection(KeyboardState keyboard, GamePadState pad)
+    {
+        var x = (pad.DPad.Right == ButtonState.Pressed || keyboard.IsKeyDown(Keys.Right) ? 1 : 0) -
+            (pad.DPad.Left == ButtonState.Pressed || keyboard.IsKeyDown(Keys.Left) ? 1 : 0);
+        var y = (pad.DPad.Down == ButtonState.Pressed || keyboard.IsKeyDown(Keys.Down) ? 1 : 0) -
+            (pad.DPad.Up == ButtonState.Pressed || keyboard.IsKeyDown(Keys.Up) ? 1 : 0);
+        if (x == 0 && y == 0)
+        {
+            x = pad.ThumbSticks.Left.X > 0.5f ? 1 : pad.ThumbSticks.Left.X < -0.5f ? -1 : 0;
+            y = pad.ThumbSticks.Left.Y > 0.5f ? -1 : pad.ThumbSticks.Left.Y < -0.5f ? 1 : 0;
+        }
+        return new Vector2(x, y);
+    }
+
+    private static object? ActiveMenuLevel()
+    {
+        if (menuLevelsField?.GetValue(null) is not IDictionary levels) return null;
+        foreach (DictionaryEntry entry in levels)
+            if (entry.Value is { } level && (bool)menuLevelActiveField!.GetValue(level)!)
+                return level;
+        return null;
+    }
+
+    private static List<(object Item, Vector2 Position)> ClickableItems(object level)
+    {
+        var result = new List<(object, Vector2)>();
+        if (menuLevelItemsField!.GetValue(level) is not Array items) return result;
+        foreach (var item in items)
+        {
+            if (item is null || (int)menuItemFlagField!.GetValue(item)! is not (0 or 1)) continue;
+            result.Add((item, (Vector2)menuItemPositionField!.GetValue(item)!));
+        }
+        return result;
+    }
+
+    private static int InitialFocus(List<(object Item, Vector2 Position)> items)
+    {
+        var index = -1;
+        for (var i = 0; i < items.Count; i++)
+            if (index < 0 || items[i].Position.Y < items[index].Position.Y ||
+                (items[i].Position.Y == items[index].Position.Y &&
+                 items[i].Position.X < items[index].Position.X)) index = i;
+        return index;
+    }
+
+    public static Vector2 AimDirection(Vector2 pointer, Vector2 player)
+    {
+        var delta = pointer - player;
+        return delta.LengthSquared() < 1f ? Vector2.Zero : Vector2.Normalize(delta);
+    }
+
+    private static int ReadMode() => (int?)modeField?.GetValue(null) ?? 0;
+    private static bool IsPlaying(int mode) => mode is 3 or 5 or 7;
+    private static bool MenuIsActive() => menuLevelsField?.GetValue(null) is not null &&
+        (bool)(menuActiveMethod?.Invoke(null, null) ?? false);
+
+    private static Type RequireType(Assembly assembly, string name) =>
+        assembly.GetType(name, throwOnError: true)!;
+
+    private static FieldInfo RequireField(Type type, string name, BindingFlags flags) =>
+        type.GetField(name, flags) ?? throw new MissingFieldException(type.FullName, name);
+
+    private static MethodInfo ScreenMethod(Type type) => type.GetMethods(
+            BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)
+        .Single(method => method.Name == "GetScreenLoc" &&
+            method.GetParameters().Select(parameter => parameter.ParameterType)
+                .SequenceEqual([typeof(Vector2), typeof(float)]));
+
+    private static Vector2? ScreenPosition(object? actor, FieldInfo location, MethodInfo transform) =>
+        actor is null ? null : (Vector2)transform.Invoke(null, [location.GetValue(actor)!, 1f])!;
+
+    public static Vector2? MapPointer(int x, int y, Rectangle client, Vector2 target)
+    {
+        if (client.Width <= 0 || client.Height <= 0 || target.X <= 0 || target.Y <= 0)
+            return null;
+        var scale = MathF.Min(client.Width / target.X, client.Height / target.Y);
+        var width = target.X * scale;
+        var height = target.Y * scale;
+        var localX = x - (client.Width - width) / 2f;
+        var localY = y - (client.Height - height) / 2f;
+        return localX >= 0 && localY >= 0 && localX < width && localY < height
+            ? new Vector2(localX / scale, localY / scale) : null;
+    }
+
+    private sealed class Contact(int id)
+    {
+        private bool down;
+        private Vector2 previous;
+        private Vector2 start;
+        private int frames;
+
+        public void Reset() { down = false; previous = start = Vector2.Zero; frames = 0; }
+
+        public void Sample(bool pressed, Vector2 position, List<TouchLocation> output,
+            Queue<GestureSample>? tapQueue = null, Vector2? pressOrigin = null)
+        {
+            if (pressed)
+            {
+                if (!down && pressOrigin is not null) position = pressOrigin.Value;
+                output.Add(new TouchLocation(id, down ? TouchLocationState.Moved : TouchLocationState.Pressed,
+                    position, down ? TouchLocationState.Moved : TouchLocationState.Invalid, previous));
+                if (!down) { start = position; frames = 0; }
+                down = true;
+                previous = position;
+                frames++;
+            }
+            else if (down)
+            {
+                output.Add(new TouchLocation(id, TouchLocationState.Released, previous,
+                    TouchLocationState.Moved, previous));
+                if (tapQueue is not null && frames <= 30 && Vector2.DistanceSquared(start, previous) <= 225)
+                    tapQueue.Enqueue(Tap(previous));
+                down = false;
+            }
+        }
+    }
+}
