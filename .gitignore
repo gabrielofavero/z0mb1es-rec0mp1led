@@ -1,0 +1,14 @@
+# User-supplied game packages and all locally derived game material.
+*.xap
+private/
+/game/*
+!/game/README.md
+/generated/
+/out/
+/installer/out/
+/assets/game/
+
+# Local build products.
+**/bin/
+**/obj/
+__pycache__/
