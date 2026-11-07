@@ -1,6 +1,8 @@
 using System.Collections;
 using System.Reflection;
 using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
+using Port.Hooks;
 
 /// <summary>Developer diagnostic for original menu construction and drawing.</summary>
 internal sealed class MenuProbe
@@ -13,12 +15,22 @@ internal sealed class MenuProbe
     private int current = -1;
     private int openedAt;
     private bool captured;
+    private bool touchOpened;
+    private bool touchCaptured;
+    private bool displayOpened;
+    private bool displayCaptured;
 
     public bool Verified { get; private set; }
     public int CurrentLevel => current;
     public bool ShouldCapture(int updates) => current >= 0 && current < 17 &&
         current is not (11 or 16) && !captured && updates - openedAt >= 25;
     public void MarkCaptured() => captured = true;
+    public bool ShouldCaptureTouch(int updates) => current == 5 && touchOpened &&
+        !touchCaptured && updates - openedAt >= 2;
+    public void MarkTouchCaptured() => touchCaptured = true;
+    public bool ShouldCaptureDisplay(int updates) => current == 5 && displayOpened &&
+        !displayCaptured && updates - openedAt >= 2;
+    public void MarkDisplayCaptured() => displayCaptured = true;
 
     public MenuProbe(Game game, Type gameType)
     {
@@ -62,6 +74,64 @@ internal sealed class MenuProbe
         }
         if (!active || alpha < 0.9f || !captured)
             throw new InvalidOperationException($"Menu probe level {current} did not remain visible.");
+        if (current == 5 && !touchOpened)
+        {
+            level.GetType().GetMethod("Click", Instance)!.Invoke(level, ["T0UCH"]);
+            if (!DesktopDisplay.IsTouchPage)
+                throw new InvalidOperationException("Settings T0UCH entry did not open.");
+            touchOpened = true;
+            openedAt = updates;
+            return;
+        }
+        if (current == 5 && !displayOpened)
+        {
+            if (!touchCaptured || !DesktopDisplay.IsTouchPage)
+                throw new InvalidOperationException("Native Touch settings page was not rendered.");
+            level.GetType().GetMethod("Click", Instance)!.Invoke(level, ["BACK"]);
+            if (DesktopDisplay.IsTouchPage)
+                throw new InvalidOperationException("Touch settings page did not return to Settings.");
+            level.GetType().GetMethod("Click", Instance)!.Invoke(level, ["DISPLAY"]);
+            if (!DesktopDisplay.IsDisplayPage)
+                throw new InvalidOperationException("Settings DISPLAY entry did not open.");
+            var graphics = (GraphicsDeviceManager)game.Services.GetService(typeof(IGraphicsDeviceManager))!;
+            var initialVSync = graphics.SynchronizeWithVerticalRetrace;
+            level.GetType().GetMethod("Click", Instance)!.Invoke(level, [initialVSync ? "VSYNC: ON" : "VSYNC: OFF"]);
+            if (graphics.SynchronizeWithVerticalRetrace == initialVSync)
+                throw new InvalidOperationException("Settings VSync click did not apply.");
+            level.GetType().GetMethod("Click", Instance)!.Invoke(level, [initialVSync ? "VSYNC: OFF" : "VSYNC: ON"]);
+            if (graphics.SynchronizeWithVerticalRetrace != initialVSync)
+                throw new InvalidOperationException("Settings VSync did not restore.");
+            var desktopMode = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode;
+            var presets = DesktopDisplay.AvailablePresets(desktopMode.Width, desktopMode.Height);
+            for (var i = 1; i <= presets.Length; i++)
+            {
+                level.GetType().GetMethod("Click", Instance)!.Invoke(level, ["PRES3T:"]);
+                var expected = presets[i % presets.Length];
+                var actual = game.GraphicsDevice.PresentationParameters;
+                if (actual.BackBufferWidth != expected.Width || actual.BackBufferHeight != expected.Height)
+                    throw new InvalidOperationException($"Settings preset cycle expected {expected.Width}x{expected.Height}, got {actual.BackBufferWidth}x{actual.BackBufferHeight}.");
+            }
+            if (!DesktopDisplay.ApplyForProbe("Windowed", 1280, 720))
+                throw new InvalidOperationException("Live display resize did not apply.");
+            level.GetType().GetMethod("Click", Instance)!.Invoke(level, ["M0DE: WINDOWED"]);
+            if (!game.Window.IsBorderlessEXT || game.GraphicsDevice.PresentationParameters.IsFullScreen)
+                throw new InvalidOperationException("Settings mode click did not apply borderless mode.");
+            if (!DesktopDisplay.ApplyForProbe("Windowed", 1280, 720))
+                throw new InvalidOperationException("Display mode did not restore after the click.");
+            displayOpened = true;
+            openedAt = updates;
+            return;
+        }
+        if (current == 5 && (!displayCaptured || !DesktopDisplay.IsDisplayPage))
+            throw new InvalidOperationException("Native Display settings page was not rendered.");
+        if (current == 5)
+        {
+            if (!DesktopDisplay.ApplyForProbe("Windowed", 600, 360))
+                throw new InvalidOperationException("Display size did not restore.");
+            level.GetType().GetMethod("Click", Instance)!.Invoke(level, ["BACK"]);
+            if (DesktopDisplay.IsDisplayPage)
+                throw new InvalidOperationException("Display settings page did not return to Settings.");
+        }
         Console.WriteLine($"MENU_PROBE level={current} type={level.GetType().Name} active={active} alpha={alpha} captured={captured}");
         if (current == 16)
         {

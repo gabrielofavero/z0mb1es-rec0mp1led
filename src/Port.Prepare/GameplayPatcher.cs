@@ -13,7 +13,8 @@ namespace Port.Prepare;
 public static class GameplayPatcher
 {
     private const string OriginalHash = "7b819cb562826ae4d2592ff741877e76da0e57bfbe48192aabb79319fdb36823";
-    private const string HooksHash = "66ae370c5c673eaf801f4c79f482cb707554a8e51e447f04bd852289d8b79287";
+    private const string DebugHooksHash = "745208ed8aa8d5f1d3020b00826666da74d4c25c7c0ca442a0649fd6480704dc";
+    private const string ReleaseHooksHash = "03dcef0d5c08f59911d5bd4def52663678863f3da85dd8188e226463ed2646df";
     private const string OriginalMethodBodyHash = "54407b733f8c2d7cdc67534f66899e99191731e2e0beeed8481bc673ff54f425";
     private const string TouchBodyHash = "5d5aea53560307207b175bab14d39138756165598972d7604491f4cd44d7bfc6";
     private const string StorageWriteHash = "887e2f79ecea6543a5ba56aecd08b4c6c82dcda8b790ee81a3e8e5a568249433";
@@ -22,6 +23,9 @@ public static class GameplayPatcher
     private const string LeaderboardsUpdateHash = "5b5d6dcc387237ee80f60ec5e599714c31c4a6b877ecd0b4e1ab6138d3df2a19";
     private const string MenuItemDrawHash = "f72bc14c85ee9de04d11c79cb67437d6d77fcf857ac560f8581e0f7a402fb550";
     private const string PlayerSettingsCtorHash = "87b74f99337495a86a9b364e8005b62b386334765edce14db0cf606714e66b3e";
+    private const string GameDrawHash = "9a07780c3bcab593902543edd0b930e4920c380ba40f03d9f77bf6c609700680";
+    private const string SettingsClickHash = "562c747623dfa56402f3b050d2d113fb7092e50fb23aa43c9e59978be5a7ebca";
+    private const string SettingsCancelHash = "f9603f155bd0fa415014acf3d4f0fb7960ade1f793ccc1ea7060968645d162bd";
     private const int MethodToken = 0x06000152;
     private const int TouchMethodToken = 0x0600007a;
     private const int CallOffset = 0x0015;
@@ -46,6 +50,9 @@ public static class GameplayPatcher
             VerifyBody(pe, 0x06000072, LeaderboardsUpdateHash);
             VerifyBody(pe, 0x06000103, MenuItemDrawHash);
             VerifyBody(pe, 0x06000251, PlayerSettingsCtorHash);
+            VerifyBody(pe, 0x060000cf, GameDrawHash);
+            VerifyBody(pe, 0x060002c4, SettingsClickHash);
+            VerifyBody(pe, 0x060002c5, SettingsCancelHash);
         }
         var priorManifest = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(preparedDll))!, "patch-manifest.json");
         var prior = JsonSerializer.Deserialize<PatchManifest>(File.ReadAllText(priorManifest),
@@ -55,7 +62,8 @@ public static class GameplayPatcher
         if (prior.SourceSha256 != OriginalHash || prior.PreparedSha256 != preparedHash ||
             prior.Patches.Any(patch => patch.Kind == "gameplay-call"))
             throw new PreparationException("Prepared DLL does not match its original guarded rewrite.");
-        if (Hash(hooksDll) != HooksHash ||
+        var hooksHash = Hash(hooksDll);
+        if (hooksHash is not (DebugHooksHash or ReleaseHooksHash) ||
             System.Reflection.AssemblyName.GetAssemblyName(hooksDll).Name != "Port.Hooks")
             throw new PreparationException("Hook target assembly identity differs.");
 
@@ -99,6 +107,7 @@ public static class GameplayPatcher
                 PatchOfflineLeaderboards(module);
                 BrightenLockedAchievements(module);
                 DisableTouchPadsByDefault(module);
+                PatchDisplay(module, hooks);
                 module.Write(stageDll, new WriterParameters { WriteSymbols = false });
             }
             using (var check = ModuleDefinition.ReadModule(stageDll))
@@ -134,10 +143,11 @@ public static class GameplayPatcher
                 VerifyOfflineLeaderboards(check);
                 VerifyLockedAchievements(check);
                 VerifyTouchPadDefault(check);
+                VerifyDisplay(check);
             }
             var outputHash = Hash(stageDll);
             var patch = new PatchRecord("gameplay-call", OriginalHash, MethodSignature,
-                OriginalMethodBodyHash, $"IL_0015:call Port.Hooks.DesktopMediaSources.GetAvailableMediaSources() [hooksSha256={HooksHash}]",
+                OriginalMethodBodyHash, $"IL_0015:call Port.Hooks.DesktopMediaSources.GetAvailableMediaSources() [hooksSha256={hooksHash}]",
                 "one call target is Port.Hooks; original method control flow is preserved");
             var manifest = prior with
             {
@@ -147,12 +157,12 @@ public static class GameplayPatcher
                 Patches = [.. prior.Patches, patch,
                     new PatchRecord("gameplay-call", OriginalHash,
                         "0x0600007a System.Void ZombiesWP7.TouchMgr::Update()", TouchBodyHash,
-                        $"IL_00d2,017b,0785,078f:call Port.Hooks.DesktopInput [hooksSha256={HooksHash}]",
+                        $"IL_00d2,017b,0785,078f:call Port.Hooks.DesktopInput [hooksSha256={hooksHash}]",
                         "four input call targets are Port.Hooks; original method control flow is preserved"),
                     new PatchRecord("gameplay-call", OriginalHash,
                         "0x06000123/0124 ZombiesWP7.storage.StorageMgr::Write/Read()",
                         StorageWriteHash + "/" + StorageReadHash,
-                        $"two methods call Port.Hooks.DesktopStorage; ten serializer parameters use Stream [hooksSha256={HooksHash}]",
+                        $"two methods call Port.Hooks.DesktopStorage; ten serializer parameters use Stream [hooksSha256={hooksHash}]",
                         "original version-101 serializers remain in the prepared game"),
                     new PatchRecord("gameplay-call", OriginalHash,
                         "0x06000081 Viking_x86.main.MainMenu::Update(); 0x06000072 IMAK3Z0MB1EGAEM.menu.Leaderboards::Update()",
@@ -168,7 +178,12 @@ public static class GameplayPatcher
                         "0x06000251 System.Void ZombiesWP7.player.Settings::.ctor()",
                         PlayerSettingsCtorHash,
                         "IL_0001:ldc.i4.0 initializes showTouchPads to false",
-                        "saved player preferences still load normally")]
+                        "saved player preferences still load normally"),
+                    new PatchRecord("gameplay-call", OriginalHash,
+                        "0x060000cf ZombiesWP7.Game1::Draw(); 0x060002c4/2c5 IMAK3Z0MB1EGAEM.menu.Settings::Click/Cancel",
+                        GameDrawHash + "/" + SettingsClickHash + "/" + SettingsCancelHash,
+                        "draw through a 600x360 logical target and route native Display page actions to Port.Hooks.DesktopDisplay",
+                        "original game coordinates and Settings actions remain intact")]
             };
             File.WriteAllText(Path.Combine(stage, "patch-manifest.json"),
                 JsonSerializer.Serialize(manifest,
@@ -354,5 +369,73 @@ public static class GameplayPatcher
             .Methods.Single(method => method.MetadataToken.ToInt32() == 0x06000251);
         if (ctor.Body.Instructions.Single(item => item.Offset == 0x0001).OpCode != OpCodes.Ldc_I4_0)
             throw new PreparationException("Touch pad default postcondition failed.");
+    }
+
+    private static void PatchDisplay(ModuleDefinition module, ModuleDefinition hooks)
+    {
+        var display = hooks.Types.Single(type => type.FullName == "Port.Hooks.DesktopDisplay");
+        MethodReference Target(string name, int arguments) => module.ImportReference(display.Methods.Single(method =>
+            method.Name == name && method.IsStatic && method.Parameters.Count == arguments));
+
+        var draw = module.Types.Single(type => type.FullName == "ZombiesWP7.Game1")
+            .Methods.Single(method => method.MetadataToken.ToInt32() == 0x060000cf);
+        var begin = draw.Body.Instructions.SingleOrDefault(item => item.Offset == 0x002d);
+        var end = draw.Body.Instructions.SingleOrDefault(item => item.Offset == 0x027c);
+        if (begin?.OpCode != OpCodes.Ldarg_0 || end?.OpCode != OpCodes.Ldarg_0 ||
+            end.Next?.OpCode != OpCodes.Ldarg_1 ||
+            end.Next.Next?.Operand is not MethodReference baseDraw || baseDraw.FullName !=
+                "System.Void Microsoft.Xna.Framework.Game::Draw(Microsoft.Xna.Framework.GameTime)")
+            throw new PreparationException("Original display draw anchors differ.");
+        var il = draw.Body.GetILProcessor();
+        begin.OpCode = OpCodes.Call;
+        begin.Operand = Target("BeginFrame", 0);
+        il.InsertAfter(begin, il.Create(OpCodes.Ldarg_0));
+        end.OpCode = OpCodes.Call;
+        end.Operand = Target("EndFrame", 0);
+        il.InsertAfter(end, il.Create(OpCodes.Ldarg_0));
+
+        var click = module.Types.Single(type => type.FullName == "IMAK3Z0MB1EGAEM.menu.Settings")
+            .Methods.Single(method => method.MetadataToken.ToInt32() == 0x060002c4);
+        var first = click.Body.Instructions.First();
+        if (first.OpCode != OpCodes.Ldarg_1 || click.Parameters.Count != 1 ||
+            click.Parameters[0].ParameterType.FullName != "System.String")
+            throw new PreparationException("Original Settings.Click anchor differs.");
+        il = click.Body.GetILProcessor();
+        il.InsertBefore(first, il.Create(OpCodes.Ldarg_0));
+        il.InsertBefore(first, il.Create(OpCodes.Ldarg_1));
+        il.InsertBefore(first, il.Create(OpCodes.Call, Target("HandleSettingsClick", 2)));
+        il.InsertBefore(first, il.Create(OpCodes.Brfalse, first));
+        il.InsertBefore(first, il.Create(OpCodes.Ret));
+
+        var cancel = module.Types.Single(type => type.FullName == "IMAK3Z0MB1EGAEM.menu.Settings")
+            .Methods.Single(method => method.MetadataToken.ToInt32() == 0x060002c5);
+        var cancelFirst = cancel.Body.Instructions.First();
+        if (cancelFirst.OpCode != OpCodes.Ldsfld || cancel.Parameters.Count != 0)
+            throw new PreparationException("Original Settings.Cancel anchor differs.");
+        il = cancel.Body.GetILProcessor();
+        il.InsertBefore(cancelFirst, il.Create(OpCodes.Ldarg_0));
+        il.InsertBefore(cancelFirst, il.Create(OpCodes.Call, Target("HandleSettingsCancel", 1)));
+        il.InsertBefore(cancelFirst, il.Create(OpCodes.Brfalse, cancelFirst));
+        il.InsertBefore(cancelFirst, il.Create(OpCodes.Ret));
+    }
+
+    private static void VerifyDisplay(ModuleDefinition module)
+    {
+        var draw = module.Types.Single(type => type.FullName == "ZombiesWP7.Game1")
+            .Methods.Single(method => method.Name == "Draw");
+        var click = module.Types.Single(type => type.FullName == "IMAK3Z0MB1EGAEM.menu.Settings")
+            .Methods.Single(method => method.Name == "Click");
+        var cancel = module.Types.Single(type => type.FullName == "IMAK3Z0MB1EGAEM.menu.Settings")
+            .Methods.Single(method => method.Name == "Cancel");
+        foreach (var name in new[] { "BeginFrame", "EndFrame" })
+            if (draw.Body.Instructions.Count(item => item.Operand is MethodReference method &&
+                method.DeclaringType.FullName == "Port.Hooks.DesktopDisplay" && method.Name == name) != 1)
+                throw new PreparationException($"Display {name} postcondition failed.");
+        if (click.Body.Instructions.Count(item => item.Operand is MethodReference method &&
+                method.DeclaringType.FullName == "Port.Hooks.DesktopDisplay" && method.Name == "HandleSettingsClick") != 1)
+            throw new PreparationException("Settings display entry postcondition failed.");
+        if (cancel.Body.Instructions.Count(item => item.Operand is MethodReference method &&
+                method.DeclaringType.FullName == "Port.Hooks.DesktopDisplay" && method.Name == "HandleSettingsCancel") != 1)
+            throw new PreparationException("Settings display cancel postcondition failed.");
     }
 }

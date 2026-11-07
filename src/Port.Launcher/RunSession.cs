@@ -68,6 +68,7 @@ internal static class RunSession
                 ?? throw new InvalidDataException("Game1 construction returned null."));
             game.IsMouseVisible = true;
             game.Window.AllowUserResizing = true;
+            DesktopDisplay.Configure(game);
             DesktopInput.Configure(game);
             game.Content.RootDirectory = Path.Combine(content, "Content");
             var monitor = new RunMonitor(game, gameType, frameLimit, windowed, probeServices, probeMode, probeMenus);
@@ -182,11 +183,7 @@ internal sealed class RunMonitor : DrawableGameComponent
     public override void Initialize()
     {
         base.Initialize();
-        if (windowed && Game.Services.GetService(typeof(IGraphicsDeviceManager)) is GraphicsDeviceManager graphics)
-        {
-            graphics.IsFullScreen = false;
-            graphics.ApplyChanges();
-        }
+        DesktopDisplay.ApplyStartup(windowed);
         var viewport = gameType.GetField("VIEWPORT", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)?.GetValue(null);
         Console.WriteLine($"RUN_DISPLAY originalViewport={viewport} actualBackBuffer={GraphicsDevice.PresentationParameters.BackBufferWidth}x{GraphicsDevice.PresentationParameters.BackBufferHeight} fullscreen={GraphicsDevice.PresentationParameters.IsFullScreen} windowHandle={Game.Window.Handle} active={Game.IsActive}");
     }
@@ -194,6 +191,8 @@ internal sealed class RunMonitor : DrawableGameComponent
     public override void Update(GameTime gameTime)
     {
         Updates++;
+        DesktopDisplay.AttachSettingsMenu();
+        DesktopDisplay.Update();
         var touch = gameType.Assembly.GetType("ZombiesWP7.TouchMgr");
         const BindingFlags touchFlags = BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
         MovementSeen |= ((Vector2?)touch?.GetField("lVec", touchFlags)?.GetValue(null))?.LengthSquared() > 0.01f;
@@ -334,6 +333,16 @@ internal sealed class RunMonitor : DrawableGameComponent
         {
             CaptureScreen($"menu-{menuProbe.CurrentLevel:D2}", "MENU");
             menuProbe.MarkCaptured();
+        }
+        if (menuProbe?.ShouldCaptureDisplay(Updates) == true)
+        {
+            CaptureScreen("display-page", "MENU");
+            menuProbe.MarkDisplayCaptured();
+        }
+        if (menuProbe?.ShouldCaptureTouch(Updates) == true)
+        {
+            CaptureScreen("touch-page", "MENU");
+            menuProbe.MarkTouchCaptured();
         }
         if (MenuReached && !RenderedMenu && Frames % 30 == 0)
         {

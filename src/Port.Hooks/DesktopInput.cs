@@ -16,6 +16,7 @@ public static class DesktopInput
     private static bool previousAccept;
     private static bool previousBack;
     private static object? focusedLevel;
+    private static object? focusedItems;
     private static int focusedIndex;
     private static int previousDirection;
     private static long nextNavigationTick;
@@ -55,6 +56,7 @@ public static class DesktopInput
         foreach (var contact in contacts) contact.Reset();
         previousAccept = previousBack = false;
         focusedLevel = null;
+        focusedItems = null;
         focusedIndex = previousDirection = 0;
         nextNavigationTick = 0;
         carouselAnimating = false;
@@ -116,6 +118,7 @@ public static class DesktopInput
 
     public static GamePadState GetGamePadState(PlayerIndex player)
     {
+        if (DesktopDisplay.CapturesInput) return default;
         var state = GamePad.GetState(player);
         var keyboard = Keyboard.GetState();
         var playing = IsPlaying(ReadMode());
@@ -136,6 +139,12 @@ public static class DesktopInput
     public static TouchCollection GetState()
     {
         Samples++;
+        if (DesktopDisplay.CapturesInput)
+        {
+            gestures.Clear();
+            foreach (var contact in contacts) contact.Reset();
+            return new TouchCollection([]);
+        }
         var native = TouchPanel.GetState();
         if (game is null) return native;
         var touches = new List<TouchLocation>(native.Count + contacts.Length);
@@ -151,9 +160,7 @@ public static class DesktopInput
             new Vector2(pad.ThumbSticks.Left.X, -pad.ThumbSticks.Left.Y);
         var right = Direction(keyboard, Keys.Left, Keys.Right, Keys.Up, Keys.Down) +
             new Vector2(pad.ThumbSticks.Right.X, -pad.ThumbSticks.Right.Y);
-        var size = new Vector2(600, 360);
-        var screen = game.GraphicsDevice.PresentationParameters;
-        size = new Vector2(screen.BackBufferWidth, screen.BackBufferHeight);
+        var size = new Vector2(DesktopDisplay.LogicalWidth, DesktopDisplay.LogicalHeight);
         var radius = 80f * size.X / 600f;
         var leftCenter = new Vector2(120, 240) * size / new Vector2(600, 360);
         var rightCenter = new Vector2(480, 240) * size / new Vector2(600, 360);
@@ -163,7 +170,7 @@ public static class DesktopInput
             rightCenter + Clamp(right) * radius, touches, pressOrigin: rightCenter);
 
         var mouse = Mouse.GetState();
-        var pointer = MapPointer(mouse.X, mouse.Y, game.Window.ClientBounds, size);
+        var pointer = DesktopDisplay.MapPointer(mouse.X, mouse.Y, game.Window.ClientBounds);
         var inside = active && pointer is not null;
         var pauseHotspot = pointer is Vector2 point && point.X > size.X - 70 &&
             point.X < size.X - 10 && point.Y >= 0 && point.Y < 60;
@@ -185,9 +192,11 @@ public static class DesktopInput
 
         var level = active ? ActiveMenuLevel() : null;
         var items = level is null ? [] : ClickableItems(level);
-        if (!ReferenceEquals(level, focusedLevel))
+        var itemArray = level is null ? null : menuLevelItemsField!.GetValue(level);
+        if (!ReferenceEquals(level, focusedLevel) || !ReferenceEquals(itemArray, focusedItems))
         {
             focusedLevel = level;
+            focusedItems = itemArray;
             focusedIndex = InitialFocus(items);
             previousDirection = 0;
             nextNavigationTick = 0;
@@ -238,7 +247,8 @@ public static class DesktopInput
         return new TouchCollection(touches.ToArray());
     }
 
-    public static bool IsGestureAvailable => TouchPanel.IsGestureAvailable || gestures.Count > 0;
+    public static bool IsGestureAvailable => !DesktopDisplay.CapturesInput &&
+        (TouchPanel.IsGestureAvailable || gestures.Count > 0);
 
     public static GestureSample ReadGesture() => TouchPanel.IsGestureAvailable
         ? TouchPanel.ReadGesture()
@@ -314,7 +324,9 @@ public static class DesktopInput
         foreach (var item in items)
         {
             if (item is null || (int)menuItemFlagField!.GetValue(item)! is not (0 or 1)) continue;
-            result.Add((item, (Vector2)menuItemPositionField!.GetValue(item)!));
+            var position = (Vector2)menuItemPositionField!.GetValue(item)!;
+            if (position.X < 0 || position.Y < 0) continue;
+            result.Add((item, position));
         }
         return result;
     }

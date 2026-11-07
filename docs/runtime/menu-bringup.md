@@ -4,7 +4,7 @@ The launcher now loads the locally prepared `ZombiesWP7` assembly, constructs `Z
 
 ## Render setting evidence
 
-The original `Game1` static initializer sets `VIEWPORT` to 600×360. Its `Initialize` applies that width and height as the backbuffer and requests fullscreen. The fresh run observed a 600×360 backbuffer. The `--windowed` option switches only the host window out of fullscreen after original initialization; it keeps the original backbuffer dimensions. No old-port scaler or viewport value was used as an acceptance target.
+The original `Game1` static initializer sets `VIEWPORT` to 600×360. Its `Initialize` applies that width and height as the backbuffer and requests fullscreen. The desktop display hook now renders the original 600×360 scene to a logical target and scales it into the chosen backbuffer while preserving aspect ratio. The `--windowed` option overrides the saved display mode for that run. See [display settings](display-settings.md).
 
 ## Startup adaptations
 

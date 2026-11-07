@@ -15,6 +15,20 @@ if (DesktopInput.MapPointer(10, 250, new Rectangle(0, 0, 1000, 500), target) is 
     throw new Exception("Letterbox or empty-window coordinate was accepted.");
 Console.WriteLine("INPUT_MAP_OK");
 
+var ultrawide = DesktopDisplay.Destination(3440, 1440);
+if (ultrawide != new Rectangle(520, 0, 2400, 1440))
+    throw new Exception($"Ultrawide presentation rectangle differs: {ultrawide}.");
+Check(DesktopDisplay.MapPointer(1720, 720, new Rectangle(0, 0, 3440, 1440)), 300, 180);
+if (DesktopDisplay.MapPointer(100, 720, new Rectangle(0, 0, 3440, 1440)) is not null ||
+    DesktopDisplay.Destination(3840, 2160) != new Rectangle(120, 0, 3600, 2160))
+    throw new Exception("Ultrawide or 4K presentation mapping differs.");
+Console.WriteLine("INPUT_DISPLAY_MAP_OK");
+if (!DesktopDisplay.AvailablePresets(2560, 1080).SequenceEqual(
+        [(600, 360), (1280, 720), (1920, 1080), (2560, 1080)]) ||
+    DesktopDisplay.AvailablePresets(3840, 2160).Length != 8 ||
+    DesktopDisplay.AvailablePresets(500, 300).Length != 0)
+    throw new Exception("Display preset filtering differs from desktop bounds.");
+
 var settings = new[]
 {
     new Vector2(175, 160), new Vector2(230, 200), new Vector2(210, 240),
@@ -28,6 +42,18 @@ CheckIndex(MenuNavigation.Next(settings, 1, 0, 1), 2);
 CheckIndex(MenuNavigation.Next(settings, 2, 0, 1), 4);  // wrap to top row
 CheckIndex(MenuNavigation.Next(settings, 4, 1, 0), 0);  // advance to the next row
 CheckIndex(MenuNavigation.Next(settings, 3, -1, 0), 2); // wrap to the last option
+var displaySettings = settings.Append(new Vector2(236, 285)).ToArray();
+CheckIndex(MenuNavigation.Next(displaySettings, 2, 0, 1), 5);
+CheckIndex(MenuNavigation.Next(displaySettings, 5, 0, -1), 2);
+var settingsRoot = new[] { new Vector2(125, 110), new Vector2(270, 110),
+    new Vector2(250, 170), new Vector2(250, 215) };
+CheckIndex(MenuNavigation.Next(settingsRoot, 0, 1, 0), 1);
+CheckIndex(MenuNavigation.Next(settingsRoot, 1, 0, 1), 2);
+CheckIndex(MenuNavigation.Next(settingsRoot, 2, 0, 1), 3);
+var touchPage = new[] { new Vector2(250, 100), new Vector2(250, 150),
+    new Vector2(250, 200), new Vector2(250, 250) };
+CheckIndex(MenuNavigation.Next(touchPage, 2, 0, 1), 3);
+CheckIndex(MenuNavigation.Next(touchPage, 3, 0, -1), 2);
 CheckIndex(MenuNavigation.CarouselNext(0, 1), 1);
 CheckIndex(MenuNavigation.CarouselNext(6, 1), 6);
 CheckIndex(MenuNavigation.CarouselNext(0, -1), 0);
