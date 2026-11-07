@@ -19,6 +19,11 @@ public static class DesktopInput
     private static int focusedIndex;
     private static int previousDirection;
     private static long nextNavigationTick;
+    private const float CarouselSwipeSeconds = 0.2f;
+    private static bool carouselAnimating;
+    private static float carouselStart;
+    private static int carouselTarget;
+    private static long carouselStartedAt;
     private static FieldInfo? modeField;
     private static FieldInfo? menuLevelsField;
     private static MethodInfo? menuActiveMethod;
@@ -29,6 +34,13 @@ public static class DesktopInput
     private static FieldInfo? menuItemPositionField;
     private static FieldInfo? menuItemClickFrameField;
     private static FieldInfo? menuScaleField;
+    private static FieldInfo? mainMenuField;
+    private static FieldInfo? mainMenuSceneField;
+    private static FieldInfo? mainMenuSwipeField;
+    private static FieldInfo? mainMenuInFrameField;
+    private static FieldInfo? mainMenuOutFrameField;
+    private static FieldInfo? sceneVideoField;
+    private static FieldInfo? videoTimeField;
     private static Func<Vector2?>? zombieOrigin;
     private static Func<Vector2?>? vikingOrigin;
     public static int Samples { get; private set; }
@@ -45,6 +57,9 @@ public static class DesktopInput
         focusedLevel = null;
         focusedIndex = previousDirection = 0;
         nextNavigationTick = 0;
+        carouselAnimating = false;
+        carouselStart = carouselTarget = 0;
+        carouselStartedAt = 0;
         Samples = ActiveSamples = MouseSamples = KeyboardSamples = 0;
         var assembly = runningGame.GetType().Assembly;
         const BindingFlags staticFlags = BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
@@ -65,6 +80,14 @@ public static class DesktopInput
         menuItemPositionField = RequireField(menuItem, "tiltLoc", instanceFlags);
         menuItemClickFrameField = RequireField(menuItem, "clickFrame", instanceFlags);
         menuScaleField = RequireField(runningGame.GetType(), "MENUSCALE", staticFlags);
+        mainMenuField = RequireField(runningGame.GetType(), "mainMenu", staticFlags);
+        var mainMenu = RequireType(assembly, "Viking_x86.main.MainMenu");
+        mainMenuSceneField = RequireField(mainMenu, "sceneMgr", instanceFlags);
+        mainMenuSwipeField = RequireField(mainMenu, "swipeCoast", instanceFlags);
+        mainMenuInFrameField = RequireField(mainMenu, "inFrame", instanceFlags);
+        mainMenuOutFrameField = RequireField(mainMenu, "outFrame", instanceFlags);
+        sceneVideoField = RequireField(RequireType(assembly, "SceneEdit.scene.SceneMgr"), "video", instanceFlags);
+        videoTimeField = RequireField(RequireType(assembly, "SceneEdit.scene.Video"), "time", instanceFlags);
 
         var heroes = RequireType(assembly, "IMAK3Z0MB1EGAEM.character.CharMan")
             .GetField("hero", staticFlags) ?? throw new MissingFieldException("CharMan.hero");
@@ -171,7 +194,7 @@ public static class DesktopInput
         }
         else if ((focusedIndex < 0 && items.Count > 0) || focusedIndex >= items.Count)
             focusedIndex = InitialFocus(items);
-        var direction = active ? MenuDirection(keyboard, pad) : Vector2.Zero;
+        var direction = active ? MenuNavigation.Direction(keyboard, pad) : Vector2.Zero;
         var directionCode = direction.X < 0 ? -1 : direction.X > 0 ? 1 :
             direction.Y < 0 ? -2 : direction.Y > 0 ? 2 : 0;
         var now = Stopwatch.GetTimestamp();
@@ -183,11 +206,15 @@ public static class DesktopInput
                 focusedIndex = MenuNavigation.Next(items.Select(item => item.Position).ToArray(),
                     focusedIndex, (int)direction.X, (int)direction.Y);
             else if (mode == 1 && direction.X != 0)
-                gestures.Enqueue(Tap(new Vector2(direction.X < 0 ? 50 : size.X - 50, size.Y / 2)));
+                MoveCarousel((int)direction.X);
             nextNavigationTick = now + (long)(Stopwatch.Frequency *
                 (directionCode != previousDirection ? 0.35 : 0.12));
         }
         previousDirection = directionCode;
+        if (active && mode == 1 && level is null && native.Count == 0 && !pointAndClick)
+            AdvanceCarousel(now);
+        else
+            carouselAnimating = false;
         if (level is not null && focusedIndex >= 0 && focusedIndex < items.Count)
         {
             var selected = items[focusedIndex].Item;
@@ -202,7 +229,10 @@ public static class DesktopInput
                 (float)menuLevelAlphaField!.GetValue(level)! > 0.9f)
                 gestures.Enqueue(Tap(items[focusedIndex].Position * (float)menuScaleField!.GetValue(null)!));
             else if (level is null && mode is 1 or 2 or 4 or 6)
+            {
+                if (mode == 1) FinishCarousel();
                 gestures.Enqueue(Tap(size / 2f));
+            }
         }
         previousAccept = accept;
         return new TouchCollection(touches.ToArray());
@@ -225,18 +255,47 @@ public static class DesktopInput
     private static Vector2 Clamp(Vector2 vector) => vector.LengthSquared() > 1
         ? Vector2.Normalize(vector) : vector;
 
-    private static Vector2 MenuDirection(KeyboardState keyboard, GamePadState pad)
+    private static void MoveCarousel(int direction)
     {
-        var x = (pad.DPad.Right == ButtonState.Pressed || keyboard.IsKeyDown(Keys.Right) ? 1 : 0) -
-            (pad.DPad.Left == ButtonState.Pressed || keyboard.IsKeyDown(Keys.Left) ? 1 : 0);
-        var y = (pad.DPad.Down == ButtonState.Pressed || keyboard.IsKeyDown(Keys.Down) ? 1 : 0) -
-            (pad.DPad.Up == ButtonState.Pressed || keyboard.IsKeyDown(Keys.Up) ? 1 : 0);
-        if (x == 0 && y == 0)
-        {
-            x = pad.ThumbSticks.Left.X > 0.5f ? 1 : pad.ThumbSticks.Left.X < -0.5f ? -1 : 0;
-            y = pad.ThumbSticks.Left.Y > 0.5f ? -1 : pad.ThumbSticks.Left.Y < -0.5f ? 1 : 0;
-        }
-        return new Vector2(x, y);
+        var menu = mainMenuField?.GetValue(null);
+        if (menu is null || (float)mainMenuInFrameField!.GetValue(menu)! > 0f ||
+            (float)mainMenuOutFrameField!.GetValue(menu)! > 0f) return;
+        var scene = mainMenuSceneField!.GetValue(menu);
+        var video = scene is null ? null : sceneVideoField!.GetValue(scene);
+        if (video is null) return;
+        var time = (float)videoTimeField!.GetValue(video)!;
+        var current = carouselAnimating ? carouselTarget : (int)MathF.Floor(time + 0.5f);
+        var next = MenuNavigation.CarouselNext(current, direction);
+        if (next == current) return;
+        mainMenuSwipeField!.SetValue(menu, Vector2.Zero);
+        carouselStart = time;
+        carouselTarget = next;
+        carouselStartedAt = Stopwatch.GetTimestamp();
+        carouselAnimating = true;
+    }
+
+    private static void AdvanceCarousel(long now)
+    {
+        if (!carouselAnimating) return;
+        var menu = mainMenuField?.GetValue(null);
+        var scene = menu is null ? null : mainMenuSceneField!.GetValue(menu);
+        var video = scene is null ? null : sceneVideoField!.GetValue(scene);
+        if (video is null) { carouselAnimating = false; return; }
+        var progress = (float)((now - carouselStartedAt) /
+            (Stopwatch.Frequency * (double)CarouselSwipeSeconds));
+        videoTimeField!.SetValue(video, MenuNavigation.CarouselSwipePosition(
+            carouselStart, carouselTarget, progress));
+        if (progress >= 1f) carouselAnimating = false;
+    }
+
+    private static void FinishCarousel()
+    {
+        if (!carouselAnimating) return;
+        var menu = mainMenuField?.GetValue(null);
+        var scene = menu is null ? null : mainMenuSceneField!.GetValue(menu);
+        var video = scene is null ? null : sceneVideoField!.GetValue(scene);
+        if (video is not null) videoTimeField!.SetValue(video, (float)carouselTarget);
+        carouselAnimating = false;
     }
 
     private static object? ActiveMenuLevel()

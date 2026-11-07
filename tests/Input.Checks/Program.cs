@@ -1,4 +1,5 @@
 using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Input;
 using Port.Hooks;
 
 var target = new Vector2(600, 360);
@@ -25,7 +26,20 @@ CheckIndex(MenuNavigation.Next(settings, 3, 0, 1), 0);  // top row to vibration
 CheckIndex(MenuNavigation.Next(settings, 0, 0, 1), 1);
 CheckIndex(MenuNavigation.Next(settings, 1, 0, 1), 2);
 CheckIndex(MenuNavigation.Next(settings, 2, 0, 1), 4);  // wrap to top row
-CheckIndex(MenuNavigation.Next(settings, 3, -1, 0), 3); // no left neighbor
+CheckIndex(MenuNavigation.Next(settings, 4, 1, 0), 0);  // advance to the next row
+CheckIndex(MenuNavigation.Next(settings, 3, -1, 0), 2); // wrap to the last option
+CheckIndex(MenuNavigation.CarouselNext(0, 1), 1);
+CheckIndex(MenuNavigation.CarouselNext(6, 1), 6);
+CheckIndex(MenuNavigation.CarouselNext(0, -1), 0);
+CheckSwipe(0, 1, 0, 0);
+CheckSwipe(0, 1, 0.5f, 0.875f);
+CheckSwipe(0, 1, 1, 1);
+CheckSwipe(2, 1, 0.5f, 1.125f);
+CheckDirection(new KeyboardState(Keys.D), default, 1, 0);
+CheckDirection(new KeyboardState(Keys.Right), default, 1, 0);
+CheckDirection(new KeyboardState(Keys.W), default, 0, -1);
+CheckDirection(default, new GamePadState(Vector2.Zero, Vector2.Zero, 0, 0, Buttons.DPadRight), 1, 0);
+CheckDirection(default, new GamePadState(new Vector2(0.8f, 0), Vector2.Zero, 0, 0), 1, 0);
 Console.WriteLine("INPUT_MENU_NAV_OK");
 
 static void Check(Vector2? actual, float x, float y)
@@ -37,4 +51,18 @@ static void Check(Vector2? actual, float x, float y)
 static void CheckIndex(int actual, int expected)
 {
     if (actual != expected) throw new Exception($"Expected menu index {expected}; got {actual}.");
+}
+
+static void CheckSwipe(float start, float target, float progress, float expected)
+{
+    var actual = MenuNavigation.CarouselSwipePosition(start, target, progress);
+    if (MathF.Abs(actual - expected) > 0.0001f)
+        throw new Exception($"Expected carousel position {expected}; got {actual}.");
+}
+
+static void CheckDirection(KeyboardState keyboard, GamePadState pad, float x, float y)
+{
+    var actual = MenuNavigation.Direction(keyboard, pad);
+    if (actual != new Vector2(x, y))
+        throw new Exception($"Expected menu direction ({x},{y}); got {actual}.");
 }
