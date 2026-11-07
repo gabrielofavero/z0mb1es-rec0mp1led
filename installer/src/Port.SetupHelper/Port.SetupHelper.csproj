@@ -5,5 +5,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../../../src/Port.Prepare/Port.Prepare.csproj" />
+    <EmbeddedResource Include="../../../config/supported-steam-versions.json" LogicalName="supported-steam-versions.json" />
+    <EmbeddedResource Include="../../../config/supported-360-versions.json" LogicalName="supported-360-versions.json" />
   </ItemGroup>
 </Project>

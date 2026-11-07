@@ -1,0 +1,158 @@
+{
+  "schemaVersion": 1,
+  "input": {
+    "name": "zombies-360",
+    "bytes": 13324288,
+    "sha256": "27caf29d55a1d14089d6ec7f63d3838ae3a4b360f175c4ac93c88e3ab68947d4"
+  },
+  "package": {
+    "magic": "LIVE",
+    "headerSize": 44302,
+    "contentType": "0x00000002",
+    "metadataVersion": 2,
+    "containerTitleId": "0x584e07d2",
+    "volume": "STFS read-only",
+    "dataBlocksVerified": 3222,
+    "displayName": "I MAED A GAM3 W1TH Z0MB1ES!!!1"
+  },
+  "gameInfo": {
+    "ID": "1481508818",
+    "Name": "I MAED A GAM3 W1TH Z0MB1ES!!!1",
+    "TitleID": "1481966246",
+    "VirtualTitleID": "f030e2bf95a04d548ef88c2263b78f0c"
+  },
+  "counts": {
+    "entries": 26,
+    "directories": 5,
+    "files": 21
+  },
+  "files": [
+    {
+      "path": "DashboardIcon.png",
+      "bytes": 3778,
+      "sha256": "b685566dbcb72b6d78f43876acca310962433b01903c4da146bba6b9337fa209"
+    },
+    {
+      "path": "GameInfo.bin",
+      "bytes": 1449,
+      "sha256": "b56f6cbc7c084c0b425a371b1b0c54cb80ad9b025af905f3e76559cc007791e1"
+    },
+    {
+      "path": "GameInfo.xml",
+      "bytes": 2466,
+      "sha256": "e48d5f4261b994551f8d12adfcb8ec0d60b950b9bfb9ec1b9957e9c09dc96766"
+    },
+    {
+      "path": "TitleImage.png",
+      "bytes": 7367,
+      "sha256": "455fa0aeaed0514907668b24bfe1be3ee40ba7768532b4b1b37162fe47c1fb57"
+    },
+    {
+      "path": "584E07D1/IMAK3Z0MB1EGAEM.exe",
+      "bytes": 85504,
+      "sha256": "7ee601db5529b84a5ec3102036e93778973f9c27f748c50b2cc7260c614205d9"
+    },
+    {
+      "path": "584E07D1/Content/fx/thresh.xnb",
+      "bytes": 516,
+      "sha256": "ac37f1363b3785ee03ec5a8c5d0a47299140920c676b6b7ac07fc6f80748bc3f",
+      "xnbPlatform": "x",
+      "xnbVersion": 3
+    },
+    {
+      "path": "584E07D1/Content/gfx/1x1.xnb",
+      "bytes": 89,
+      "sha256": "6d79d533e123c303d8050eb72942c21b5c9e293977fe7d1f796398c1f764369d",
+      "xnbPlatform": "x",
+      "xnbVersion": 3
+    },
+    {
+      "path": "584E07D1/Content/gfx/concrete.xnb",
+      "bytes": 323458,
+      "sha256": "b974843c044504dd5f4376846ef7f5b95e3aaa46c2d74764d61b5f32016a0a7d",
+      "xnbPlatform": "x",
+      "xnbVersion": 3
+    },
+    {
+      "path": "584E07D1/Content/gfx/fire.xnb",
+      "bytes": 327110,
+      "sha256": "f4a4a6ca42784baa59d6cb63eb6f2293edc148db3121cae0debda32b55cc60c0",
+      "xnbPlatform": "x",
+      "xnbVersion": 3
+    },
+    {
+      "path": "584E07D1/Content/gfx/grass.xnb",
+      "bytes": 338844,
+      "sha256": "b1b7a8787a10e06948047033568569ae6e938218f38d7a133c2052520ee25a47",
+      "xnbPlatform": "x",
+      "xnbVersion": 3
+    },
+    {
+      "path": "584E07D1/Content/gfx/grid.xnb",
+      "bytes": 204902,
+      "sha256": "37dc982dbdaab7633def12e6efc78abcf665ea349e26848d45659d2d10ff5ef8",
+      "xnbPlatform": "x",
+      "xnbVersion": 3
+    },
+    {
+      "path": "584E07D1/Content/gfx/neko.xnb",
+      "bytes": 310012,
+      "sha256": "c5d46798717baa40bbd165ae616452a53a7c238dbc16dc2820a9e4083ab36dc2",
+      "xnbPlatform": "x",
+      "xnbVersion": 3
+    },
+    {
+      "path": "584E07D1/Content/gfx/psychoneko.xnb",
+      "bytes": 299846,
+      "sha256": "b5e2c7f54965fd8b174e8b547f0d01da1f6a919b41771db535c3080ffb7b07c0",
+      "xnbPlatform": "x",
+      "xnbVersion": 3
+    },
+    {
+      "path": "584E07D1/Content/gfx/ska.xnb",
+      "bytes": 301146,
+      "sha256": "6b03e38eefcda7e23d9b3eb0c33e627fb17ccb607601f9ce4a96c5c65ad23df6",
+      "xnbPlatform": "x",
+      "xnbVersion": 3
+    },
+    {
+      "path": "584E07D1/Content/gfx/space.xnb",
+      "bytes": 328178,
+      "sha256": "09f03a5a991a04ee2ecc6c1e7d3f4ac5740f9fd42247cfcfb303ae37ecb68c07",
+      "xnbPlatform": "x",
+      "xnbVersion": 3
+    },
+    {
+      "path": "584E07D1/Content/gfx/sprites.xnb",
+      "bytes": 248412,
+      "sha256": "80b13ecc8f71092c0ab31441e5ff0c6768eba4e0c1b33586134a5bc6f4d2ef80",
+      "xnbPlatform": "x",
+      "xnbVersion": 3
+    },
+    {
+      "path": "584E07D1/Content/sfx/fx.xsb",
+      "bytes": 1177,
+      "sha256": "aa52382883540dd4a67d319cc90179ae2a2aa23a666d80f79ef48564feaf081f"
+    },
+    {
+      "path": "584E07D1/Content/sfx/fx.xwb",
+      "bytes": 382976,
+      "sha256": "3046d61c846e7e9ca6b5e57d2a2292573a68edfc7da43aeb2cd39a78fcf9a417"
+    },
+    {
+      "path": "584E07D1/Content/sfx/music.xsb",
+      "bytes": 266,
+      "sha256": "957574986f1f6370cac6be2ef4693710fdfe5246c26b1f6ef4375c4553c3c3a3"
+    },
+    {
+      "path": "584E07D1/Content/sfx/music.xwb",
+      "bytes": 9981952,
+      "sha256": "fbc0e45c2c41f6935fc94d15eae7586036d35adef8a859bc9ab02cc31e314861"
+    },
+    {
+      "path": "584E07D1/Content/sfx/sfxproj.xgs",
+      "bytes": 440,
+      "sha256": "66042aad7ba0cba125a8b6fc85c72e6759fa332f776e648339e97b438a1981b8"
+    }
+  ]
+}

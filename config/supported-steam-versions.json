@@ -1,0 +1,106 @@
+{
+  "schemaVersion": 1,
+  "sourceId": "i-maed-steam",
+  "title": "I MAED A GAME3 W1TH Z0MBIES IN IT!!1",
+  "steamAppId": "1800730",
+  "version": "1.0.0.0",
+  "executable": {
+    "path": "Z0MB1ES.exe",
+    "bytes": 148480,
+    "sha256": "08d43293af258d4b30ecee748f9ee984aca097dcc3c3200b4096fa6decbe58dd"
+  },
+  "requiredTextures": [
+    {
+      "path": "gfx/concrete.xnb",
+      "bytes": 3686485,
+      "sha256": "63df7ced8613fc42dd2720fe7a808b3de417417d93ba67c162423d483fb254a5",
+      "width": 1280,
+      "height": 720,
+      "type": "Texture2D",
+      "surfaceFormat": "Color",
+      "mipCount": 1
+    },
+    {
+      "path": "gfx/fire.xnb",
+      "bytes": 3686485,
+      "sha256": "2c6e02b9b79d582cd4c897f5e02daafff91e479745b8bab7c5bd40fd3c98c17d",
+      "width": 1280,
+      "height": 720,
+      "type": "Texture2D",
+      "surfaceFormat": "Color",
+      "mipCount": 1
+    },
+    {
+      "path": "gfx/grass.xnb",
+      "bytes": 3686485,
+      "sha256": "944d269ca2062baeee5419e038fe8d9271d4fdbfd824abfdc26d8db19d957c6e",
+      "width": 1280,
+      "height": 720,
+      "type": "Texture2D",
+      "surfaceFormat": "Color",
+      "mipCount": 1
+    },
+    {
+      "path": "gfx/grid.xnb",
+      "bytes": 3686485,
+      "sha256": "5a1f6545e124a9c5fb3ba979034fe9ef19fe91b75f3184eb0e7890108376e496",
+      "width": 1280,
+      "height": 720,
+      "type": "Texture2D",
+      "surfaceFormat": "Color",
+      "mipCount": 1
+    },
+    {
+      "path": "gfx/neko.xnb",
+      "bytes": 3686485,
+      "sha256": "fa59e93fd3cf00970c507d7f5ba230868f31a08a0dc4baefc4590845a4551ef2",
+      "width": 1280,
+      "height": 720,
+      "type": "Texture2D",
+      "surfaceFormat": "Color",
+      "mipCount": 1
+    },
+    {
+      "path": "gfx/psychoneko.xnb",
+      "bytes": 3686485,
+      "sha256": "ad23c0630c83c238ab6c3bf78c9abc8a04eb36ea17503b71011f4fc0b9244fc2",
+      "width": 1280,
+      "height": 720,
+      "type": "Texture2D",
+      "surfaceFormat": "Color",
+      "mipCount": 1
+    },
+    {
+      "path": "gfx/ska.xnb",
+      "bytes": 3686485,
+      "sha256": "654255a2ee72c8ed29f12553d16f872e15ccff14219de8b4ba751cd366aa57e7",
+      "width": 1280,
+      "height": 720,
+      "type": "Texture2D",
+      "surfaceFormat": "Color",
+      "mipCount": 1
+    },
+    {
+      "path": "gfx/space.xnb",
+      "bytes": 3686485,
+      "sha256": "647f58ecf7e0ad9ff98a080472303a9c71375f83aeea18dbf00df6b81a066751",
+      "width": 1280,
+      "height": 720,
+      "type": "Texture2D",
+      "surfaceFormat": "Color",
+      "mipCount": 1
+    },
+    {
+      "path": "gfx/sprites.xnb",
+      "bytes": 6553685,
+      "sha256": "af5c73a417c85f98189843e080f94cdada80d19c750f1d4bbb0f6280c7ec26e8",
+      "width": 1280,
+      "height": 1280,
+      "type": "Texture2D",
+      "surfaceFormat": "Color",
+      "mipCount": 1
+    }
+  ],
+  "decoding": "XNBw uncompressed Texture2D Color via xnb_parse XNBReader",
+  "pathPolicy": "paths are relative to the selected Steam installation; source data stays in ignored local storage and is never tracked or distributed"
+}

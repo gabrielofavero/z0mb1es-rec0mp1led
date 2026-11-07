@@ -21,6 +21,8 @@ internal sealed class MenuProbe
     private bool displayCaptured;
     private bool customOpened;
     private bool customCaptured;
+    private bool assetOpened;
+    private bool assetCaptured;
 
     public bool Verified { get; private set; }
     public int CurrentLevel => current;
@@ -36,6 +38,9 @@ internal sealed class MenuProbe
     public bool ShouldCaptureCustom(int updates) => current == 5 && customOpened &&
         !customCaptured && updates - openedAt >= 2;
     public void MarkCustomCaptured() => customCaptured = true;
+    public bool ShouldCaptureAsset(int updates) => current == 5 && assetOpened &&
+        !assetCaptured && updates - openedAt >= 2;
+    public void MarkAssetCaptured() => assetCaptured = true;
 
     public MenuProbe(Game game, Type gameType)
     {
@@ -83,10 +88,11 @@ internal sealed class MenuProbe
         {
             var settingsItems = (Array)baseType.GetField("item", Instance)!.GetValue(level)!;
             var textField = settingsItems.GetValue(5)!.GetType().GetField("text", Instance)!;
-            if (settingsItems.Length != 8 ||
+            if (settingsItems.Length != 9 ||
                 (string?)textField.GetValue(settingsItems.GetValue(5)) != "GRAPH1CS" ||
                 (string?)textField.GetValue(settingsItems.GetValue(6)) != "AUD10" ||
-                (string?)textField.GetValue(settingsItems.GetValue(7)) != "1NPUT")
+                (string?)textField.GetValue(settingsItems.GetValue(7)) != "1NPUT" ||
+                (string?)textField.GetValue(settingsItems.GetValue(8)) != "ASSETS")
                 throw new InvalidOperationException("Settings category order differs.");
             var location = (Vector2)settingsItems.GetValue(5)!.GetType()
                 .GetField("loc", Instance)!.GetValue(settingsItems.GetValue(5))!;
@@ -170,7 +176,7 @@ internal sealed class MenuProbe
             openedAt = updates;
             return;
         }
-        if (current == 5)
+        if (current == 5 && !assetOpened)
         {
             if (!customCaptured || !DesktopDisplay.IsCustomPage)
                 throw new InvalidOperationException("Native Custom Resolution page was not rendered.");
@@ -186,6 +192,29 @@ internal sealed class MenuProbe
             level.GetType().GetMethod("Click", Instance)!.Invoke(level, ["BACK"]);
             if (DesktopDisplay.IsDisplayPage)
                 throw new InvalidOperationException("Display settings page did not return to Settings.");
+            level.GetType().GetMethod("Click", Instance)!.Invoke(level, ["ASSETS"]);
+            if (!DesktopDisplay.IsAssetPage)
+                throw new InvalidOperationException("Assets entry did not open.");
+            assetOpened = true;
+            openedAt = updates;
+            return;
+        }
+        if (current == 5)
+        {
+            if (!assetCaptured || !DesktopDisplay.IsAssetPage)
+                throw new InvalidOperationException("Assets page was not rendered.");
+            var assetItems = (Array)baseType.GetField("item", Instance)!.GetValue(level)!;
+            if (assetItems.Length != 4 ||
+                !((string)assetItems.GetValue(0)!.GetType().GetField("text", Instance)!
+                    .GetValue(assetItems.GetValue(0))!).StartsWith("I MAED:", StringComparison.Ordinal))
+                throw new InvalidOperationException("Assets rows differ.");
+            var before = AssetChoices.NormalImported;
+            level.GetType().GetMethod("Click", Instance)!.Invoke(level, ["I MAED:"]);
+            if (AssetChoices.NormalAvailable && AssetChoices.NormalImported == before)
+                throw new InvalidOperationException("I MAED selection did not toggle.");
+            level.GetType().GetMethod("Click", Instance)!.Invoke(level, ["BACK"]);
+            if (DesktopDisplay.IsAssetPage)
+                throw new InvalidOperationException("Assets Back did not return to Settings.");
         }
         Console.WriteLine($"MENU_PROBE level={current} type={level.GetType().Name} active={active} alpha={alpha} captured={captured}");
         if (current == 16)

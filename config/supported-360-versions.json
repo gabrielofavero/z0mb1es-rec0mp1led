@@ -1,0 +1,79 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Historical Prompt 0 package and assembly evidence; future asset import should use package/file fingerprints, not executable rewrite anchors",
+  "titles": [
+    {
+      "sourceId": "zombies-360",
+      "package": {
+        "format": "LIVE/STFS",
+        "bytes": 13324288,
+        "sha256": "27caf29d55a1d14089d6ec7f63d3838ae3a4b360f175c4ac93c88e3ab68947d4",
+        "gameInfoTitleId": "0x585502a6",
+        "gameInfoVirtualTitleId": "f030e2bf95a04d548ef88c2263b78f0c"
+      },
+      "executable": {
+        "path": "584E07D1/IMAK3Z0MB1EGAEM.exe",
+        "bytes": 85504,
+        "sha256": "7ee601db5529b84a5ec3102036e93778973f9c27f748c50b2cc7260c614205d9",
+        "assemblyName": "IMAK3Z0MB1EGAEM",
+        "assemblyVersion": "1.0.0.0",
+        "mvid": "c2aed8a6-5191-4d1c-89e6-3f20414a5456",
+        "entryPointToken": "0x06000003"
+      },
+      "candidateRewriteAnchors": [
+        { "token": "0x06000058", "method": "IMAK3Z0MB1EGAEM.Game1::Initialize", "ilSha256": "9163542390a4569a4ebc0106b702a5122d6c4351db327352b533c720d4a10d13" },
+        { "token": "0x0600005b", "method": "IMAK3Z0MB1EGAEM.Game1::Update", "ilSha256": "01e748b887412b5e9907eba9b3ffb92ad4c7fbcf7c6db6e54ec70741d54b770a" },
+        { "token": "0x06000081", "method": "IMAK3Z0MB1EGAEM.director.TimeMgr::Pause", "ilSha256": "7051fc5bb7905102ee241c7307d589269649ee0a52370e0d5b8ef3e6317dc027" },
+        { "token": "0x060000ac", "method": "IMAK3Z0MB1EGAEM.menu.Menu::Update", "ilSha256": "7486f67a860be0aae46fe4704baba5a0d7ca0a6b851d0bed43cbd374f0d69d3d" },
+        { "token": "0x060000db", "method": "IMAK3Z0MB1EGAEM.character.Hero::AddPoints", "ilSha256": "9f4b1536082d5210afc23e1b989b104b19ecc01fc3d81c11774dd197fdf019ad" }
+      ],
+      "rewriteAnchors": [
+        { "token": "0x06000004", "method": "IMAK3Z0MB1EGAEM.hud.HUD::InitPlayers", "ilSha256": "7e4fb7afd171b0709432a67f92f4fb446cce4cc8bd16a9df4660b7cb260c6baf" },
+        { "token": "0x06000006", "method": "IMAK3Z0MB1EGAEM.hud.HUD::Draw", "ilSha256": "79647177903f9e2789616c9699a33af4c472250aa33e5f98f2007e0ef7694eb0" },
+        { "token": "0x06000058", "method": "IMAK3Z0MB1EGAEM.Game1::Initialize", "ilSha256": "9163542390a4569a4ebc0106b702a5122d6c4351db327352b533c720d4a10d13" },
+        { "token": "0x06000059", "method": "IMAK3Z0MB1EGAEM.Game1::LoadContent", "ilSha256": "d5373644a06b7596ba920b6fca04fecff5aec1ebbb75cac465010d64434b2a54" },
+        { "token": "0x0600005b", "method": "IMAK3Z0MB1EGAEM.Game1::Update", "ilSha256": "01e748b887412b5e9907eba9b3ffb92ad4c7fbcf7c6db6e54ec70741d54b770a" },
+        { "token": "0x0600005c", "method": "IMAK3Z0MB1EGAEM.Game1::Draw", "ilSha256": "ffd24506663f6e0098e10bcd0f3106edea0e14747fcb6a408b2d11a19d50ef84" },
+        { "token": "0x0600006a", "method": "IMAK3Z0MB1EGAEM.map.MapMan::DrawMap", "ilSha256": "02f4ea3acf0d9f63016fef83d5554cd96491abf262d57df3fdef5af4df299598" },
+        { "token": "0x06000072", "method": "IMAK3Z0MB1EGAEM.map.MapMan::DrawJustMap", "ilSha256": "150db4b5c0bfcbdc588c703eb8620c24ae51759c6b12471b16568dbc5cefc27c" },
+        { "token": "0x06000073", "method": "IMAK3Z0MB1EGAEM.map.MapMan::DrawMapTrans", "ilSha256": "4ed913944b14eacc3f86fdc3a917354c19f5765680b2fda1ab6e27900f73a352" },
+        { "token": "0x06000088", "method": "IMAK3Z0MB1EGAEM.store.Store::GetDevice", "ilSha256": "6a42bc8d8d41b7b098159dc3f2a27a21d96973df42e1dc0d81ece9900d904c59" },
+        { "token": "0x06000089", "method": "IMAK3Z0MB1EGAEM.store.Store::Update", "ilSha256": "57325ee32b79639413c398a5bc0630f9ee3cc9b7eb3ebe5d0eee671ac4bcfa3b" },
+        { "token": "0x0600008b", "method": "IMAK3Z0MB1EGAEM.store.Store::OpenContainer", "ilSha256": "c44e5223b6b2fe6cee50bd61ba1d53943540a1db75bf9e5093445b269b7c6c00" },
+        { "token": "0x0600008c", "method": "IMAK3Z0MB1EGAEM.store.Store::Write", "ilSha256": "fee2ee941ed4089f88a7f3b8743fdc821db696f2b222480c3098aea9a6718d62" },
+        { "token": "0x0600008d", "method": "IMAK3Z0MB1EGAEM.store.Store::Read", "ilSha256": "a1301900bd26d85dde325d0e664f9cd7060f914c7a5379bed5cab8d7bba8edf9" }
+      ]
+    },
+    {
+      "sourceId": "viking-360",
+      "package": {
+        "format": "LIVE/STFS",
+        "bytes": 39981056,
+        "sha256": "a0cf9187acca62058466654c53e57eb94148ad31ee2def83a8a6a37b1bf445c4",
+        "gameInfoTitleId": "0x58550e08",
+        "gameInfoVirtualTitleId": "c07223621f1b4663a33960bd13ce8363"
+      },
+      "executable": {
+        "path": "584E07D1/Viking_x86.exe",
+        "bytes": 198144,
+        "sha256": "9c79105aec24cad5f8a962cf7ba8d75efea4e23fc4ddef2b8c348bfcdae0d1d2",
+        "assemblyName": "Viking_x86",
+        "assemblyVersion": "1.0.0.0",
+        "mvid": "44105f14-caa2-42dc-802b-f6a385d2adca",
+        "entryPointToken": "0x060001c8"
+      },
+      "candidateRewriteAnchors": [
+        { "token": "0x0600003e", "method": "Viking_x86.character.CharKeys::Update", "ilSha256": "0a1ceca6ee7bcff486e0a91541ee1c81e7d72f7d0ed0fc0c80dab7e948ae6821" },
+        { "token": "0x060000f8", "method": "Viking_x86.Game1::Initialize", "ilSha256": "1c6571b9bcf1193c9b7d0dbec55a3bc74d3256e8988c9d000763018aba5cb646" },
+        { "token": "0x0600017d", "method": "Viking_x86.VikingGame::Update", "ilSha256": "aad72c7af0e9c26ff5efc48d54ebebd5a857697aec9fcfbfcd1eac6aa4965f3f" },
+        { "token": "0x060001fe", "method": "Viking_x86.world.World::ShiftCells", "ilSha256": "9e7fc485cae141f993a7cc4073545a4cd275fbd105434518d150d7efade0be36" },
+        { "token": "0x06000237", "method": "Viking_x86.vikinggame.character.Moon::CheckHit", "ilSha256": "67e92ef3f74f82548f33de9631a6b831679f1d55686de89cddc14e3851763e12" }
+      ],
+      "rewriteAnchors": [
+        { "token": "0x060000e1", "method": "IMAK3Z0MB1EGAEM.menu.Menu::Update", "ilSha256": "1e9649bfe13cd9ff081df4ac4964c1c50be8a3952cc8e48b2725e141ee52f7d3" },
+        { "token": "0x060001d5", "method": "IMAK3Z0MB1EGAEM.hud.HUD::InitPlayers", "ilSha256": "73c59c70cec7f5357920d144da2e38abe7d5e2c4c20676a236cfb1fbac846a6d" },
+        { "token": "0x06000218", "method": "IMAK3Z0MB1EGAEM.ZombieGame::Update", "ilSha256": "3abc5404f9012239d2be70e4a9da620d5dcfc624b0b5b414373157ea193c5f27" }
+      ]
+    }
+  ]
+}

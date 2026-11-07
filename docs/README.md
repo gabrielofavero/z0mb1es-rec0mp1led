@@ -26,6 +26,12 @@ Start with the [architecture](foundation/architecture.md) and the [plan index](p
 - [Behavior evidence](records/behavior-evidence.md): original observations and inferred behavior.
 - [Feature matrix](records/feature-matrix.md): modes, menus, progression, saves, and achievements.
 - [Implementation log](records/implementation-log.md): dated commands, results, and remaining checks.
+- [Asset swap Prompt 0](records/asset-swap-p0.md): exact source fingerprints, per-element mapping, and Original fallback decisions.
+- [Asset swap Prompt 1](records/asset-swap-p1.md): verified local Steam/360 preparation and Endless routing.
+- [Asset swap Prompt 2](records/asset-swap-p2.md): guarded phone renderer and visual probes.
+- [Asset swap Prompt 3](records/asset-swap-p3.md): offline optional imports and ASSETS Settings selection.
+- [Asset swap Prompt 4](records/asset-swap-p4.md): visual matrix, installer validation, and remaining release checks.
+- [FFmpeg redistribution follow-up](records/ffmpeg-redistribution.md): LGPL converter, matching source package, and audited installer hashes.
 
 ## Plans
 

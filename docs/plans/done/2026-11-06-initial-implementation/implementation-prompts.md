@@ -16,6 +16,7 @@ Folders show current work status. 'Done' records implementation work; any deferr
 
 ### Done
 
+- [Cancelled game hot swap Prompt 0 — Inventory and decompile the 360 titles](../../cancelled/2026-11-07-game-hot-swap.md#prompt-0--inventory-and-decompile-the-360-titles) — static evidence retained for the asset plan; see [ledger](../../../records/xbox-360-evidence.md)
 - [Prompt 1 — Establish the evidence ledger and version boundary](01-evidence-ledger.md)
 - [Prompt 2 — Create a clean FNA desktop host](02-desktop-host.md)
 - [Prompt 3 — Implement deterministic local preparation](03-local-preparation.md)
@@ -37,17 +38,11 @@ No prompts are currently in progress.
 
 ### To do
 
-- [Game hot swap Prompt 0 — Inventory and decompile the 360 titles](../../to-do/2026-11-07-game-hot-swap.md#prompt-0--inventory-and-decompile-the-360-titles)
-- [Game hot swap Prompt 1 — Prepare and boot each 360 title locally](../../to-do/2026-11-07-game-hot-swap.md#prompt-1--prepare-and-boot-each-360-title-locally)
-- [Game hot swap Prompt 2 — Import optional titles through the installer](../../to-do/2026-11-07-game-hot-swap.md#prompt-2--import-optional-titles-through-the-installer)
-- [Game hot swap Prompt 3 — Add source settings and game dispatch](../../to-do/2026-11-07-game-hot-swap.md#prompt-3--add-source-settings-and-game-dispatch)
-- [Game hot swap Prompt 4 — Match pause, controls, display, and saves](../../to-do/2026-11-07-game-hot-swap.md#prompt-4--match-pause-controls-display-and-saves)
-- [Game hot swap Prompt 5 — Wire supported 360 achievements](../../to-do/2026-11-07-game-hot-swap.md#prompt-5--wire-supported-360-achievements)
-- [Game hot swap Prompt 6 — Validate combinations and audit the release](../../to-do/2026-11-07-game-hot-swap.md#prompt-6--validate-combinations-and-audit-the-release)
+- [Asset swap plan — Optional Steam/360 art in the phone game](../../in-progress/2026-11-07-asset-swap.md)
 
 ### Cancelled
 
-No prompts are currently cancelled.
+- [Game hot swap Prompts 1–6](../../cancelled/2026-11-07-game-hot-swap.md) — separate 360 runtime, game dispatch, and source-specific achievements retired.
 
 ## If a prompt cannot pass
 

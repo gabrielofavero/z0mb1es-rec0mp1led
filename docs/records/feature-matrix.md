@@ -89,3 +89,16 @@ dotnet private/run/prompt12-menus-b/Port.Launcher.dll --run private/run/prompt12
 ```
 
 The [desktop input guide](../runtime/desktop-input.md) lists mouse, keyboard, and controller controls. A later play check can cover natural score and scene progression, high scores after restart, and individual input bugs. The save directory above is isolated from the player's normal AppData save.
+
+## Optional asset swap: installer and Settings integrated
+
+The phone matrix above remains the gameplay baseline. [The 360 evidence ledger](xbox-360-evidence.md), [asset comparison](../runtime/asset-comparison.md), and [Prompt 0 evidence](asset-swap-p0.md) cover source fingerprints and candidate mappings. [Prompt 1 evidence](asset-swap-p1.md) records local preparation. [Prompt 2 evidence](asset-swap-p2.md) records guarded phone renderer routing and playback probes. [Prompt 3 evidence](asset-swap-p3.md) records the offline setup importer, ASSETS Settings page, and install/repair tests. [Prompt 4 evidence](asset-swap-p4.md) records 18 native-to-widescreen/ultrawide mode runs, source failure handling, preference fallback, rebuilt setup, reinstall, and rollback. Natural death/effects/endings, input feel, and the clean-account wizard remain hands-on checks; redistribution rights remediation remains a release gate.
+
+| Visual source | Inventory evidence | Phone-runtime result |
+| --- | --- | --- |
+| I MAED 360 | Pinned package; eight backgrounds and individual sprite crops mapped with phone fallback. Backgrounds receive the verified phone vignette treatment. | 121 crops prepared; 75 distinct draw routes rendered in the phone mode; play/pause probe passed |
+| Steam I MAED | Executable and nine required textures version-pinned; individual backgrounds and sprite crops mapped. Extra PC art and effect excluded. | 121 crops prepared across I MAED and Endless; 75 distinct draw routes rendered in the I MAED mode; 67 distinct draw routes rendered in Steam-only Endless; play/pause probes passed |
+| Time Viking 360 | Pinned package; `grass` face icons relocated individually, moon stages cropped, character/map cells reviewed. | 270 crops prepared; 204 distinct draw routes rendered in the phone mode; play/pause and resize probes passed |
+| ZOMBIES ENDLESS | No standalone source. The [Endless manifest](asset-swap-mappings/endless-360.json) orders matching I MAED 360 art, Steam I MAED art, Viking 360 art, then phone Original. | Steam alone imports 113 of 230 elements; Steam plus Viking imports 171. Both Endless mode cycles and art catalogs passed with 67 and 125 distinct routes respectively; earlier mixed 360 resize probes passed. |
+
+The phone's original achievements, saves, controls, pause flow, and offline service policy remain the only planned behavior paths.

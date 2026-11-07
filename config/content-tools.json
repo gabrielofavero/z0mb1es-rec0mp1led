@@ -2,9 +2,10 @@
   "schemaVersion": 1,
   "ffmpeg": {
     "host": "win-x64",
-    "version": "8.1.1-essentials_build-www.gyan.dev",
-    "executableSha256": "228d7a8556258de907fdb55f36850078ebc7680b84ec30d84ea02e99bec1d1eb",
-    "license": "GPL-3.0-or-later (this exact build, per ffmpeg -L)",
+    "version": "8.1.1-source-239f2c733d-mingw-win32",
+    "executableSha256": "e2e148a514b188a08102ec71c03f970ad1273316fab430e4c95065b0650fb306",
+    "license": "LGPL-2.1-or-later (this exact build, per ffmpeg -L)",
+    "sourceBundle": "FFmpeg-8.1.1-source.zip",
     "purpose": "local WMA to Ogg Vorbis conversion"
   }
 }

@@ -14,7 +14,7 @@ internal static class RunSession
     {
         if (args.Length < 4 || args[2] != "--content")
         {
-            Console.Error.WriteLine("Usage: Port.Launcher --run <prepared.dll> --content <prepared-content-root> [--frames N] [--windowed] [--save-dir <directory>] [--probe-services] [--probe-mode normal|endless|viking] [--probe-menus]");
+            Console.Error.WriteLine("Usage: Port.Launcher --run <prepared.dll> --content <prepared-content-root> [--frames N] [--windowed] [--save-dir <directory>] [--probe-services] [--probe-mode normal|endless|viking] [--probe-menus] [--probe-resize WIDTHxHEIGHT] [--art-store <prepared-art-root>] [--art-normal original|steam|360] [--art-viking original|360] [--art-endless original|imported]");
             return 2;
         }
         int? frameLimit = null;
@@ -23,6 +23,11 @@ internal static class RunSession
         var probeMenus = false;
         string? probeMode = null;
         string? saveDirectory = null;
+        string? artStore = null;
+        string? artNormal = null;
+        string? artViking = null;
+        string? artEndless = null;
+        (int Width, int Height)? probeResize = null;
         for (var i = 4; i < args.Length; i++)
         {
             if (args[i] == "--windowed") windowed = true;
@@ -34,6 +39,25 @@ internal static class RunSession
                      int.TryParse(args[i], out var frames) && frames > 0) frameLimit = frames;
             else if (args[i] == "--save-dir" && ++i < args.Length &&
                      !string.IsNullOrWhiteSpace(args[i])) saveDirectory = args[i];
+            else if (args[i] == "--art-store" && ++i < args.Length &&
+                     !string.IsNullOrWhiteSpace(args[i])) artStore = args[i];
+            else if (args[i] == "--art-normal" && ++i < args.Length &&
+                     args[i] is "original" or "steam" or "360") artNormal = args[i];
+            else if (args[i] == "--art-viking" && ++i < args.Length &&
+                     args[i] is "original" or "360") artViking = args[i];
+            else if (args[i] == "--art-endless" && ++i < args.Length &&
+                     args[i] is "original" or "imported" or "360") artEndless = args[i];
+            else if (args[i] == "--probe-resize" && ++i < args.Length)
+            {
+                var pieces = args[i].Split('x');
+                if (pieces.Length != 2 || !int.TryParse(pieces[0], out var width) ||
+                    !int.TryParse(pieces[1], out var height) || width < 600 || height < 360)
+                {
+                    Console.Error.WriteLine("RUN_FAIL --probe-resize expects WIDTHxHEIGHT, at least 600x360");
+                    return 2;
+                }
+                probeResize = (width, height);
+            }
             else
             {
                 Console.Error.WriteLine("RUN_FAIL invalid command line");
@@ -42,7 +66,7 @@ internal static class RunSession
         }
         if ((probeMode is not null || probeMenus) && (saveDirectory is null ||
             (probeMode is not null && (probeServices || probeMenus)) ||
-            (probeMenus && probeServices)))
+            (probeMenus && probeServices)) || (probeResize is not null && probeMode is null))
         {
             Console.Error.WriteLine("RUN_FAIL diagnostic probes require an isolated --save-dir and cannot be combined");
             return 2;
@@ -59,6 +83,7 @@ internal static class RunSession
             var content = Path.GetFullPath(args[3]);
             VerifyInputs(dll, content);
             DesktopStorage.Configure(saveDirectory);
+            AssetChoices.Initialize(artStore, artNormal, artViking, artEndless);
             Directory.SetCurrentDirectory(content);
             var assembly = Assembly.LoadFrom(dll);
             if (assembly.GetName().Name != "ZombiesWP7")
@@ -71,7 +96,7 @@ internal static class RunSession
             DesktopDisplay.Configure(game);
             DesktopInput.Configure(game);
             game.Content.RootDirectory = Path.Combine(content, "Content");
-            var monitor = new RunMonitor(game, gameType, frameLimit, windowed, probeServices, probeMode, probeMenus);
+            var monitor = new RunMonitor(game, gameType, frameLimit, windowed, probeServices, probeMode, probeMenus, probeResize);
             game.Components.Add(monitor);
             Console.WriteLine("RUN_START original=ZombiesWP7.Game1 method=Run");
             try { game.Run(); }
@@ -80,7 +105,7 @@ internal static class RunSession
                 Console.Error.WriteLine($"RUN_PRIMARY_EXCEPTION {error}");
                 throw;
             }
-            Console.WriteLine($"RUN_END updates={monitor.Updates} frames={monitor.Frames} menuReached={monitor.MenuReached} menuAnimated={monitor.MenuAnimated} rendered={monitor.RenderedMenu} serviceScreens={monitor.ServiceScreens} serviceVerified={monitor.ServiceStatesVerified} modeProbe={probeMode} modeVerified={monitor.ModeVerified} menusVerified={monitor.MenusVerified} inputSamples={DesktopInput.Samples} activeSamples={DesktopInput.ActiveSamples} mouseSamples={DesktopInput.MouseSamples} keyboardSamples={DesktopInput.KeyboardSamples} movementSeen={monitor.MovementSeen} aimSeen={monitor.AimSeen} clickSeen={monitor.ClickSeen} backSeen={monitor.BackSeen} pauseSeen={monitor.PauseSeen} hostQuit={monitor.HostQuit} timedOut={monitor.TimedOut}");
+            Console.WriteLine($"RUN_END updates={monitor.Updates} frames={monitor.Frames} menuReached={monitor.MenuReached} menuAnimated={monitor.MenuAnimated} rendered={monitor.RenderedMenu} serviceScreens={monitor.ServiceScreens} serviceVerified={monitor.ServiceStatesVerified} modeProbe={probeMode} modeVerified={monitor.ModeVerified} menusVerified={monitor.MenusVerified} artDraws={AssetDraw.Replacements} originalDraws={AssetDraw.OriginalDraws} artUnique={AssetDraw.UsedCount} artSample={AssetDraw.UsedSample} inputSamples={DesktopInput.Samples} activeSamples={DesktopInput.ActiveSamples} mouseSamples={DesktopInput.MouseSamples} keyboardSamples={DesktopInput.KeyboardSamples} movementSeen={monitor.MovementSeen} aimSeen={monitor.AimSeen} clickSeen={monitor.ClickSeen} backSeen={monitor.BackSeen} pauseSeen={monitor.PauseSeen} hostQuit={monitor.HostQuit} timedOut={monitor.TimedOut}");
             return monitor.MenuReached && monitor.MenuAnimated && monitor.RenderedMenu &&
                 monitor.Frames >= 2 && !monitor.TimedOut && (!probeServices || monitor.ServiceStatesVerified) &&
                 (probeMode is null || monitor.ModeVerified) && (!probeMenus || monitor.MenusVerified) ? 0 : 1;
@@ -151,6 +176,7 @@ internal sealed class RunMonitor : DrawableGameComponent
     private readonly bool probeServices;
     private readonly ModeProbe? modeProbe;
     private readonly MenuProbe? menuProbe;
+    private readonly (int Width, int Height)? probeResize;
     private readonly Stopwatch elapsed = Stopwatch.StartNew();
     public int Updates { get; private set; }
     public int Frames { get; private set; }
@@ -172,16 +198,20 @@ internal sealed class RunMonitor : DrawableGameComponent
     public bool MenusVerified => menuProbe?.Verified ?? false;
     private bool achievementCaptured;
     private bool leaderboardCaptured;
+    private bool artProbeCaptured;
+    private bool resizedCaptured;
     private int achievementOpenedAt;
     private int leaderboardOpenedAt;
     private float? firstMenuFrame;
 
-    public RunMonitor(Game game, Type gameType, int? frameLimit, bool windowed, bool probeServices, string? probeMode, bool probeMenus) : base(game)
+    public RunMonitor(Game game, Type gameType, int? frameLimit, bool windowed, bool probeServices,
+        string? probeMode, bool probeMenus, (int Width, int Height)? probeResize) : base(game)
     {
         this.gameType = gameType;
         this.frameLimit = frameLimit;
         this.windowed = windowed;
         this.probeServices = probeServices;
+        this.probeResize = probeResize;
         if (probeMode is not null) modeProbe = new ModeProbe(game, gameType, probeMode);
         if (probeMenus) menuProbe = new MenuProbe(game, gameType);
     }
@@ -244,6 +274,12 @@ internal sealed class RunMonitor : DrawableGameComponent
             if (menuFrame != firstMenuFrame) MenuAnimated = true;
         }
         modeProbe?.Update(Updates, MenuReached && MenuAnimated);
+        if (probeResize is { } resize && modeProbe is not null && Updates == 300)
+        {
+            if (!DesktopDisplay.ApplyForProbe("Windowed", resize.Width, resize.Height))
+                throw new InvalidOperationException("Imported art display resize probe failed.");
+            Console.WriteLine($"ART_RESIZE mode={modeProbe.Mode} backbuffer={resize.Width}x{resize.Height}");
+        }
         menuProbe?.Update(Updates, MenuReached && MenuAnimated);
         if (Updates % 60 == 0)
         {
@@ -333,7 +369,17 @@ internal sealed class RunMonitor : DrawableGameComponent
         if (modeProbe?.ShouldCapture(Updates) == true)
         {
             CaptureScreen($"mode-{modeProbe.Mode}", "MODE");
+            if (!artProbeCaptured)
+            {
+                CaptureArtProbe(modeProbe.Mode);
+                artProbeCaptured = true;
+            }
             modeProbe.MarkCaptured();
+        }
+        if (probeResize is not null && modeProbe is not null && !resizedCaptured && Updates >= 335 && Updates < 455)
+        {
+            CaptureScreen($"mode-resized-{modeProbe.Mode}", "MODE");
+            resizedCaptured = true;
         }
         if (modeProbe?.ShouldCapturePause(Updates) == true)
         {
@@ -370,6 +416,11 @@ internal sealed class RunMonitor : DrawableGameComponent
             CaptureScreen("touch-page", "MENU");
             menuProbe.MarkTouchCaptured();
         }
+        if (menuProbe?.ShouldCaptureAsset(Updates) == true)
+        {
+            CaptureScreen("asset-page", "MENU");
+            menuProbe.MarkAssetCaptured();
+        }
         if (MenuReached && !RenderedMenu && Frames % 30 == 0)
         {
             var width = GraphicsDevice.PresentationParameters.BackBufferWidth;
@@ -383,6 +434,58 @@ internal sealed class RunMonitor : DrawableGameComponent
         }
         if (frameLimit is int limit && Frames >= limit) Game.Exit();
         base.Draw(gameTime);
+    }
+
+    private void CaptureArtProbe(string mode)
+    {
+        using var target = new RenderTarget2D(GraphicsDevice, 600, 360, false,
+            SurfaceFormat.Color, DepthFormat.None);
+        using var sprite = new SpriteBatch(GraphicsDevice);
+        var beforeImported = AssetDraw.Replacements;
+        var beforeOriginal = AssetDraw.OriginalDraws;
+        GraphicsDevice.SetRenderTarget(target);
+        GraphicsDevice.Clear(new Color(18, 18, 18));
+        sprite.Begin(SpriteSortMode.Deferred, BlendState.NonPremultiplied, SamplerState.LinearClamp,
+            DepthStencilState.None, RasterizerState.CullNone);
+        var cases = mode switch
+        {
+            "normal" => new (string Path, Rectangle Source, Rectangle Destination)[]
+            {
+                ("gfx_2/zombie/grass", new Rectangle(40, 40, 160, 90), new Rectangle(0, 0, 600, 360)),
+                ("gfx_2/zombie/sprites", new Rectangle(288, 64, 96, 96), new Rectangle(10, 10, 96, 96))
+            },
+            "viking" => new (string, Rectangle, Rectangle)[]
+            {
+                ("gfx_2/grass", new Rectangle(448, 128, 64, 64), new Rectangle(0, 0, 64, 64)),
+                ("gfx_2/grass", new Rectangle(448, 192, 64, 64), new Rectangle(0, 72, 64, 64)),
+                ("gfx_2/grass", new Rectangle(448, 256, 64, 64), new Rectangle(0, 144, 64, 64)),
+                ("gfx_2/grass", new Rectangle(448, 320, 64, 64), new Rectangle(0, 216, 64, 64)),
+                ("gfx_2/moon1", new Rectangle(0, 0, 512, 192), new Rectangle(80, 0, 200, 75)),
+                ("gfx_2/moon2", new Rectangle(0, 0, 512, 192), new Rectangle(80, 90, 200, 75)),
+                ("gfx_2/moon3", new Rectangle(0, 0, 256, 192), new Rectangle(80, 180, 100, 75)),
+                ("gfx_2/moon3", new Rectangle(256, 0, 256, 192), new Rectangle(190, 180, 100, 75))
+            },
+            "endless" => new (string, Rectangle, Rectangle)[]
+            {
+                ("gfx_2/zombie/sprites", new Rectangle(288, 64, 96, 96), new Rectangle(0, 0, 96, 96)),
+                ("gfx/maps", new Rectangle(5, 5, 313, 302), new Rectangle(120, 0, 156, 151)),
+                ("gfx_2/zombie/sprites", new Rectangle(576, 0, 64, 96), new Rectangle(300, 0, 64, 96))
+            },
+            _ => throw new InvalidOperationException($"Unexpected art probe mode {mode}.")
+        };
+        foreach (var (path, source, destination) in cases)
+        {
+            var texture = AssetDraw.LoadTexture(Game.Content, path);
+            AssetDraw.Draw(sprite, texture, destination, source, Color.White);
+        }
+        sprite.End();
+        GraphicsDevice.SetRenderTarget(null);
+        var output = Path.Combine(AppContext.BaseDirectory, $"art-probe-{mode}.png");
+        using (var stream = File.Create(output)) target.SaveAsPng(stream, target.Width, target.Height);
+        Console.WriteLine($"ART_PROBE mode={mode} imported={AssetDraw.Replacements - beforeImported} original={AssetDraw.OriginalDraws - beforeOriginal} path={output}");
+        var catalog = Path.Combine(AppContext.BaseDirectory, $"art-catalog-{mode}.png");
+        var count = AssetDraw.RenderCatalog(Game.Content, GraphicsDevice, catalog);
+        if (count > 0) Console.WriteLine($"ART_CATALOG mode={mode} routes={count} path={catalog}");
     }
 
     private void CaptureScreen(string name, string category)

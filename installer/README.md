@@ -8,7 +8,7 @@ Build from the repository root after dependency bootstrap:
 ./installer/build.ps1 -FfmpegPath 'C:/path/to/pinned/ffmpeg.exe'
 ```
 
-The converter must match `config/content-tools.json`. The build checks the .NET runtime-pack hashes in `installer/config/runtime-packs.json` and writes `installer/out/ZombiesPort-Setup.exe`. The player needs only that executable and their XAP. For automated testing, setup accepts `/XAP="C:\path\to\game.xap"` together with Inno Setup's `/VERYSILENT` and `/DIR` switches.
+The converter must match `config/content-tools.json`. The build checks the .NET runtime-pack hashes in `installer/config/runtime-packs.json` and writes `installer/out/ZombiesPort-Setup.exe` plus `installer/out/FFmpeg-8.1.1-source.zip`. Both files must be offered together at the same release location; the player only needs setup, their XAP, and any optional Steam/360 source they choose. See the [FFmpeg source build and delivery instructions](ffmpeg/README.md). For automated testing, setup accepts `/XAP="C:\path\to\game.xap"` together with Inno Setup's `/VERYSILENT` and `/DIR` switches. Silent optional import uses `/ARTNORMAL=steam|360`, `/ARTNORMALSOURCE=<path>`, `/ARTVIKING=360`, and `/ARTVIKINGSOURCE=<path>`; `keep` and `none` support later updates and removal.
 
 ## User experience
 
@@ -17,11 +17,15 @@ The converter must match `config/content-tools.json`. The build checks the .NET 
 | Welcome | Says a local copy of the game XAP is required and that setup works offline. |
 | Destination | Defaults to a per-user install location, using Inno Setup's [`PrivilegesRequired=lowest`](https://jrsoftware.org/ishelp/topic_setup_privilegesrequired.htm) to avoid an admin prompt. |
 | Game XAP | Browse to a `.xap`; verify its hash, original DLL hash, manifest identity, and required entries before Next is enabled. Explain wrong versions clearly. |
+| I MAED art | Keep the existing source, use Original, or import supported Steam or 360 artwork. Show the title/version, expected coverage, and source validation result. |
+| Time Viking art | Independently keep, remove, or import the supported 360 package. Show its title/version, coverage, and validation result. |
 | Ready | Show destination, detected game version, and what will be installed. |
 | Progress | Show extraction, compatibility preparation, content conversion, verification, and commit as separate stages. Support cancel without leaving a claimed-successful installation. |
 | Finish | Choose Launch game or Close. A failed install never launches. |
 
 Use [Inno Setup custom wizard pages](https://jrsoftware.org/ishelp/topic_scriptpages.htm) for presentation and sequencing. Put archive parsing, cryptographic checks, IL rewriting, content conversion, file placement, and logs in a shipped .NET helper that shares the same preparation engine as the CLI. The player should need only the setup executable and their XAP: no Python, .NET SDK, compiler, internet connection, or manual file copying. Bundle the runtime required by the helper and launcher.
+
+After an import, open Settings → ASSETS to choose Original or the installed source for I MAED, Time Viking, and Endless separately. The first verified import becomes the default. The game checks imported pixels at launch and selection; an unavailable source uses Original art and the Settings row directs the player to rerun setup to repair it. Choices are stored beside the phone save in `assets.json`, so an update or uninstall does not erase them.
 
 ## Boundaries
 
@@ -41,19 +45,20 @@ installer/out/                     # ignored: built payload and setup executable
 {user install}/current/Port.Launcher.exe
 {user install}/current/ZombiesWP7.dll
 {user install}/current/Content/
+{user install}/current/optional-art/  # verified optional generations and route manifests
 {user install}/current/install-manifest.json
 {user install}/current/install-report.txt
 {local app data}/Z0MB1ES on teh ph0ne/  # saves, outside install directory
 ```
 
-The helper exposes `validate-xap`, `verify-installed`, and `install`. It verifies the selected XAP before Inno begins installation, generates the ABI report locally, reuses `Port.Prepare` and `Port.Content`, stages output beside the destination, hashes every staged file, then commits. Inno displays the helper's stage lines. On update, the previous `current/` directory is kept as `current.previous/` until Inno finishes. If Inno fails later, `DeinitializeSetup` restores it. An interrupted preparation cannot create a successful install manifest at the destination. A forced process kill can leave an abandoned work directory; a later build or manual cleanup can remove that ignored directory.
+The helper exposes `validate-xap`, `validate-art`, `verify-installed`, and `install`. It verifies the selected XAP and optional source fingerprints before Inno begins installation, generates the ABI report locally, reuses `Port.Prepare` and `Port.Content`, prepares selected art with the bundled offline importer, hashes every staged file, then commits. Inno displays the helper's stage lines. On update, the previous `current/` directory is kept as `current.previous/` until Inno finishes. If Inno fails later, `DeinitializeSetup` restores it. An interrupted preparation cannot create a successful install manifest at the destination. A forced process kill can leave an abandoned work directory; a later build or manual cleanup can remove that ignored directory.
 
-On reinstall or update, verify the existing generated game data. Reuse it when its source XAP hash and preparation format remain compatible; otherwise ask for the XAP again. Do not silently re-import from a remembered arbitrary path. Preserve saves by default on uninstall; any deletion of player data must be an explicit choice. Do not remove the source XAP.
+On reinstall or update, verify the existing generated game data. Reuse it when its source XAP hash and preparation format remain compatible; otherwise ask for the XAP again. Optional art can be kept, replaced, repaired, or removed independently, including when one installed generation is corrupt. Do not silently re-import from a remembered arbitrary path. Preserve saves by default on uninstall; any deletion of player data must be an explicit choice. Do not remove source game packages.
 
 ## Release and acceptance
 
-Run `python installer/audit-release.py --xap <supported-local-xap>` after building. This developer-side audit checks repository inputs, the strict payload allow-list, original XAP entry hashes, symbols, machine paths, secrets, and the completed setup executable. It runs five negative controls. The build removes stale publish directories before packaging. The resulting setup contains dependency notices under `current/notices/` after installation.
+Run `python installer/audit-release.py --xap <supported-local-xap>` after building. This developer-side audit checks repository inputs, the strict payload allow-list, original XAP entry hashes, symbols, machine paths, secrets, the completed setup executable, and the matching FFmpeg source ZIP. It runs five negative controls. The build removes stale publish directories before packaging. The resulting setup contains dependency notices under `current/notices/` after installation.
 
 For support, the local installation has `current/install-report.txt` and `current/install-manifest.json`. An Inno setup log can be requested with `/LOG=<local-file>`; review it before sharing because it records local paths. Saves remain outside the install directory. Original-behavior uncertainty is tracked in the [feature matrix](../docs/records/feature-matrix.md).
 
-Prompt 14's automated audit and local silent-install rehearsal passed. The clean-account visual check, full hands-on game gates, and redistribution rights review remain open, so the release gate is not closed and nothing has been published. Prompt 13 is finished for the agreed scope; its interactive wizard check on a separate Windows account without developer tools was deferred by the user. The [implementation log](../docs/records/implementation-log.md) records the exact local test results and package hash.
+Prompt 4's [asset-swap validation](../docs/records/asset-swap-p4.md) rebuilt and audited setup, checked all art choices across native/widescreen/ultrawide output, exercised source failures and preference fallback, and tested clean phone-only setup, optional-art reinstall, and post-commit rollback. The rollback cleanup uses the .NET helper because generated art paths can reach the Windows legacy 260-character limit. The previous GPL FFmpeg source gap is addressed by the [LGPL rebuild and matching source package](../docs/records/ffmpeg-redistribution.md); keep both release files together. The focused hands-on visual pass, interactive wizard check on a separate clean Windows account, and final review of other dependency notices remain open. The release gate is not closed and nothing has been published. The [implementation log](../docs/records/implementation-log.md) records the local tests and package hashes.

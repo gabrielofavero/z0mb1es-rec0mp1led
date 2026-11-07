@@ -132,6 +132,10 @@ Runtime patching (for example, [Harmony](https://harmony.pardeike.net/v2/)) can 
 
 The original 600×360 viewport and `TouchMgr.Update` call order are now established from the original DLL and running port. The desktop input boundary is four guarded call-operand changes in that method, with authored contact and gesture generation in `Port.Hooks`. The launcher permits resizing and maps pointer coordinates through a centered 5:3 content rectangle. Mouse aiming derives a direction from the original on-screen player position to the pointer, then supplies a right-stick contact. A focused run reached gameplay, registered mouse aim, and opened and resumed the original pause menu with Escape and Enter. Controller Start/Select behavior and live resize remain for hands-on confirmation. The bridge's full-game trial choice is an explicit offline desktop policy, separate from the original phone licensing service. See [desktop input](../runtime/desktop-input.md).
 
+## Optional imported art boundary (planned, 2026-11-07)
+
+The phone `ZombiesWP7.dll` remains the sole game runtime for all three modes. The two locally supplied 360 games are separate managed XNA executables, so executing them would change game behavior and require a second compatibility stack. The [game hot swap proposal](../plans/cancelled/2026-11-07-game-hot-swap.md) was cancelled. Optional 360 or Steam imports supply only mapped visual assets, with the phone art as a complete fallback. See the [asset swap plan](../plans/in-progress/2026-11-07-asset-swap.md), [asset comparison](../runtime/asset-comparison.md), [360 evidence ledger](../records/xbox-360-evidence.md), [renderer results](../records/asset-swap-p2.md), and [installer and Settings record](../records/asset-swap-p3.md). The offline installer imports supported sources into a separate verified art store, and the ASSETS Settings page persists each mode's visual choice.
+
 | Existing work seen in `../z0mb1es-on-teh-fna` | New owned boundary | First verification |
 | --- | --- | --- |
 | Desktop `Program` and modified `Game1` lifecycle | `Port.Launcher` plus narrow `Game1` hooks | Construct, load, update, draw, exit |

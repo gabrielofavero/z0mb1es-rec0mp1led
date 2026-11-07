@@ -46,11 +46,13 @@ public static class DesktopDisplay
     private static Array? touchItems;
     private static Array? displayItems;
     private static Array? customItems;
+    private static Array? assetItems;
     private static object? previousInfos;
     private static bool displayPage;
     private static bool touchPage;
     private static bool audioPage;
     private static bool customPage;
+    private static bool assetPage;
     private static int editing = -1;
     private static bool captureInput;
     private static KeyboardState previousKeyboard;
@@ -63,6 +65,7 @@ public static class DesktopDisplay
     public static bool IsDisplayPage => displayPage;
     public static bool IsTouchPage => touchPage;
     public static bool IsCustomPage => customPage;
+    public static bool IsAssetPage => assetPage;
     internal static IntPtr GameWindowHandle => game?.Window.Handle ?? IntPtr.Zero;
 
     public static void Configure(Game runningGame)
@@ -91,9 +94,9 @@ public static class DesktopDisplay
         itemFlagField = itemLocationField = itemTiltField = null;
         menuLevels = null;
         menuOffsetApplied = 0;
-        originalItems = settingsItems = audioItems = touchItems = displayItems = customItems = null;
+        originalItems = settingsItems = audioItems = touchItems = displayItems = customItems = assetItems = null;
         previousInfos = null;
-        displayPage = touchPage = audioPage = customPage = captureInput = false;
+        displayPage = touchPage = audioPage = customPage = assetPage = captureInput = false;
         editing = -1;
         preferences = Load();
         widthText = preferences.Width.ToString();
@@ -135,11 +138,12 @@ public static class DesktopDisplay
         var constructor = itemType.GetConstructor([typeof(string), typeof(Vector2), typeof(float)])
             ?? throw new MissingMethodException("MenuItem(string, Vector2, float)");
         object Item(string text, float y) => constructor.Invoke([text, new Vector2(250 + TextMenuOffset, y), 0.9f]);
-        settingsItems = Array.CreateInstance(itemType, 8);
+        settingsItems = Array.CreateInstance(itemType, 9);
         Array.Copy(oldItems, settingsItems, 5);
         settingsItems.SetValue(Item("GRAPH1CS", 125), 5);
         settingsItems.SetValue(Item("AUD10", 175), 6);
         settingsItems.SetValue(Item("1NPUT", 225), 7);
+        settingsItems.SetValue(Item("ASSETS", 275), 8);
         audioItems = Array.CreateInstance(itemType, 6);
         Array.Copy(oldItems, audioItems, 5);
         audioItems.SetValue(Item("BACK", 250), 5);
@@ -155,6 +159,9 @@ public static class DesktopDisplay
         var customLabels = new[] { "W1DTH", "HE1GHT", "APPLY CUST0M", "BACK" };
         for (var i = 0; i < customLabels.Length; i++)
             customItems.SetValue(Item(customLabels[i], 100 + i * 50), i);
+        assetItems = Array.CreateInstance(itemType, 4);
+        for (var i = 0; i < 4; i++)
+            assetItems.SetValue(constructor.Invoke(["BACK", new Vector2(250 + TextMenuOffset, 95 + i * 50), 0.7f]), i);
         settingsMenu = settings;
         ShowSettingsPage();
         RefreshLabels();
@@ -170,7 +177,7 @@ public static class DesktopDisplay
 
     private static void ShowSettingsPage()
     {
-        touchPage = displayPage = audioPage = customPage = false;
+        touchPage = displayPage = audioPage = customPage = assetPage = false;
         for (var i = 0; i < 3; i++) PlaceOriginal(i, false, Vector2.Zero);
         PlaceOriginal(3, false, Vector2.Zero);
         PlaceOriginal(4, false, Vector2.Zero);
@@ -180,7 +187,7 @@ public static class DesktopDisplay
 
     private static void ShowTouchPage()
     {
-        displayPage = audioPage = customPage = false;
+        displayPage = audioPage = customPage = assetPage = false;
         touchPage = true;
         PlaceOriginal(0, true, new Vector2(250, 100));
         PlaceOriginal(1, true, new Vector2(250, 150));
@@ -193,7 +200,7 @@ public static class DesktopDisplay
 
     private static void ShowAudioPage()
     {
-        displayPage = touchPage = customPage = false;
+        displayPage = touchPage = customPage = assetPage = false;
         audioPage = true;
         for (var i = 0; i < 3; i++) PlaceOriginal(i, false, Vector2.Zero);
         PlaceOriginal(3, true, new Vector2(250, 135));
@@ -204,7 +211,7 @@ public static class DesktopDisplay
 
     private static void ShowDisplayPage()
     {
-        touchPage = audioPage = customPage = false;
+        touchPage = audioPage = customPage = assetPage = false;
         displayPage = true;
         titleField!.SetValue(settingsMenu, "d1splay");
         itemsField!.SetValue(settingsMenu, displayItems);
@@ -213,7 +220,7 @@ public static class DesktopDisplay
 
     private static void ShowCustomPage()
     {
-        displayPage = audioPage = false;
+        displayPage = audioPage = assetPage = false;
         customPage = true;
         widthText = preferences.Width.ToString();
         heightText = preferences.Height.ToString();
@@ -222,17 +229,32 @@ public static class DesktopDisplay
         RefreshLabels();
     }
 
+    private static void ShowAssetPage()
+    {
+        AssetChoices.Refresh();
+        displayPage = touchPage = audioPage = customPage = false;
+        assetPage = true;
+        titleField!.SetValue(settingsMenu, "assets");
+        itemsField!.SetValue(settingsMenu, assetItems);
+        RefreshLabels();
+    }
+
     public static bool HandleSettingsClick(object settings, string text)
     {
         if (!ReferenceEquals(settings, settingsMenu)) return false;
-        if (!displayPage && !touchPage && !audioPage && !customPage)
+        if (!displayPage && !touchPage && !audioPage && !customPage && !assetPage)
         {
-            if (text is not ("GRAPH1CS" or "AUD10" or "1NPUT")) return false;
+            if (text is not ("GRAPH1CS" or "AUD10" or "1NPUT" or "ASSETS")) return false;
             previousInfos = infosField!.GetValue(settings);
             infosField.SetValue(settings, null);
             if (text == "1NPUT")
             {
                 ShowTouchPage();
+                return true;
+            }
+            if (text == "ASSETS")
+            {
+                ShowAssetPage();
                 return true;
             }
             if (text == "AUD10") ShowAudioPage();
@@ -249,6 +271,21 @@ public static class DesktopDisplay
         {
             if (text != "BACK") return false;
             CloseDisplayPage();
+            return true;
+        }
+        if (assetPage)
+        {
+            if (text == "BACK") CloseDisplayPage();
+            else
+            {
+                var mode = text.StartsWith("I MAED:", StringComparison.Ordinal) ? "normal" :
+                    text.StartsWith("TIME VIKING:", StringComparison.Ordinal) ? "viking" :
+                    text.StartsWith("ENDLESS:", StringComparison.Ordinal) ? "endless" : null;
+                if (mode is null) return false;
+                var result = AssetChoices.Toggle(mode);
+                if (result.Length != 0) SetInfo(result);
+            }
+            RefreshLabels();
             return true;
         }
         if (customPage)
@@ -301,7 +338,7 @@ public static class DesktopDisplay
 
     public static bool HandleSettingsCancel(object settings)
     {
-        if (!ReferenceEquals(settings, settingsMenu) || (!displayPage && !touchPage && !audioPage && !customPage)) return false;
+        if (!ReferenceEquals(settings, settingsMenu) || (!displayPage && !touchPage && !audioPage && !customPage && !assetPage)) return false;
         if (customPage)
         {
             ReturnToDisplayPage();
@@ -383,7 +420,7 @@ public static class DesktopDisplay
 
     private static void RefreshLabels()
     {
-        if (displayItems is null || customItems is null || itemTextField is null) return;
+        if (displayItems is null || customItems is null || assetItems is null || itemTextField is null) return;
         var displayLabels = new[]
         {
             $"M0DE: {preferences.Mode.ToUpperInvariant()}",
@@ -404,6 +441,14 @@ public static class DesktopDisplay
         };
         for (var i = 0; i < customLabels.Length; i++)
             itemTextField.SetValue(customItems.GetValue(i), customLabels[i]);
+        var assetLabels = new[]
+        {
+            $"I MAED: {AssetChoices.NormalLabel}",
+            $"TIME VIKING: {AssetChoices.VikingLabel}",
+            $"ENDLESS: {AssetChoices.EndlessLabel}", "BACK"
+        };
+        for (var i = 0; i < assetLabels.Length; i++)
+            itemTextField.SetValue(assetItems.GetValue(i), assetLabels[i]);
     }
 
     private static void SetInfo(string text)
@@ -539,6 +584,7 @@ public static class DesktopDisplay
         Shift(touchItems);
         Shift(displayItems);
         Shift(customItems);
+        Shift(assetItems);
         menuOffsetApplied = MenuOffset;
     }
 

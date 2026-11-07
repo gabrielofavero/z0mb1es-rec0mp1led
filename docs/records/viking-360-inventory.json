@@ -1,0 +1,272 @@
+{
+  "schemaVersion": 1,
+  "input": {
+    "name": "time-vicking-360",
+    "bytes": 39981056,
+    "sha256": "a0cf9187acca62058466654c53e57eb94148ad31ee2def83a8a6a37b1bf445c4"
+  },
+  "package": {
+    "magic": "LIVE",
+    "headerSize": 44302,
+    "contentType": "0x00000002",
+    "metadataVersion": 2,
+    "containerTitleId": "0x584e07d2",
+    "volume": "STFS read-only",
+    "dataBlocksVerified": 9691,
+    "displayName": "TIME VIKING!!!!!ANDSPACERAPTOR"
+  },
+  "gameInfo": {
+    "ID": "1481508818",
+    "Name": "TIME VIKING!!!!!ANDSPACERAPTOR",
+    "TitleID": "1481969160",
+    "VirtualTitleID": "c07223621f1b4663a33960bd13ce8363"
+  },
+  "counts": {
+    "entries": 47,
+    "directories": 8,
+    "files": 39
+  },
+  "files": [
+    {
+      "path": "DashboardIcon.png",
+      "bytes": 10348,
+      "sha256": "3b8ea864bde77e0d26660a8631ab7421652b879502378439da73e1d650472028"
+    },
+    {
+      "path": "GameInfo.bin",
+      "bytes": 1449,
+      "sha256": "c3bcac28fd6804bcec0085077ec58eff2ab010bf5d8c34c170f2585bcb1be797"
+    },
+    {
+      "path": "GameInfo.xml",
+      "bytes": 2198,
+      "sha256": "e2afc5422350b29dc56ef9cc65412b59e1819263bd21c5e2ebcdd4ad720242cb"
+    },
+    {
+      "path": "TitleImage.png",
+      "bytes": 7367,
+      "sha256": "455fa0aeaed0514907668b24bfe1be3ee40ba7768532b4b1b37162fe47c1fb57"
+    },
+    {
+      "path": "584E07D1/Viking_x86.exe",
+      "bytes": 198144,
+      "sha256": "9c79105aec24cad5f8a962cf7ba8d75efea4e23fc4ddef2b8c348bfcdae0d1d2"
+    },
+    {
+      "path": "584E07D1/chardef/raptor.zsx",
+      "bytes": 11470,
+      "sha256": "264c4143157c099f6e08c6e6dd8db2805a1cc3ad5b6c939deb261515719397f9"
+    },
+    {
+      "path": "584E07D1/chardef/robot.zsx",
+      "bytes": 7317,
+      "sha256": "941c9d09542f3ee33f618114694a737715993de25ee9f5d6afb3649237720e0e"
+    },
+    {
+      "path": "584E07D1/chardef/viking.zsx",
+      "bytes": 12988,
+      "sha256": "dde6fcd034b152e053f50cccc0d32426843f0920b579ab0d4cb211c8f9e6b959"
+    },
+    {
+      "path": "584E07D1/Content/gfx/1x1.xnb",
+      "bytes": 191,
+      "sha256": "7db90fb36cd03ed6fa1bc239d1d98012e832a436dec2b9fa3a20e3c3052e64e5",
+      "xnbPlatform": "x",
+      "xnbVersion": 5
+    },
+    {
+      "path": "584E07D1/Content/gfx/atmos.xnb",
+      "bytes": 2000,
+      "sha256": "004f102b9dec63e578ec58aa4f6f5ed38167af75a1afccd80df378609d791fe4",
+      "xnbPlatform": "x",
+      "xnbVersion": 5
+    },
+    {
+      "path": "584E07D1/Content/gfx/blue.xnb",
+      "bytes": 1932,
+      "sha256": "b64dc3fc1cc0d165d2de65efde0306dc4233a610db09d39200f2b56a03849514",
+      "xnbPlatform": "x",
+      "xnbVersion": 5
+    },
+    {
+      "path": "584E07D1/Content/gfx/city.xnb",
+      "bytes": 179494,
+      "sha256": "1248612a37fd30e9184ea7c584334088f5ec1e1859c03f43a51908fbd82630c7",
+      "xnbPlatform": "x",
+      "xnbVersion": 5
+    },
+    {
+      "path": "584E07D1/Content/gfx/controller.xnb",
+      "bytes": 1096,
+      "sha256": "5917aa49fd89eb82e518387ef9ec06f191fcd345c43c108592bc392f66cbe94d",
+      "xnbPlatform": "x",
+      "xnbVersion": 5
+    },
+    {
+      "path": "584E07D1/Content/gfx/covers.xnb",
+      "bytes": 943068,
+      "sha256": "2b5bf943c7409b55c9c1e33268ab2c9a1f15920f57acd88e9437dca2127eddf7",
+      "xnbPlatform": "x",
+      "xnbVersion": 5
+    },
+    {
+      "path": "584E07D1/Content/gfx/grass.xnb",
+      "bytes": 350326,
+      "sha256": "f904a5125cd99e91c525b23457e3c8d67a1c1235bec9335a969a718c39511bb6",
+      "xnbPlatform": "x",
+      "xnbVersion": 5
+    },
+    {
+      "path": "584E07D1/Content/gfx/gray.xnb",
+      "bytes": 1558,
+      "sha256": "990153c4f79163a102c91db6da560ae085f467466b701e07348605e1b0782a59",
+      "xnbPlatform": "x",
+      "xnbVersion": 5
+    },
+    {
+      "path": "584E07D1/Content/gfx/hearts.xnb",
+      "bytes": 121660,
+      "sha256": "33036496ea67cb40c22d731fca051fb72add7fb583601fe487bbb39f8a5e2737",
+      "xnbPlatform": "x",
+      "xnbVersion": 5
+    },
+    {
+      "path": "584E07D1/Content/gfx/maps.xnb",
+      "bytes": 3344306,
+      "sha256": "8dbe673c839b4a6b4c71e421a403a83ea3190d5a671efd64227ab4f2692cdbc4",
+      "xnbPlatform": "x",
+      "xnbVersion": 5
+    },
+    {
+      "path": "584E07D1/Content/gfx/maps2.xnb",
+      "bytes": 3098930,
+      "sha256": "be0e7b91e8945727129648bcd8e33316d124a93e1ed1d2e2cd313e856be80792",
+      "xnbPlatform": "x",
+      "xnbVersion": 5
+    },
+    {
+      "path": "584E07D1/Content/gfx/moon.xnb",
+      "bytes": 1456442,
+      "sha256": "c6e35f15e6fba4bc7e05290290ce82ddec930a45e24582cbdbc7663a6e38ecd6",
+      "xnbPlatform": "x",
+      "xnbVersion": 5
+    },
+    {
+      "path": "584E07D1/Content/gfx/punk.xnb",
+      "bytes": 137600,
+      "sha256": "ac75c23191be12d5a75123e412b64931298664e82fda0743853ba06fd0841cb4",
+      "xnbPlatform": "x",
+      "xnbVersion": 5
+    },
+    {
+      "path": "584E07D1/Content/gfx/punk2.xnb",
+      "bytes": 134842,
+      "sha256": "8e2788926d4501a1e05ad2e3b174305aef2cde5cd7a3c017195dec81c2941644",
+      "xnbPlatform": "x",
+      "xnbVersion": 5
+    },
+    {
+      "path": "584E07D1/Content/gfx/raptor.xnb",
+      "bytes": 60466,
+      "sha256": "42cacf50fd911ad851477055964a06ffa4fa6041848e49d60eca22eb911a5b83",
+      "xnbPlatform": "x",
+      "xnbVersion": 5
+    },
+    {
+      "path": "584E07D1/Content/gfx/robot.xnb",
+      "bytes": 179820,
+      "sha256": "3580f25ca15f6b7f6c66032318c5b23e6e40345ba702fa5662f147a57c85e3b6",
+      "xnbPlatform": "x",
+      "xnbVersion": 5
+    },
+    {
+      "path": "584E07D1/Content/gfx/scrap.xnb",
+      "bytes": 132028,
+      "sha256": "8ce6da93067a54939ed1e5c316000dbe10f2cb9749529ba958eb3a3ae380bf5d",
+      "xnbPlatform": "x",
+      "xnbVersion": 5
+    },
+    {
+      "path": "584E07D1/Content/gfx/sprites.xnb",
+      "bytes": 296128,
+      "sha256": "ae1afeafeb825a9ca8eec692025dd0243ff32750e955bd3f23698b276b61d57b",
+      "xnbPlatform": "x",
+      "xnbVersion": 5
+    },
+    {
+      "path": "584E07D1/Content/gfx/urban.xnb",
+      "bytes": 203608,
+      "sha256": "4d6a24cdedb9233b17a98a48a8bc655cf7bf9b34161c7c4e80a46c89340d0805",
+      "xnbPlatform": "x",
+      "xnbVersion": 5
+    },
+    {
+      "path": "584E07D1/Content/gfx/viking.xnb",
+      "bytes": 169710,
+      "sha256": "68f60537c5dc1f0ca4f7d773dd62de9e00e11671d216b38c7b6ad95f259079a7",
+      "xnbPlatform": "x",
+      "xnbVersion": 5
+    },
+    {
+      "path": "584E07D1/Content/gfx/zombie/1x1.xnb",
+      "bytes": 191,
+      "sha256": "7db90fb36cd03ed6fa1bc239d1d98012e832a436dec2b9fa3a20e3c3052e64e5",
+      "xnbPlatform": "x",
+      "xnbVersion": 5
+    },
+    {
+      "path": "584E07D1/Content/gfx/zombie/sprites.xnb",
+      "bytes": 479364,
+      "sha256": "8b06e2eb8114280db5bd8f12b04e72981d65b9dda931d01e0f6ab56b9aa6f9c5",
+      "xnbPlatform": "x",
+      "xnbVersion": 5
+    },
+    {
+      "path": "584E07D1/Content/sfx/fx.xsb",
+      "bytes": 1266,
+      "sha256": "eb855181c9b229d739f6b35d0dc0e01b49f47c6cea624467d2ce7272d595308f"
+    },
+    {
+      "path": "584E07D1/Content/sfx/fx.xwb",
+      "bytes": 6148828,
+      "sha256": "bcf72f3848ff1e68e4133b4562197148df7a111c2573be155dd3809626d22b21"
+    },
+    {
+      "path": "584E07D1/Content/sfx/sfxproj4.xgs",
+      "bytes": 440,
+      "sha256": "a069278ed602edf5b647ce67e25d719e5ecde88fc7384b935ad4aff4ac8ee9b0"
+    },
+    {
+      "path": "584E07D1/Content/sfx/music/timeviking.wma",
+      "bytes": 21900735,
+      "sha256": "d85b36f8ff9627e8a31918862426c4c144e144690cc2c5a145c1ab17926d51f9"
+    },
+    {
+      "path": "584E07D1/Content/sfx/music/timeviking.xnb",
+      "bytes": 128,
+      "sha256": "684176b9944ca2a72fef7a1169c6bf25318498716af40936ea911d2e846f10a0",
+      "xnbPlatform": "x",
+      "xnbVersion": 5
+    },
+    {
+      "path": "584E07D1/gfx/raptor.zsx",
+      "bytes": 660,
+      "sha256": "aa42940e2b36b96de837bf69defd7ed82b676cf8b6a978a317a483c4f1bbc6fe"
+    },
+    {
+      "path": "584E07D1/gfx/robot.zsx",
+      "bytes": 695,
+      "sha256": "31ef0a3661f3a5490b92f4c0e9e5108091e03acdef35094242b012f87966feab"
+    },
+    {
+      "path": "584E07D1/gfx/scrap.zsx",
+      "bytes": 994,
+      "sha256": "ae3ee3754aaa7a11797fe0ad581e83a2041ae3cf1d20624d5920249df8ec5e65"
+    },
+    {
+      "path": "584E07D1/gfx/viking.zsx",
+      "bytes": 1084,
+      "sha256": "a9fff8c79aa6b586839d28fd67850bb2d988a9447d178799df8a8fe22a8a4f41"
+    }
+  ]
+}

@@ -1,6 +1,10 @@
 # Game hot swap: optional Xbox 360 sources
 
-**Status:** Planned. The only supported input today is the Windows Phone XAP. No Xbox 360 package has been validated or decompiled for this port, so the 360 preparation path and runtime behavior below are implementation targets, not completed features.
+**Status: Cancelled 2026-11-07.** Prompt 0's package inventory and decompilation completed and remain historical evidence in [the evidence ledger](../../records/xbox-360-evidence.md). Prompt 1 produced uncommitted preparation/launch experiments, which were retired without establishing a playable 360 runtime. Prompts 2–6 were never implemented. The phone XAP remains the only runtime input.
+
+**Reason:** Running separate 360 games would require a second game loop, ABI compatibility, input/pause/display adapters, separate saves and achievements, and game dispatch from the phone menu. That complexity offers little preservation value and replaces the mobile game's own behavior. The replacement [asset swap plan](../in-progress/2026-11-07-asset-swap.md) keeps the phone executable and all three phone modes while optionally importing higher-resolution visual art from player-owned Steam or 360 copies. The completed package and texture research can support that plan; runtime rewrite and 360 achievement work cannot.
+
+**Archive note:** The player contract and prompts below describe the abandoned proposal. They are retained for decision history, not current implementation instructions.
 
 ## Player contract
 
@@ -8,7 +12,7 @@
 - Add **GAMES** under **HELP AND OPTIONS → SETTINGS**, alongside the existing Display and Touch pages. Show separate `Z0MB1ES: MOBILE / 360` and `TIME VIKING: MOBILE / 360` choices. Offer 360 only when that game's prepared install verifies; otherwise show it as unavailable and tell the player to rerun the installer to add or repair it. Both default to Mobile, including upgrades from existing installs. ZOMBIES ENDLESS always uses Mobile.
 - Selecting Z0MB1ES or TIME VIKING from the existing carousel and lobby starts the chosen source for that game. A 360 choice runs the imported 360 game instead of the phone implementation. Returning or quitting goes back to the same phone main menu. Keep the player's other source choices unchanged.
 - Both sources use the same visible pause menu and actions as the mobile port: pause, resume, end game confirmation, and return to the menu. Escape, controller Start/Back behavior, and the touch pause button must work consistently. Mouse, keyboard, controller, direct touch, and on-screen touchpads follow the existing desktop input settings; Show Touchpads and Relative Controls apply to either source. Both sources render to the user's selected display mode, resolution, and VSync setting. Keep aspect ratios and pointer/touch coordinates correct when their internal scene sizes differ.
-- Support local achievements for both 360 games wherever their original triggers can be identified and reached in this port. Show earned state for the selected source and persist it across restarts. Keep the phone game's existing 20 achievement flags intact. Do not claim Xbox Live unlocks or invent awards for unverified conditions.
+- Support local achievements for both 360 games where equivalent phone achievement conditions can be verified in 360 gameplay. The inspected standalone 360 packages contain no native achievement metadata or award calls. Show earned state for the selected source and persist it across restarts. Keep the phone game's existing 20 achievement flags intact. Do not claim Xbox Live unlocks or award unverified conditions.
 
 ## Shared rules and prompt order
 
@@ -16,7 +20,7 @@ Run the prompts below in order, one at a time. Each has a separate acceptance ga
 
 Keep original packages, extracted files, decompiled code, and prepared assemblies/assets in ignored local storage. Do not commit or bundle them. Guard every title-specific patch by supported version and exact code anchor; reject unsupported inputs clearly. Preserve phone-only installation, ZOMBIES ENDLESS, saves, and the current offline service policy throughout.
 
-0. Prompt 0 — Inventory and decompile the 360 titles.
+0. Prompt 0 — Inventory and decompile the 360 titles. **Complete for the pinned local packages; see the evidence ledger.**
 1. Prompt 1 — Prepare and boot each 360 title locally.
 2. Prompt 2 — Import optional titles through the installer.
 3. Prompt 3 — Add source settings and game dispatch.
@@ -66,11 +70,11 @@ Keep original packages, extracted files, decompiled code, and prepared assemblie
 
 ### Prompt 5 — Wire supported 360 achievements
 
-1. Use Prompt 0's map to enumerate every original achievement ID/key, metadata source, award condition, and call site for each 360 title. Classify each entry as implementable from reachable local gameplay, blocked by an unavailable platform service, or still unverified. Record a reason for every entry not wired. Do not assume a phone achievement with a similar name has the same condition or ID.
-2. Route every implementable original trigger through a title-specific local achievement provider. Prefer the original award path; add narrow, version-guarded hooks only where that path cannot run on desktop. Make awards idempotent and persist them atomically in a per-source profile. Keep the phone's 20 flags and both 360 titles' progress separate. Do not claim Xbox Live synchronization or Gamerscore changes.
-3. Make the local achievements screen source-aware, using recovered original metadata where available and clear local-only labeling. Show the correct list and earned state for the selected source. Verify that source switching and reinstall preserve earned state without awarding anything merely because a game was imported or selected.
+1. Use Prompt 0's negative native-achievement finding and the phone achievement map as the baseline. For each phone rule that could apply to a 360 source, prove the 360 gameplay event, exact predicate, and any run or cumulative state. Classify it as implementable local parity, unavailable in that standalone mode, or unverified. Record a reason for every phone rule not wired to that source. There are no recovered 360 achievement IDs to preserve in these packages.
+2. Route each verified parity rule through a source-specific local achievement provider using narrow, version-guarded hooks at the 360 gameplay event. Give local awards source-qualified IDs; do not present them as original Xbox 360 awards. Make awards idempotent and persist them atomically in a per-source profile. Keep the phone's 20 flags and both 360 titles' progress separate. Do not claim Xbox Live synchronization or Gamerscore changes.
+3. Make the local achievements screen source-aware. Show only verified local parity rules for the selected 360 source, with clear local-only labeling, and retain the original phone list for Mobile. Verify that source switching and reinstall preserve earned state without awarding anything merely because a game was imported or selected.
 
-**Acceptance:** Every trigger classified implementable has a controlled test showing no early award, one award at its original condition, no duplicate, persistence after restart, and isolation from other sources. The achievements screen shows the correct source's earned state. The evidence ledger lists unsupported and unknown achievements with reasons.
+**Acceptance:** Every verified local parity rule has a controlled test showing no early award, one award at its verified condition, no duplicate, persistence after restart, and isolation from other sources. The achievements screen shows the correct source's earned state and does not imply native 360 awards. The evidence ledger lists unavailable and unverified rules with reasons.
 
 ### Prompt 6 — Validate combinations and audit the release
 

@@ -13,8 +13,8 @@ namespace Port.Prepare;
 public static class GameplayPatcher
 {
     private const string OriginalHash = "7b819cb562826ae4d2592ff741877e76da0e57bfbe48192aabb79319fdb36823";
-    private const string DebugHooksHash = "7a8240e565b5ff37b3400e3a4208375e98917a7d5ea7e52adfde4da06a22c23c";
-    private const string ReleaseHooksHash = "8f293d7915897e7db900a6c506034faa0d3f082cba83f1846ec2fcdc15bf627c";
+    private const string DebugHooksHash = "4efe4aad8a5cd635edb2b9092c41e3b1bdb65882cb594d8e257f221c262b0762";
+    private const string ReleaseHooksHash = "d012114bb1bf3e43412791ed001778d6f468eab75fa6248cce9b1cc3166ea11b";
     private const string OriginalMethodBodyHash = "54407b733f8c2d7cdc67534f66899e99191731e2e0beeed8481bc673ff54f425";
     private const string TouchBodyHash = "5d5aea53560307207b175bab14d39138756165598972d7604491f4cd44d7bfc6";
     private const string StorageWriteHash = "887e2f79ecea6543a5ba56aecd08b4c6c82dcda8b790ee81a3e8e5a568249433";
@@ -31,6 +31,8 @@ public static class GameplayPatcher
     private const int MethodToken = 0x06000152;
     private const int TouchMethodToken = 0x0600007a;
     private const int CallOffset = 0x0015;
+    private const int AssetLoadCallCount = 63;
+    private const int AssetDrawCallCount = 170;
     private const string MethodSignature = "0x06000152 System.Void ZombiesWP7.custom.CustomMgr::Init(Microsoft.Xna.Framework.Graphics.GraphicsDevice,Microsoft.Xna.Framework.Content.ContentManager)";
 
     public static RewriteResult Apply(string originalDll, string preparedDll, string hooksDll, string outputDirectory)
@@ -116,6 +118,7 @@ public static class GameplayPatcher
                 PatchMenuVisuals(module, hooks);
                 PatchPictures(module, hooks);
                 RemoveHelpAndOptionsInfo(module);
+                PatchAssetDraw(module, hooks);
                 module.Write(stageDll, new WriterParameters { WriteSymbols = false });
             }
             using (var check = ModuleDefinition.ReadModule(stageDll))
@@ -156,6 +159,7 @@ public static class GameplayPatcher
                 VerifyMenuVisuals(check);
                 VerifyPictures(check);
                 VerifyHelpAndOptionsInfo(check);
+                VerifyAssetDraw(check);
             }
             var outputHash = Hash(stageDll);
             var patch = new PatchRecord("gameplay-call", OriginalHash, MethodSignature,
@@ -163,7 +167,7 @@ public static class GameplayPatcher
                 "one call target is Port.Hooks; original method control flow is preserved");
             var manifest = prior with
             {
-                ToolVersion = "0.11.0",
+                ToolVersion = "0.12.0",
                 PreparedSha256 = outputHash,
                 Plan = "pinned ABI rewrite plus guarded desktop media, input, storage and offline leaderboards",
                 Patches = [.. prior.Patches, patch,
@@ -215,7 +219,12 @@ public static class GameplayPatcher
                         "0x060001f9 IMAK3Z0MB1EGAEM.menu.HelpAndOptions::.ctor()",
                         HelpAndOptionsCtorHash,
                         "set the Help and Options info block to null, removing version and contact text",
-                        "Help, Settings, and Credits menu items remain unchanged")]
+                        "Help, Settings, and Credits menu items remain unchanged"),
+                    new PatchRecord("gameplay-call", OriginalHash,
+                        "pinned ContentManager.Load<Texture2D> and SpriteBatch.Draw call sites",
+                        OriginalHash,
+                        "route phone texture paths and source rectangles through Port.Hooks.AssetDraw",
+                        "phone logical geometry and Original fallback remain in effect")]
             };
             File.WriteAllText(Path.Combine(stage, "patch-manifest.json"),
                 JsonSerializer.Serialize(manifest,
@@ -618,5 +627,74 @@ public static class GameplayPatcher
             last.Any(item => item.Operand is string value &&
                 (value == "Version 1.0" || value == "Contact us: support@ska-studios.com")))
             throw new PreparationException("Help and Options info removal postcondition failed.");
+    }
+
+    private static IEnumerable<Mono.Cecil.TypeDefinition> AllTypes(IEnumerable<Mono.Cecil.TypeDefinition> roots)
+    {
+        foreach (var type in roots)
+        {
+            yield return type;
+            foreach (var nested in AllTypes(type.NestedTypes)) yield return nested;
+        }
+    }
+
+    private static void PatchAssetDraw(ModuleDefinition module, ModuleDefinition hooks)
+    {
+        var asset = hooks.Types.Single(type => type.FullName == "Port.Hooks.AssetDraw");
+        var load = module.ImportReference(asset.Methods.Single(method => method.Name == "LoadTexture"));
+        var wrappers = asset.Methods.Where(method => method.Name == "Draw" && method.IsStatic).ToArray();
+        var loads = 0;
+        var draws = 0;
+        foreach (var method in AllTypes(module.Types).SelectMany(type => type.Methods).Where(method => method.HasBody))
+        {
+            foreach (var instruction in method.Body.Instructions)
+            {
+                if (instruction.Operand is not MethodReference target ||
+                    (instruction.OpCode != OpCodes.Call && instruction.OpCode != OpCodes.Callvirt)) continue;
+                if (target.DeclaringType.FullName == "Microsoft.Xna.Framework.Content.ContentManager" &&
+                    target.Name == "Load" && target is GenericInstanceMethod generic &&
+                    generic.GenericArguments.Count == 1 &&
+                    generic.GenericArguments[0].FullName == "Microsoft.Xna.Framework.Graphics.Texture2D" &&
+                    target.Parameters.Count == 1 && target.Parameters[0].ParameterType.FullName == "System.String")
+                {
+                    instruction.OpCode = OpCodes.Call;
+                    instruction.Operand = load;
+                    loads++;
+                }
+                else if (target.DeclaringType.FullName == "Microsoft.Xna.Framework.Graphics.SpriteBatch" &&
+                    target.Name == "Draw")
+                {
+                    var wrapper = wrappers.SingleOrDefault(candidate =>
+                        candidate.Parameters.Count == target.Parameters.Count + 1 &&
+                        candidate.Parameters[0].ParameterType.FullName == target.DeclaringType.FullName &&
+                        candidate.Parameters.Skip(1).Select(p => p.ParameterType.FullName)
+                            .SequenceEqual(target.Parameters.Select(p => p.ParameterType.FullName)));
+                    if (wrapper is null)
+                        throw new PreparationException($"No art draw wrapper for {target.FullName} in {method.FullName}.");
+                    instruction.OpCode = OpCodes.Call;
+                    instruction.Operand = module.ImportReference(wrapper);
+                    draws++;
+                }
+            }
+        }
+        if (loads != AssetLoadCallCount || draws != AssetDrawCallCount)
+            throw new PreparationException($"Phone art call coverage changed: loads={loads} draws={draws}.");
+        Console.WriteLine($"ART_PATCH loads={loads} draws={draws}");
+    }
+
+    private static void VerifyAssetDraw(ModuleDefinition module)
+    {
+        var methods = AllTypes(module.Types).SelectMany(type => type.Methods).Where(method => method.HasBody).ToArray();
+        var calls = methods.SelectMany(method => method.Body.Instructions)
+            .Where(item => item.Operand is MethodReference).Select(item => (MethodReference)item.Operand).ToArray();
+        var loads = calls.Count(method => method.DeclaringType.FullName == "Port.Hooks.AssetDraw" && method.Name == "LoadTexture");
+        var draws = calls.Count(method => method.DeclaringType.FullName == "Port.Hooks.AssetDraw" && method.Name == "Draw");
+        if (loads != AssetLoadCallCount || draws != AssetDrawCallCount || calls.Any(method =>
+            method.DeclaringType.FullName == "Microsoft.Xna.Framework.Graphics.SpriteBatch" && method.Name == "Draw") ||
+            calls.Any(method => method.DeclaringType.FullName == "Microsoft.Xna.Framework.Content.ContentManager" &&
+                method.Name == "Load" && method is GenericInstanceMethod generic &&
+                generic.GenericArguments.Count == 1 &&
+                generic.GenericArguments[0].FullName == "Microsoft.Xna.Framework.Graphics.Texture2D"))
+            throw new PreparationException($"Art draw hook postcondition failed: loads={loads} draws={draws}.");
     }
 }
