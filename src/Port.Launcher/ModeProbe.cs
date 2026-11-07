@@ -21,11 +21,20 @@ internal sealed class ModeProbe
     private int stepAt;
     private bool progressionChecked;
     private bool frameCaptured;
+    private bool pauseCaptured;
+    private bool splashCaptured;
+    private bool menuCaptured;
 
     public bool Verified { get; private set; }
     public string Mode => mode;
     public bool ShouldCapture(int updates) => step == 2 && !frameCaptured && updates - stepAt >= 120;
     public void MarkCaptured() => frameCaptured = true;
+    public bool ShouldCapturePause(int updates) => step == 3 && !pauseCaptured && updates - stepAt >= 20;
+    public void MarkPauseCaptured() => pauseCaptured = true;
+    public bool ShouldCaptureSplash(int updates) => step == 1 && !splashCaptured && updates - stepAt >= 1;
+    public void MarkSplashCaptured() => splashCaptured = true;
+    public bool ShouldCaptureModeMenu(int updates) => step == 1 && !menuCaptured && updates - stepAt >= 25;
+    public void MarkModeMenuCaptured() => menuCaptured = true;
 
     public ModeProbe(Game game, Type gameType, string mode)
     {
@@ -53,7 +62,7 @@ internal sealed class ModeProbe
             State = menuState;
             Advance(1, updates, "init");
         }
-        else if (step == 1 && (bool)(GameObject().GetType().GetField(
+        else if (step == 1 && updates - stepAt >= 35 && (bool)(GameObject().GetType().GetField(
                      mode == "viking" ? "loadComplete" : "loadcomplete", Instance)?.GetValue(GameObject()) ?? false))
         {
             if (mode != "viking")

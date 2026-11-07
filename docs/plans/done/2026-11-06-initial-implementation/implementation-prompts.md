@@ -29,14 +29,21 @@ Folders show current work status. 'Done' records implementation work; any deferr
 - [Prompt 11 — Finish media and phone-only API behavior](11-media-and-phone-apis.md)
 - [Prompt 12 — Validate every mode against original evidence](12-feature-validation.md)
 - [Prompt 13 — Build the user-friendly XAP installer](13-xap-installer.md)
+- [Prompt 14 — Audit and rehearse the one-file release](14-release-audit.md)
 
 ### In progress
 
-- [Prompt 14 — Audit and rehearse the one-file release](../../in-progress/14-release-audit.md)
+No prompts are currently in progress.
 
 ### To do
 
-No prompts are currently queued.
+- [Game hot swap Prompt 0 — Inventory and decompile the 360 titles](../../to-do/2026-11-07-game-hot-swap.md#prompt-0--inventory-and-decompile-the-360-titles)
+- [Game hot swap Prompt 1 — Prepare and boot each 360 title locally](../../to-do/2026-11-07-game-hot-swap.md#prompt-1--prepare-and-boot-each-360-title-locally)
+- [Game hot swap Prompt 2 — Import optional titles through the installer](../../to-do/2026-11-07-game-hot-swap.md#prompt-2--import-optional-titles-through-the-installer)
+- [Game hot swap Prompt 3 — Add source settings and game dispatch](../../to-do/2026-11-07-game-hot-swap.md#prompt-3--add-source-settings-and-game-dispatch)
+- [Game hot swap Prompt 4 — Match pause, controls, display, and saves](../../to-do/2026-11-07-game-hot-swap.md#prompt-4--match-pause-controls-display-and-saves)
+- [Game hot swap Prompt 5 — Wire supported 360 achievements](../../to-do/2026-11-07-game-hot-swap.md#prompt-5--wire-supported-360-achievements)
+- [Game hot swap Prompt 6 — Validate combinations and audit the release](../../to-do/2026-11-07-game-hot-swap.md#prompt-6--validate-combinations-and-audit-the-release)
 
 ### Cancelled
 

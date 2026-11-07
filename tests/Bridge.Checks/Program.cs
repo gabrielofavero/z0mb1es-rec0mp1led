@@ -47,6 +47,18 @@ try
         10, null!, null!);
     if (!board.IsCompleted || LeaderboardReader.EndRead(board).Entries.Count != 0)
         throw new Exception("Offline leaderboard did not return an empty result.");
+    var callbackDone = new ManualResetEventSlim();
+    IAsyncResult? callbackResult = null;
+    var dialogState = new object();
+    var dialog = Guide.BeginShowMessageBox("Quit?", "Leave the game?", ["Yes", "No"], 1,
+        default, result => { callbackResult = result; callbackDone.Set(); }, dialogState);
+    if (!callbackDone.Wait(TimeSpan.FromSeconds(5)) || !ReferenceEquals(dialog, callbackResult) ||
+        !ReferenceEquals(dialog.AsyncState, dialogState) || Guide.EndShowMessageBox(dialog) is not null)
+        throw new Exception("Desktop message box did not complete safely when dialogs were suppressed.");
+    var quit = Guide.BeginShowMessageBox("Quit game?", "Exit to phone?", ["Quit", "Cancel"], 1,
+        default, null!, null!);
+    if (!quit.AsyncWaitHandle.WaitOne(TimeSpan.FromSeconds(5)) || Guide.EndShowMessageBox(quit) != 0)
+        throw new Exception("Main menu quit did not complete without a desktop dialog.");
     var accelerometer = new Accelerometer();
     accelerometer.Start();
     accelerometer.Start();

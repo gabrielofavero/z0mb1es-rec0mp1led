@@ -13,8 +13,8 @@ namespace Port.Prepare;
 public static class GameplayPatcher
 {
     private const string OriginalHash = "7b819cb562826ae4d2592ff741877e76da0e57bfbe48192aabb79319fdb36823";
-    private const string DebugHooksHash = "745208ed8aa8d5f1d3020b00826666da74d4c25c7c0ca442a0649fd6480704dc";
-    private const string ReleaseHooksHash = "03dcef0d5c08f59911d5bd4def52663678863f3da85dd8188e226463ed2646df";
+    private const string DebugHooksHash = "7a8240e565b5ff37b3400e3a4208375e98917a7d5ea7e52adfde4da06a22c23c";
+    private const string ReleaseHooksHash = "8f293d7915897e7db900a6c506034faa0d3f082cba83f1846ec2fcdc15bf627c";
     private const string OriginalMethodBodyHash = "54407b733f8c2d7cdc67534f66899e99191731e2e0beeed8481bc673ff54f425";
     private const string TouchBodyHash = "5d5aea53560307207b175bab14d39138756165598972d7604491f4cd44d7bfc6";
     private const string StorageWriteHash = "887e2f79ecea6543a5ba56aecd08b4c6c82dcda8b790ee81a3e8e5a568249433";
@@ -26,6 +26,8 @@ public static class GameplayPatcher
     private const string GameDrawHash = "9a07780c3bcab593902543edd0b930e4920c380ba40f03d9f77bf6c609700680";
     private const string SettingsClickHash = "562c747623dfa56402f3b050d2d113fb7092e50fb23aa43c9e59978be5a7ebca";
     private const string SettingsCancelHash = "f9603f155bd0fa415014acf3d4f0fb7960ade1f793ccc1ea7060968645d162bd";
+    private const string CustomMapperInitHash = "e810e1fbeb78b8cb9446befd86cb35dbb680eafd86ba622a7c8402c5f2849683";
+    private const string HelpAndOptionsCtorHash = "43f6813612389d29eb7452179c2e01f10f06c73307142ba0e7f29a0730c1abf5";
     private const int MethodToken = 0x06000152;
     private const int TouchMethodToken = 0x0600007a;
     private const int CallOffset = 0x0015;
@@ -53,6 +55,8 @@ public static class GameplayPatcher
             VerifyBody(pe, 0x060000cf, GameDrawHash);
             VerifyBody(pe, 0x060002c4, SettingsClickHash);
             VerifyBody(pe, 0x060002c5, SettingsCancelHash);
+            VerifyBody(pe, 0x060002cc, CustomMapperInitHash);
+            VerifyBody(pe, 0x060001f9, HelpAndOptionsCtorHash);
         }
         var priorManifest = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(preparedDll))!, "patch-manifest.json");
         var prior = JsonSerializer.Deserialize<PatchManifest>(File.ReadAllText(priorManifest),
@@ -108,6 +112,10 @@ public static class GameplayPatcher
                 BrightenLockedAchievements(module);
                 DisableTouchPadsByDefault(module);
                 PatchDisplay(module, hooks);
+                PatchReducedFlashing(module, hooks);
+                PatchMenuVisuals(module, hooks);
+                PatchPictures(module, hooks);
+                RemoveHelpAndOptionsInfo(module);
                 module.Write(stageDll, new WriterParameters { WriteSymbols = false });
             }
             using (var check = ModuleDefinition.ReadModule(stageDll))
@@ -144,6 +152,10 @@ public static class GameplayPatcher
                 VerifyLockedAchievements(check);
                 VerifyTouchPadDefault(check);
                 VerifyDisplay(check);
+                VerifyReducedFlashing(check);
+                VerifyMenuVisuals(check);
+                VerifyPictures(check);
+                VerifyHelpAndOptionsInfo(check);
             }
             var outputHash = Hash(stageDll);
             var patch = new PatchRecord("gameplay-call", OriginalHash, MethodSignature,
@@ -183,7 +195,27 @@ public static class GameplayPatcher
                         "0x060000cf ZombiesWP7.Game1::Draw(); 0x060002c4/2c5 IMAK3Z0MB1EGAEM.menu.Settings::Click/Cancel",
                         GameDrawHash + "/" + SettingsClickHash + "/" + SettingsCancelHash,
                         "draw through a 600x360 logical target and route native Display page actions to Port.Hooks.DesktopDisplay",
-                        "original game coordinates and Settings actions remain intact")]
+                        "original game coordinates and Settings actions remain intact"),
+                    new PatchRecord("gameplay-call", OriginalHash,
+                        "0x06000085 Viking_x86.main.MainMenu::Draw(); 0x06000103 ZombiesWP7.menu.MenuItem::Draw()",
+                        MenuItemDrawHash,
+                        "draw the animated title and tint focused menu items through Port.Hooks.MenuVisuals",
+                        "reduced flashing uses steady title and focus colors"),
+                    new PatchRecord("gameplay-call", OriginalHash,
+                        "Viking_x86.vikinggame.world.WorldTools::DrawLightRow(SpriteBatch,int,Vector2)",
+                        OriginalHash,
+                        "map strobe rows to steady colors through Port.Hooks.DesktopDisplay when reduced flashing is enabled",
+                        "other light rows retain their original color"),
+                    new PatchRecord("gameplay-call", OriginalHash,
+                        "0x060002cc IMAK3Z0MB1EGAEM.menu.CustomMapper::Init()",
+                        CustomMapperInitHash,
+                        "choose and load a desktop picture folder before opening the mapper",
+                        "the creator uses imported thumbnails through its original source list"),
+                    new PatchRecord("gameplay-il", OriginalHash,
+                        "0x060001f9 IMAK3Z0MB1EGAEM.menu.HelpAndOptions::.ctor()",
+                        HelpAndOptionsCtorHash,
+                        "set the Help and Options info block to null, removing version and contact text",
+                        "Help, Settings, and Credits menu items remain unchanged")]
             };
             File.WriteAllText(Path.Combine(stage, "patch-manifest.json"),
                 JsonSerializer.Serialize(manifest,
@@ -343,12 +375,12 @@ public static class GameplayPatcher
     {
         var draw = module.Types.Single(type => type.FullName == "ZombiesWP7.menu.MenuItem")
             .Methods.Single(method => method.MetadataToken.ToInt32() == 0x06000103);
-        foreach (var offset in new[] { 0x01ca, 0x0242 })
-        {
-            var instruction = draw.Body.Instructions.Single(item => item.Offset == offset);
-            if (instruction.OpCode != OpCodes.Ldc_R4 || instruction.Operand is not float value || value != 0.7f)
-                throw new PreparationException("Locked achievement contrast postcondition failed.");
-        }
+        // Rewriting the focus-color calls moves offsets; identify the three
+        // earned/description alpha multipliers by their surrounding operands.
+        if (draw.Body.Instructions.Count(instruction =>
+                instruction.OpCode == OpCodes.Ldc_R4 && instruction.Operand is float value && value == 0.7f &&
+                instruction.Previous?.OpCode == OpCodes.Ldarg_2 && instruction.Next?.OpCode == OpCodes.Mul) != 3)
+            throw new PreparationException("Locked achievement contrast postcondition failed.");
     }
 
     private static void DisableTouchPadsByDefault(ModuleDefinition module)
@@ -437,5 +469,154 @@ public static class GameplayPatcher
         if (cancel.Body.Instructions.Count(item => item.Operand is MethodReference method &&
                 method.DeclaringType.FullName == "Port.Hooks.DesktopDisplay" && method.Name == "HandleSettingsCancel") != 1)
             throw new PreparationException("Settings display cancel postcondition failed.");
+    }
+
+    private static void PatchMenuVisuals(ModuleDefinition module, ModuleDefinition hooks)
+    {
+        var visuals = hooks.Types.Single(type => type.FullName == "Port.Hooks.MenuVisuals");
+        MethodReference Target(string name) => module.ImportReference(visuals.Methods.Single(method =>
+            method.Name == name && method.IsStatic));
+        var title = module.Types.Single(type => type.FullName == "Viking_x86.main.MainMenu")
+            .Methods.Single(method => method.MetadataToken.ToInt32() == 0x06000085);
+        var sceneDraw = title.Body.Instructions.SingleOrDefault(item => item.Offset == 0x0037);
+        if (sceneDraw?.Operand is not MethodReference sceneTarget ||
+            sceneTarget.FullName != "System.Void SceneEdit.scene.SceneMgr::Draw(Microsoft.Xna.Framework.Graphics.SpriteBatch)")
+            throw new PreparationException("Main menu title draw anchor differs.");
+        var il = title.Body.GetILProcessor();
+        il.InsertAfter(sceneDraw, il.Create(OpCodes.Ldarg_1));
+        il.InsertAfter(sceneDraw.Next, il.Create(OpCodes.Call, Target("DrawTitle")));
+
+        var itemDraw = module.Types.Single(type => type.FullName == "ZombiesWP7.menu.MenuItem")
+            .Methods.Single(method => method.MetadataToken.ToInt32() == 0x06000103);
+        foreach (var offset in new[] { 0x00c7, 0x0173 })
+        {
+            var color = itemDraw.Body.Instructions.SingleOrDefault(item => item.Offset == offset);
+            if (color?.OpCode != OpCodes.Newobj || color.Operand is not MethodReference constructor ||
+                constructor.FullName != "System.Void Microsoft.Xna.Framework.Color::.ctor(System.Single,System.Single,System.Single,System.Single)" ||
+                color.Next?.OpCode != OpCodes.Ldc_I4_2)
+                throw new PreparationException($"Menu item focus color anchor differs at IL_{offset:x4}.");
+            il = itemDraw.Body.GetILProcessor();
+            il.InsertAfter(color, il.Create(OpCodes.Ldarg_0));
+            il.InsertAfter(color.Next, il.Create(OpCodes.Call, Target("Highlight")));
+        }
+    }
+
+    private static void PatchReducedFlashing(ModuleDefinition module, ModuleDefinition hooks)
+    {
+        var world = module.Types.Single(type => type.FullName == "Viking_x86.vikinggame.world.WorldTools")
+            .Methods.Single(method => method.Name == "DrawLightRow" && method.Parameters.Count == 3 &&
+                method.Parameters[1].ParameterType.FullName == "System.Int32");
+        var first = world.Body.Instructions.First();
+        var target = hooks.Types.Single(type => type.FullName == "Port.Hooks.DesktopDisplay")
+            .Methods.Single(method => method.Name == "SteadyLightRow" && method.Parameters.Count == 1);
+        var il = world.Body.GetILProcessor();
+        il.InsertBefore(first, il.Create(OpCodes.Ldarg_2));
+        il.InsertBefore(first, il.Create(OpCodes.Call, module.ImportReference(target)));
+        il.InsertBefore(first, il.Create(OpCodes.Starg_S, world.Parameters[1]));
+    }
+
+    private static void VerifyReducedFlashing(ModuleDefinition module)
+    {
+        var world = module.Types.Single(type => type.FullName == "Viking_x86.vikinggame.world.WorldTools")
+            .Methods.Single(method => method.Name == "DrawLightRow" && method.Parameters.Count == 3);
+        if (world.Body.Instructions.Count(item => item.Operand is MethodReference method &&
+                method.DeclaringType.FullName == "Port.Hooks.DesktopDisplay" && method.Name == "SteadyLightRow") != 1)
+            throw new PreparationException("Reduced flashing light-row hook postcondition failed.");
+    }
+
+    private static void VerifyMenuVisuals(ModuleDefinition module)
+    {
+        foreach (var (typeName, name, hook, count) in new[]
+        {
+            ("Viking_x86.main.MainMenu", "Draw", "DrawTitle", 1),
+            ("ZombiesWP7.menu.MenuItem", "Draw", "Highlight", 2)
+        })
+        {
+            var method = module.Types.Single(type => type.FullName == typeName)
+                .Methods.Single(candidate => candidate.Name == name);
+            if (method.Body.Instructions.Count(item => item.Operand is MethodReference target &&
+                target.DeclaringType.FullName == "Port.Hooks.MenuVisuals" && target.Name == hook) != count)
+                throw new PreparationException($"Menu visual hook {hook} postcondition failed.");
+        }
+    }
+
+    private static void PatchPictures(ModuleDefinition module, ModuleDefinition hooks)
+    {
+        var pictureHooks = hooks.Types.Single(type => type.FullName == "Port.Hooks.DesktopPictures");
+        MethodReference Target(string name) => module.ImportReference(pictureHooks.Methods.Single(method =>
+            method.Name == name && method.IsStatic && method.Parameters.Count == 2 &&
+            method.Parameters.All(parameter => parameter.ParameterType.FullName == "System.Object")));
+        var mapper = module.Types.Single(type => type.FullName == "IMAK3Z0MB1EGAEM.menu.CustomMapper")
+            .Methods.Single(method => method.MetadataToken.ToInt32() == 0x060002cc);
+        var first = mapper.Body.Instructions.First();
+        if (first.OpCode != OpCodes.Ldsfld || first.Operand is not FieldReference gameCustom ||
+            gameCustom.FullName != "ZombiesWP7.custom.CustomMgr ZombiesWP7.Game1::custom")
+            throw new PreparationException("CustomMapper.Init picture picker anchor differs.");
+        var il = mapper.Body.GetILProcessor();
+        il.InsertBefore(first, il.Create(OpCodes.Ldsfld, gameCustom));
+        il.InsertBefore(first, il.Create(OpCodes.Ldarg_0));
+        il.InsertBefore(first, il.Create(OpCodes.Call, Target("ChooseFolder")));
+    }
+
+    private static void VerifyPictures(ModuleDefinition module)
+    {
+        foreach (var (typeName, methodName, hookName) in new[]
+        {
+            ("IMAK3Z0MB1EGAEM.menu.CustomMapper", "Init", "ChooseFolder")
+        })
+        {
+            var method = module.Types.Single(type => type.FullName == typeName)
+                .Methods.Single(candidate => candidate.Name == methodName);
+            if (method.Body.Instructions.Count(item => item.Operand is MethodReference target &&
+                target.DeclaringType.FullName == "Port.Hooks.DesktopPictures" &&
+                target.Name == hookName) != 1)
+                throw new PreparationException($"Picture hook {hookName} postcondition failed.");
+        }
+    }
+
+    private static void RemoveHelpAndOptionsInfo(ModuleDefinition module)
+    {
+        var constructor = module.Types.Single(type => type.FullName == "IMAK3Z0MB1EGAEM.menu.HelpAndOptions")
+            .Methods.Single(method => method.MetadataToken.ToInt32() == 0x060001f9);
+        var instructions = constructor.Body.Instructions;
+        var loadThis = instructions.Single(item => item.Offset == 0x0082);
+        var size = instructions.Single(item => item.Offset == 0x0083);
+        var array = instructions.Single(item => item.Offset == 0x0084);
+        var store = instructions.Single(item => item.Offset == 0x00a5);
+        var end = instructions.Single(item => item.Offset == 0x00aa);
+        if (loadThis.OpCode != OpCodes.Ldarg_0 || size.OpCode != OpCodes.Ldc_I4_2 ||
+            array.OpCode != OpCodes.Newarr ||
+            array.Operand is not Mono.Cecil.TypeReference arrayType || arrayType.FullName != "System.Text.StringBuilder" ||
+            store.OpCode != OpCodes.Stfld || store.Operand is not FieldReference infoField ||
+            infoField.FullName != "System.Text.StringBuilder[] IMAK3Z0MB1EGAEM.menu.MenuLevel::infos" ||
+            end.OpCode != OpCodes.Ret ||
+            !instructions.Any(item => item.Offset == 0x008c && item.Operand is string version && version == "Version 1.0") ||
+            !instructions.Any(item => item.Offset == 0x0099 && item.Operand is string contact &&
+                contact == "Contact us: support@ska-studios.com"))
+            throw new PreparationException("Help and Options info block differs from its guard.");
+        size.OpCode = OpCodes.Ldnull;
+        size.Operand = null;
+        array.OpCode = OpCodes.Stfld;
+        array.Operand = infoField;
+        var il = constructor.Body.GetILProcessor();
+        for (var instruction = array.Next; instruction != end;)
+        {
+            var next = instruction.Next;
+            il.Remove(instruction);
+            instruction = next;
+        }
+    }
+
+    private static void VerifyHelpAndOptionsInfo(ModuleDefinition module)
+    {
+        var constructor = module.Types.Single(type => type.FullName == "IMAK3Z0MB1EGAEM.menu.HelpAndOptions")
+            .Methods.Single(method => method.Name == ".ctor" && method.Parameters.Count == 0);
+        var last = constructor.Body.Instructions;
+        if (last[^4].OpCode != OpCodes.Ldarg_0 || last[^3].OpCode != OpCodes.Ldnull ||
+            last[^2].OpCode != OpCodes.Stfld || last[^2].Operand is not FieldReference infoField ||
+            infoField.Name != "infos" || last[^1].OpCode != OpCodes.Ret ||
+            last.Any(item => item.Operand is string value &&
+                (value == "Version 1.0" || value == "Contact us: support@ska-studios.com")))
+            throw new PreparationException("Help and Options info removal postcondition failed.");
     }
 }

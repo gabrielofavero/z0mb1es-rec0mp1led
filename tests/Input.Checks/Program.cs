@@ -12,16 +12,33 @@ Check(DesktopInput.AimDirection(new Vector2(300, 180), new Vector2(300, 180)), 0
 if (DesktopInput.MapPointer(10, 250, new Rectangle(0, 0, 1000, 500), target) is not null ||
     DesktopInput.MapPointer(990, 250, new Rectangle(0, 0, 1000, 500), target) is not null ||
     DesktopInput.MapPointer(0, 0, new Rectangle(0, 0, 0, 500), target) is not null)
-    throw new Exception("Letterbox or empty-window coordinate was accepted.");
+    throw new Exception("Legacy input mapping accepted a margin or empty window.");
 Console.WriteLine("INPUT_MAP_OK");
 
-var ultrawide = DesktopDisplay.Destination(3440, 1440);
-if (ultrawide != new Rectangle(520, 0, 2400, 1440))
-    throw new Exception($"Ultrawide presentation rectangle differs: {ultrawide}.");
-Check(DesktopDisplay.MapPointer(1720, 720, new Rectangle(0, 0, 3440, 1440)), 300, 180);
-if (DesktopDisplay.MapPointer(100, 720, new Rectangle(0, 0, 3440, 1440)) is not null ||
-    DesktopDisplay.Destination(3840, 2160) != new Rectangle(120, 0, 3600, 2160))
-    throw new Exception("Ultrawide or 4K presentation mapping differs.");
+var ultrawide = DesktopDisplay.Presentation(3440, 1440, DesktopDisplay.CanvasSize(3440, 1440));
+if (ultrawide.Offset != Vector2.Zero || MathF.Abs(ultrawide.Scale - 4) > 0.0001f ||
+    DesktopDisplay.CanvasSize(3440, 1440) != (860, 360) ||
+    DesktopDisplay.CanvasSize(3840, 2160) != (640, 360) ||
+    DesktopDisplay.CanvasSize(800, 600) != (600, 450))
+    throw new Exception($"Ultrawide presentation scale differs: {ultrawide}.");
+var widePresentation = DesktopDisplay.Presentation(2560, 1080, DesktopDisplay.CanvasSize(2560, 1080));
+if (MathF.Abs(widePresentation.Offset.X) > 0.001f || widePresentation.Offset.Y < 0 ||
+    MathF.Abs(widePresentation.Scale - 2560f / 854) > 0.0001f)
+    throw new Exception("2560x1080 presentation did not keep one scale on both axes.");
+Check(DesktopDisplay.MapPointer(1280, 540, new Rectangle(0, 0, 2560, 1080),
+    DesktopDisplay.CanvasSize(2560, 1080)), 427, 180);
+if (DesktopDisplay.MapPointer(1280, 0, new Rectangle(0, 0, 2560, 1080),
+        DesktopDisplay.CanvasSize(2560, 1080)) is not null)
+    throw new Exception("Pointer mapping accepted the ultrawide presentation margin.");
+Check(DesktopDisplay.MapPointer(1720, 720, new Rectangle(0, 0, 3440, 1440),
+    DesktopDisplay.CanvasSize(3440, 1440)), 430, 180);
+Check(DesktopDisplay.MapPointer(100, 720, new Rectangle(0, 0, 3440, 1440),
+    DesktopDisplay.CanvasSize(3440, 1440)), 25, 180);
+Check(DesktopDisplay.MapPointer(400, 550, new Rectangle(0, 0, 800, 600),
+    DesktopDisplay.CanvasSize(800, 600)), 300, 412.5f);
+if (DesktopDisplay.MapPointer(3440, 720, new Rectangle(0, 0, 3440, 1440),
+        DesktopDisplay.CanvasSize(3440, 1440)) is not null)
+    throw new Exception("Out-of-window coordinate was accepted.");
 Console.WriteLine("INPUT_DISPLAY_MAP_OK");
 if (!DesktopDisplay.AvailablePresets(2560, 1080).SequenceEqual(
         [(600, 360), (1280, 720), (1920, 1080), (2560, 1080)]) ||
@@ -29,31 +46,24 @@ if (!DesktopDisplay.AvailablePresets(2560, 1080).SequenceEqual(
     DesktopDisplay.AvailablePresets(500, 300).Length != 0)
     throw new Exception("Display preset filtering differs from desktop bounds.");
 
-var settings = new[]
-{
-    new Vector2(175, 160), new Vector2(230, 200), new Vector2(210, 240),
-    new Vector2(125, 120), new Vector2(270, 120)
-};
-CheckIndex(MenuNavigation.Next(settings, 3, 1, 0), 4);  // SFX to BGM
-CheckIndex(MenuNavigation.Next(settings, 4, -1, 0), 3);
-CheckIndex(MenuNavigation.Next(settings, 3, 0, 1), 0);  // top row to vibration
-CheckIndex(MenuNavigation.Next(settings, 0, 0, 1), 1);
-CheckIndex(MenuNavigation.Next(settings, 1, 0, 1), 2);
-CheckIndex(MenuNavigation.Next(settings, 2, 0, 1), 4);  // wrap to top row
-CheckIndex(MenuNavigation.Next(settings, 4, 1, 0), 0);  // advance to the next row
-CheckIndex(MenuNavigation.Next(settings, 3, -1, 0), 2); // wrap to the last option
-var displaySettings = settings.Append(new Vector2(236, 285)).ToArray();
-CheckIndex(MenuNavigation.Next(displaySettings, 2, 0, 1), 5);
-CheckIndex(MenuNavigation.Next(displaySettings, 5, 0, -1), 2);
-var settingsRoot = new[] { new Vector2(125, 110), new Vector2(270, 110),
+var settingsRoot = new[] { new Vector2(167, 110), new Vector2(312, 110),
     new Vector2(250, 170), new Vector2(250, 215) };
 CheckIndex(MenuNavigation.Next(settingsRoot, 0, 1, 0), 1);
+CheckIndex(MenuNavigation.Next(settingsRoot, 1, -1, 0), 0);
 CheckIndex(MenuNavigation.Next(settingsRoot, 1, 0, 1), 2);
 CheckIndex(MenuNavigation.Next(settingsRoot, 2, 0, 1), 3);
+CheckIndex(MenuNavigation.Next(settingsRoot, 3, 0, -1), 2);
 var touchPage = new[] { new Vector2(250, 100), new Vector2(250, 150),
     new Vector2(250, 200), new Vector2(250, 250) };
 CheckIndex(MenuNavigation.Next(touchPage, 2, 0, 1), 3);
 CheckIndex(MenuNavigation.Next(touchPage, 3, 0, -1), 2);
+var displayPage = new[] { new Vector2(250, 100), new Vector2(250, 140),
+    new Vector2(250, 180), new Vector2(250, 220), new Vector2(250, 260) };
+CheckIndex(MenuNavigation.Next(displayPage, 2, 0, 1), 3);
+CheckIndex(MenuNavigation.Next(displayPage, 4, 0, -1), 3);
+var customPage = new[] { new Vector2(250, 100), new Vector2(250, 150),
+    new Vector2(250, 200), new Vector2(250, 250) };
+CheckIndex(MenuNavigation.Next(customPage, 1, 0, 1), 2);
 CheckIndex(MenuNavigation.CarouselNext(0, 1), 1);
 CheckIndex(MenuNavigation.CarouselNext(6, 1), 6);
 CheckIndex(MenuNavigation.CarouselNext(0, -1), 0);

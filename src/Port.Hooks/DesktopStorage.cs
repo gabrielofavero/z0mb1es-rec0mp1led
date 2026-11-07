@@ -7,11 +7,35 @@ public static class DesktopStorage
 {
     private const byte Version = 101;
     private static string? rootOverride;
+    private static byte[]? savedCustomBytes;
+    private static bool customReapplied;
     public static string SaveDirectory => rootOverride ?? Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "Z0MB1ES on teh ph0ne");
 
-    public static void Configure(string? directory) => rootOverride = directory is null ? null : Path.GetFullPath(directory);
+    public static void Configure(string? directory)
+    {
+        rootOverride = directory is null ? null : Path.GetFullPath(directory);
+        savedCustomBytes = null;
+        customReapplied = false;
+    }
+
+    public static void ReapplyCustom(object custom)
+    {
+        if (customReapplied || savedCustomBytes is null) return;
+        customReapplied = true;
+        try
+        {
+            using var stream = new MemoryStream(savedCustomBytes, writable: false);
+            Serialize(custom, "Read", stream);
+            if (stream.Position != stream.Length) throw new InvalidDataException("Unconsumed custom save bytes.");
+        }
+        catch (Exception error) when (error is IOException or InvalidDataException or
+            TargetInvocationException or ArgumentException)
+        {
+            Console.Error.WriteLine($"CUSTOM_SAVE_REAPPLY_SKIPPED reason={error.GetBaseException().GetType().Name}");
+        }
+    }
 
     public static void Write(object profile, object player, object custom)
     {
@@ -52,8 +76,10 @@ public static class DesktopStorage
             stream.Position = 1;
             Serialize(profile, "Read", stream);
             Serialize(player, "Read", stream);
+            var customStart = (int)stream.Position;
             Serialize(custom, "Read", stream);
             if (stream.Position != stream.Length) throw new InvalidDataException("Unconsumed save bytes.");
+            savedCustomBytes = bytes[customStart..];
             Console.WriteLine($"SAVE_LOADED {Path.GetFileName(path)} bytes={bytes.Length}");
             return true;
         }

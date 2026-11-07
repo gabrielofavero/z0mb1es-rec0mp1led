@@ -17,7 +17,7 @@ Start with the [architecture](foundation/architecture.md) and the [plan index](p
 
 ## Runtime
 
-- [Content coverage](runtime/content-coverage.md) and [audio portability](runtime/audio-portability.md): assets and conversion.
+- [Content coverage](runtime/content-coverage.md), [audio portability](runtime/audio-portability.md), and [asset comparison](runtime/asset-comparison.md): assets, conversion, and local Xbox/PC comparisons.
 - [Menu bring-up](runtime/menu-bringup.md) and [desktop input](runtime/desktop-input.md): visible game loop and controls.
 - [Offline services](runtime/offline-services.md) and [media/phone behavior](runtime/media-phone-behavior.md): saves, service screens, audio, and desktop fallbacks.
 

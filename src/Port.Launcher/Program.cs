@@ -3,6 +3,7 @@ using System.Runtime.CompilerServices;
 using Microsoft.Xna.Framework;
 using Port.Bridge;
 
+using var runLog = args.Length > 0 && args[0] == "--run" ? RunLog.Start() : null;
 Console.WriteLine($"Authored launcher loaded {typeof(Game).Assembly.GetName().Name} {typeof(Game).Assembly.GetName().Version}.");
 
 if (args.Length > 0 && args[0] == "--run")

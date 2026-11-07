@@ -74,7 +74,12 @@ internal static class RunSession
             var monitor = new RunMonitor(game, gameType, frameLimit, windowed, probeServices, probeMode, probeMenus);
             game.Components.Add(monitor);
             Console.WriteLine("RUN_START original=ZombiesWP7.Game1 method=Run");
-            game.Run();
+            try { game.Run(); }
+            catch (Exception error)
+            {
+                Console.Error.WriteLine($"RUN_PRIMARY_EXCEPTION {error}");
+                throw;
+            }
             Console.WriteLine($"RUN_END updates={monitor.Updates} frames={monitor.Frames} menuReached={monitor.MenuReached} menuAnimated={monitor.MenuAnimated} rendered={monitor.RenderedMenu} serviceScreens={monitor.ServiceScreens} serviceVerified={monitor.ServiceStatesVerified} modeProbe={probeMode} modeVerified={monitor.ModeVerified} menusVerified={monitor.MenusVerified} inputSamples={DesktopInput.Samples} activeSamples={DesktopInput.ActiveSamples} mouseSamples={DesktopInput.MouseSamples} keyboardSamples={DesktopInput.KeyboardSamples} movementSeen={monitor.MovementSeen} aimSeen={monitor.AimSeen} clickSeen={monitor.ClickSeen} backSeen={monitor.BackSeen} pauseSeen={monitor.PauseSeen} hostQuit={monitor.HostQuit} timedOut={monitor.TimedOut}");
             return monitor.MenuReached && monitor.MenuAnimated && monitor.RenderedMenu &&
                 monitor.Frames >= 2 && !monitor.TimedOut && (!probeServices || monitor.ServiceStatesVerified) &&
@@ -128,6 +133,7 @@ internal static class RunSession
     private static void Report(string stage, Exception? error)
     {
         var cause = error?.GetBaseException();
+        if (error is not null) Console.Error.WriteLine($"RUN_EXCEPTION {error}");
         Console.Error.WriteLine(JsonSerializer.Serialize(new
         {
             eventType = "run-failure", stage,
@@ -329,6 +335,21 @@ internal sealed class RunMonitor : DrawableGameComponent
             CaptureScreen($"mode-{modeProbe.Mode}", "MODE");
             modeProbe.MarkCaptured();
         }
+        if (modeProbe?.ShouldCapturePause(Updates) == true)
+        {
+            CaptureScreen($"pause-{modeProbe.Mode}", "MODE");
+            modeProbe.MarkPauseCaptured();
+        }
+        if (modeProbe?.ShouldCaptureSplash(Updates) == true)
+        {
+            CaptureScreen($"splash-{modeProbe.Mode}", "MODE");
+            modeProbe.MarkSplashCaptured();
+        }
+        if (modeProbe?.ShouldCaptureModeMenu(Updates) == true)
+        {
+            CaptureScreen($"mode-menu-{modeProbe.Mode}", "MODE");
+            modeProbe.MarkModeMenuCaptured();
+        }
         if (menuProbe?.ShouldCapture(Updates) == true)
         {
             CaptureScreen($"menu-{menuProbe.CurrentLevel:D2}", "MENU");
@@ -338,6 +359,11 @@ internal sealed class RunMonitor : DrawableGameComponent
         {
             CaptureScreen("display-page", "MENU");
             menuProbe.MarkDisplayCaptured();
+        }
+        if (menuProbe?.ShouldCaptureCustom(Updates) == true)
+        {
+            CaptureScreen("custom-page", "MENU");
+            menuProbe.MarkCustomCaptured();
         }
         if (menuProbe?.ShouldCaptureTouch(Updates) == true)
         {

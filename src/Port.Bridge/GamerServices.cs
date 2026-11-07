@@ -33,10 +33,24 @@ public static class Guide
     public static bool SimulateTrialMode => false;
     public static IAsyncResult BeginShowMessageBox(string title, string text,
         IEnumerable<string> buttons, int focusButton, MessageBoxIcon icon,
-        AsyncCallback callback, object state) =>
-        Unavailable.Api<IAsyncResult>("Guide.BeginShowMessageBox(String,String,IEnumerable<String>,Int32,MessageBoxIcon,AsyncCallback,Object)");
-    public static int? EndShowMessageBox(IAsyncResult result) =>
-        Unavailable.Api<int?>("Guide.EndShowMessageBox(IAsyncResult)");
+        AsyncCallback callback, object state)
+    {
+        var choices = buttons.ToArray();
+        System.Diagnostics.Trace.TraceInformation($"Guide.BeginShowMessageBox title={title} choices={choices.Length}");
+        var mainMenuQuit = title == "Quit game?" && text == "Exit to phone?" &&
+            choices.SequenceEqual(["Quit", "Cancel"]);
+        if (mainMenuQuit)
+            System.Diagnostics.Trace.TraceInformation("Main menu Back requested quit; exiting without a desktop dialog.");
+        var result = Task.Factory.StartNew(_ => mainMenuQuit ? (int?)0 :
+            DesktopPhoneFallback.ShowChoice(title, text, choices, focusButton),
+            state, CancellationToken.None, TaskCreationOptions.None, TaskScheduler.Default);
+        if (callback is not null)
+            _ = result.ContinueWith(completed => callback(completed), TaskScheduler.Default);
+        return result;
+    }
+    public static int? EndShowMessageBox(IAsyncResult result) => result is Task<int?> pending
+        ? pending.GetAwaiter().GetResult()
+        : throw new ArgumentException("Unexpected message box result.", nameof(result));
     public static void ShowMarketplace(PlayerIndex player) =>
         DesktopPhoneFallback.MarketplaceUnavailable("Guide.ShowMarketplace(PlayerIndex)");
 }

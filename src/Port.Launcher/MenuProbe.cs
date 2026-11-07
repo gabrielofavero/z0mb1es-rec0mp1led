@@ -19,6 +19,8 @@ internal sealed class MenuProbe
     private bool touchCaptured;
     private bool displayOpened;
     private bool displayCaptured;
+    private bool customOpened;
+    private bool customCaptured;
 
     public bool Verified { get; private set; }
     public int CurrentLevel => current;
@@ -31,6 +33,9 @@ internal sealed class MenuProbe
     public bool ShouldCaptureDisplay(int updates) => current == 5 && displayOpened &&
         !displayCaptured && updates - openedAt >= 2;
     public void MarkDisplayCaptured() => displayCaptured = true;
+    public bool ShouldCaptureCustom(int updates) => current == 5 && customOpened &&
+        !customCaptured && updates - openedAt >= 2;
+    public void MarkCustomCaptured() => customCaptured = true;
 
     public MenuProbe(Game game, Type gameType)
     {
@@ -76,7 +81,20 @@ internal sealed class MenuProbe
             throw new InvalidOperationException($"Menu probe level {current} did not remain visible.");
         if (current == 5 && !touchOpened)
         {
-            level.GetType().GetMethod("Click", Instance)!.Invoke(level, ["T0UCH"]);
+            var settingsItems = (Array)baseType.GetField("item", Instance)!.GetValue(level)!;
+            var textField = settingsItems.GetValue(5)!.GetType().GetField("text", Instance)!;
+            if (settingsItems.Length != 8 ||
+                (string?)textField.GetValue(settingsItems.GetValue(5)) != "GRAPH1CS" ||
+                (string?)textField.GetValue(settingsItems.GetValue(6)) != "AUD10" ||
+                (string?)textField.GetValue(settingsItems.GetValue(7)) != "1NPUT")
+                throw new InvalidOperationException("Settings category order differs.");
+            var location = (Vector2)settingsItems.GetValue(5)!.GetType()
+                .GetField("loc", Instance)!.GetValue(settingsItems.GetValue(5))!;
+            var menuScale = (float)game.GetType().GetField("MENUSCALE", Static)!.GetValue(null)!;
+            var centeredX = 250 + (DesktopDisplay.SceneSize.X - DesktopDisplay.LogicalWidth) / (2f * menuScale);
+            if (MathF.Abs(location.X - centeredX) > 0.01f)
+                throw new InvalidOperationException($"Settings items are not centered: {location.X} versus {centeredX}.");
+            level.GetType().GetMethod("Click", Instance)!.Invoke(level, ["1NPUT"]);
             if (!DesktopDisplay.IsTouchPage)
                 throw new InvalidOperationException("Settings T0UCH entry did not open.");
             touchOpened = true;
@@ -90,7 +108,14 @@ internal sealed class MenuProbe
             level.GetType().GetMethod("Click", Instance)!.Invoke(level, ["BACK"]);
             if (DesktopDisplay.IsTouchPage)
                 throw new InvalidOperationException("Touch settings page did not return to Settings.");
-            level.GetType().GetMethod("Click", Instance)!.Invoke(level, ["DISPLAY"]);
+            level.GetType().GetMethod("Click", Instance)!.Invoke(level, ["AUD10"]);
+            var audioItems = (Array)baseType.GetField("item", Instance)!.GetValue(level)!;
+            if (audioItems.Length != 6 ||
+                (string?)audioItems.GetValue(3)!.GetType().GetField("text", Instance)!.GetValue(audioItems.GetValue(3)) != "SFX" ||
+                (string?)audioItems.GetValue(4)!.GetType().GetField("text", Instance)!.GetValue(audioItems.GetValue(4)) != "BGM")
+                throw new InvalidOperationException("Audio settings page differs.");
+            level.GetType().GetMethod("Click", Instance)!.Invoke(level, ["BACK"]);
+            level.GetType().GetMethod("Click", Instance)!.Invoke(level, ["GRAPH1CS"]);
             if (!DesktopDisplay.IsDisplayPage)
                 throw new InvalidOperationException("Settings DISPLAY entry did not open.");
             var graphics = (GraphicsDeviceManager)game.Services.GetService(typeof(IGraphicsDeviceManager))!;
@@ -101,12 +126,24 @@ internal sealed class MenuProbe
             level.GetType().GetMethod("Click", Instance)!.Invoke(level, [initialVSync ? "VSYNC: OFF" : "VSYNC: ON"]);
             if (graphics.SynchronizeWithVerticalRetrace != initialVSync)
                 throw new InvalidOperationException("Settings VSync did not restore.");
+            var initialFlash = DesktopDisplay.ReduceFlashing;
+            level.GetType().GetMethod("Click", Instance)!.Invoke(level,
+                [initialFlash ? "R3DUCE FLASH1NG: ON" : "R3DUCE FLASH1NG: OFF"]);
+            if (DesktopDisplay.ReduceFlashing == initialFlash)
+                throw new InvalidOperationException("Reduce Flashing did not toggle.");
+            level.GetType().GetMethod("Click", Instance)!.Invoke(level,
+                [initialFlash ? "R3DUCE FLASH1NG: OFF" : "R3DUCE FLASH1NG: ON"]);
+            if (DesktopDisplay.ReduceFlashing != initialFlash)
+                throw new InvalidOperationException("Reduce Flashing did not restore.");
             var desktopMode = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode;
             var presets = DesktopDisplay.AvailablePresets(desktopMode.Width, desktopMode.Height);
+            var start = Array.FindIndex(presets, preset =>
+                preset.Width == game.GraphicsDevice.PresentationParameters.BackBufferWidth &&
+                preset.Height == game.GraphicsDevice.PresentationParameters.BackBufferHeight);
             for (var i = 1; i <= presets.Length; i++)
             {
                 level.GetType().GetMethod("Click", Instance)!.Invoke(level, ["PRES3T:"]);
-                var expected = presets[i % presets.Length];
+                var expected = presets[start < 0 ? (i - 1) % presets.Length : (start + i) % presets.Length];
                 var actual = game.GraphicsDevice.PresentationParameters;
                 if (actual.BackBufferWidth != expected.Width || actual.BackBufferHeight != expected.Height)
                     throw new InvalidOperationException($"Settings preset cycle expected {expected.Width}x{expected.Height}, got {actual.BackBufferWidth}x{actual.BackBufferHeight}.");
@@ -122,10 +159,28 @@ internal sealed class MenuProbe
             openedAt = updates;
             return;
         }
-        if (current == 5 && (!displayCaptured || !DesktopDisplay.IsDisplayPage))
-            throw new InvalidOperationException("Native Display settings page was not rendered.");
+        if (current == 5 && !customOpened)
+        {
+            if (!displayCaptured || !DesktopDisplay.IsDisplayPage)
+                throw new InvalidOperationException("Native Display settings page was not rendered.");
+            level.GetType().GetMethod("Click", Instance)!.Invoke(level, ["CUST0M RES0LUTI0N"]);
+            if (!DesktopDisplay.IsCustomPage)
+                throw new InvalidOperationException("Custom Resolution entry did not open.");
+            customOpened = true;
+            openedAt = updates;
+            return;
+        }
         if (current == 5)
         {
+            if (!customCaptured || !DesktopDisplay.IsCustomPage)
+                throw new InvalidOperationException("Native Custom Resolution page was not rendered.");
+            level.GetType().GetMethod("Click", Instance)!.Invoke(level, ["APPLY CUST0M"]);
+            if (game.GraphicsDevice.PresentationParameters.BackBufferWidth != 1280 ||
+                game.GraphicsDevice.PresentationParameters.BackBufferHeight != 720)
+                throw new InvalidOperationException("Custom resolution did not apply.");
+            level.GetType().GetMethod("Click", Instance)!.Invoke(level, ["BACK"]);
+            if (!DesktopDisplay.IsDisplayPage || DesktopDisplay.IsCustomPage)
+                throw new InvalidOperationException("Custom Resolution page did not return to Display.");
             if (!DesktopDisplay.ApplyForProbe("Windowed", 600, 360))
                 throw new InvalidOperationException("Display size did not restore.");
             level.GetType().GetMethod("Click", Instance)!.Invoke(level, ["BACK"]);

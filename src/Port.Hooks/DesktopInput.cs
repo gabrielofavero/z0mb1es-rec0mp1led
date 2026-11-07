@@ -20,7 +20,9 @@ public static class DesktopInput
     private static int focusedIndex;
     private static int previousDirection;
     private static long nextNavigationTick;
-    private const float CarouselSwipeSeconds = 0.2f;
+    private const float CarouselSwipeSeconds = 0.36f;
+    private static object? focusedItem;
+    private static bool focusVisible;
     private static bool carouselAnimating;
     private static float carouselStart;
     private static int carouselTarget;
@@ -57,6 +59,8 @@ public static class DesktopInput
         previousAccept = previousBack = false;
         focusedLevel = null;
         focusedItems = null;
+        focusedItem = null;
+        focusVisible = false;
         focusedIndex = previousDirection = 0;
         nextNavigationTick = 0;
         carouselAnimating = false;
@@ -138,6 +142,7 @@ public static class DesktopInput
 
     public static TouchCollection GetState()
     {
+        DesktopPictures.Update();
         Samples++;
         if (DesktopDisplay.CapturesInput)
         {
@@ -160,10 +165,10 @@ public static class DesktopInput
             new Vector2(pad.ThumbSticks.Left.X, -pad.ThumbSticks.Left.Y);
         var right = Direction(keyboard, Keys.Left, Keys.Right, Keys.Up, Keys.Down) +
             new Vector2(pad.ThumbSticks.Right.X, -pad.ThumbSticks.Right.Y);
-        var size = new Vector2(DesktopDisplay.LogicalWidth, DesktopDisplay.LogicalHeight);
-        var radius = 80f * size.X / 600f;
-        var leftCenter = new Vector2(120, 240) * size / new Vector2(600, 360);
-        var rightCenter = new Vector2(480, 240) * size / new Vector2(600, 360);
+        var size = DesktopDisplay.SceneSize;
+        const float radius = 80f;
+        var leftCenter = new Vector2(120, size.Y - 120);
+        var rightCenter = new Vector2(size.X - 120, size.Y - 120);
         contacts[0].Sample(active && playing && left.LengthSquared() > 0.04f,
             leftCenter + Clamp(left) * radius, touches, pressOrigin: leftCenter);
         contacts[1].Sample(active && playing && right.LengthSquared() > 0.04f,
@@ -212,8 +217,11 @@ public static class DesktopInput
         if (navigate)
         {
             if (level is not null)
+            {
                 focusedIndex = MenuNavigation.Next(items.Select(item => item.Position).ToArray(),
                     focusedIndex, (int)direction.X, (int)direction.Y);
+                focusVisible = true;
+            }
             else if (mode == 1 && direction.X != 0)
                 MoveCarousel((int)direction.X);
             nextNavigationTick = now + (long)(Stopwatch.Frequency *
@@ -227,9 +235,11 @@ public static class DesktopInput
         if (level is not null && focusedIndex >= 0 && focusedIndex < items.Count)
         {
             var selected = items[focusedIndex].Item;
+            focusedItem = selected;
             var frame = (float)menuItemClickFrameField!.GetValue(selected)!;
             if (frame < 0.07f) menuItemClickFrameField.SetValue(selected, 0.07f);
         }
+        else focusedItem = null;
         var accept = active && (keyboard.IsKeyDown(Keys.Enter) ||
             pad.Buttons.A == ButtonState.Pressed);
         if (accept && !previousAccept)
@@ -256,6 +266,8 @@ public static class DesktopInput
 
     private static GestureSample Tap(Vector2 position) =>
         new(GestureType.Tap, TimeSpan.Zero, position, Vector2.Zero, Vector2.Zero, Vector2.Zero);
+
+    public static bool IsFocusedMenuItem(object item) => focusVisible && ReferenceEquals(item, focusedItem);
 
     private static Vector2 Direction(KeyboardState state, Keys negativeX, Keys positiveX,
         Keys negativeY, Keys positiveY) => new(
@@ -311,9 +323,17 @@ public static class DesktopInput
     private static object? ActiveMenuLevel()
     {
         if (menuLevelsField?.GetValue(null) is not IDictionary levels) return null;
-        foreach (DictionaryEntry entry in levels)
-            if (entry.Value is { } level && (bool)menuLevelActiveField!.GetValue(level)!)
-                return level;
+        try
+        {
+            foreach (DictionaryEntry entry in levels)
+                if (entry.Value is { } level && (bool)menuLevelActiveField!.GetValue(level)!)
+                    return level;
+        }
+        catch (InvalidOperationException)
+        {
+            // The original loading thread can add levels while input is sampled.
+            return null;
+        }
         return null;
     }
 
