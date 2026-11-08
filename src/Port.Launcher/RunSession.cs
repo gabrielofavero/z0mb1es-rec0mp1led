@@ -348,8 +348,8 @@ internal sealed class RunMonitor : DrawableGameComponent
             var valid = active is true && alpha is float value && value > 0.9f &&
                 (name == "Achievements" ? items?.Length == 20 :
                     items?.Length == 2 && infos?.Length == 6 &&
-                    infos.GetValue(4)?.ToString() == "Online leaderboards" &&
-                    infos.GetValue(5)?.ToString() == "are unavailable offline.");
+                    infos.GetValue(4)?.ToString() == "No saved runs yet" &&
+                    infos.GetValue(5)?.ToString() == "Play a game to add one.");
             Console.WriteLine($"RUN_SERVICE_STATE name={name} active={active} items={items?.Length} infos={infos?.Length} alpha={alpha} valid={valid}");
             return valid;
         }

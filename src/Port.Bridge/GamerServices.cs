@@ -58,7 +58,7 @@ public static class Guide
 public class Gamer
 {
     public static SignedInGamerCollection SignedInGamers => SignedInGamerCollection.LocalGamers;
-    public string Gamertag => PlayerIdentity.Name;
+    public virtual string Gamertag => PlayerIdentity.Name;
     public LeaderboardWriter LeaderboardWriter =>
         Unavailable.Api<LeaderboardWriter>("Gamer.LeaderboardWriter");
 }
@@ -88,29 +88,42 @@ public enum LeaderboardKey { }
 
 public readonly struct LeaderboardIdentity
 {
+    internal int GameMode { get; }
+    private LeaderboardIdentity(int gameMode) => GameMode = gameMode;
     public static LeaderboardIdentity Create(LeaderboardKey key, int gameMode) =>
-        new();
+        new(gameMode);
 }
 
 public sealed class LeaderboardReader
 {
+    private readonly ReadOnlyCollection<LeaderboardEntry> entries;
+    private LeaderboardReader(LeaderboardIdentity identity, int pageSize) => entries =
+        new(LocalScores.Top(identity.GameMode, pageSize)
+            .Select(row => new LeaderboardEntry(row.Label, row.Score)).ToList());
     public static IAsyncResult BeginRead(LeaderboardIdentity identity, IEnumerable<Gamer> gamers,
         Gamer pivot, int pageSize, AsyncCallback callback, object state) =>
-        CompletedResult<LeaderboardReader>.Create(new LeaderboardReader(), callback, state);
+        CompletedResult<LeaderboardReader>.Create(new LeaderboardReader(identity, pageSize), callback, state);
     public static LeaderboardReader EndRead(IAsyncResult result) =>
         CompletedResult<LeaderboardReader>.End(result);
-    public ReadOnlyCollection<LeaderboardEntry> Entries =>
-        new(Array.Empty<LeaderboardEntry>());
+    public ReadOnlyCollection<LeaderboardEntry> Entries => entries;
 }
 
 public sealed class LeaderboardEntry
 {
-    public Gamer Gamer => Unavailable.Api<Gamer>("LeaderboardEntry.Gamer");
+    private readonly Gamer gamer;
+    private long rating;
+    internal LeaderboardEntry(string label, long score) { gamer = new LocalRunGamer(label); rating = score; }
+    public Gamer Gamer => gamer;
     public long Rating
     {
-        get => Unavailable.Api<long>("LeaderboardEntry.Rating.get");
-        set => Unavailable.Api("LeaderboardEntry.Rating.set(Int64)");
+        get => rating;
+        set => rating = value;
     }
+}
+
+internal sealed class LocalRunGamer(string label) : Gamer
+{
+    public override string Gamertag => label;
 }
 
 public sealed class LeaderboardWriter

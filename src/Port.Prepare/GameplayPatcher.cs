@@ -13,8 +13,8 @@ namespace Port.Prepare;
 public static class GameplayPatcher
 {
     private const string OriginalHash = "7b819cb562826ae4d2592ff741877e76da0e57bfbe48192aabb79319fdb36823";
-    private const string DebugHooksHash = "e17eb1e3afa8e68e20f579712f57a43a57340d1d77673d990f2c12f0eaba131b";
-    private const string ReleaseHooksHash = "26be8b190f2b62b6f373650b8983404643120f1bccc525f150832d474b2ad481";
+    private const string DebugHooksHash = "abe1ccc9a6e815e6d65d3a7f1530b667f96114e59c82258e49ebf0c177adc175";
+    private const string ReleaseHooksHash = "b5e3fbb42d690abd1376bf40366a0042a6cd6e96d84bd773a7f3946a19f0749a";
     private const string OriginalMethodBodyHash = "54407b733f8c2d7cdc67534f66899e99191731e2e0beeed8481bc673ff54f425";
     private const string TouchBodyHash = "5d5aea53560307207b175bab14d39138756165598972d7604491f4cd44d7bfc6";
     private const string StorageWriteHash = "887e2f79ecea6543a5ba56aecd08b4c6c82dcda8b790ee81a3e8e5a568249433";
@@ -112,6 +112,7 @@ public static class GameplayPatcher
                 PatchStorage(module, hooks);
                 PatchAchievementAwards(module, hooks);
                 PatchOfflineLeaderboards(module);
+                PatchLocalScoreSubmission(module, hooks);
                 BrightenLockedAchievements(module);
                 DisableTouchPadsByDefault(module);
                 PatchDisplay(module, hooks);
@@ -379,8 +380,23 @@ public static class GameplayPatcher
             .Methods.Single(method => method.MetadataToken.ToInt32() == 0x06000072);
         ReplaceSigninRead(main, 0x05fe);
         ReplaceSigninRead(board, 0x0205);
-        ReplaceText(board, 0x0170, "You are not yet ranked", "Online leaderboards");
-        ReplaceText(board, 0x017e, "on this leaderboard.", "are unavailable offline.");
+        ReplaceText(board, 0x0170, "You are not yet ranked", "No saved runs yet");
+        ReplaceText(board, 0x017e, "on this leaderboard.", "Play a game to add one.");
+    }
+
+    private static void PatchLocalScoreSubmission(ModuleDefinition module, ModuleDefinition hooks)
+    {
+        var method = module.Types.Single(type => type.FullName == "ZombiesWP7.xdktools.LeaderboardMgr")
+            .Methods.Single(candidate => candidate.Name == "Write" && candidate.Parameters.Count == 2);
+        var target = hooks.Types.Single(type => type.FullName == "Port.Hooks.DesktopLeaderboards")
+            .Methods.Single(candidate => candidate.Name == "Record");
+        method.Body.Instructions.Clear();
+        method.Body.ExceptionHandlers.Clear();
+        var il = method.Body.GetILProcessor();
+        il.Append(il.Create(OpCodes.Ldarg_1));
+        il.Append(il.Create(OpCodes.Ldarg_2));
+        il.Append(il.Create(OpCodes.Call, module.ImportReference(target)));
+        il.Append(il.Create(OpCodes.Ret));
     }
 
     private static void VerifyOfflineLeaderboards(ModuleDefinition module)
@@ -392,7 +408,7 @@ public static class GameplayPatcher
         foreach (var (method, offset) in new[] { (main, 0x05fe), (board, 0x0205) })
             if (method.Body.Instructions.Single(item => item.Offset == offset).OpCode != OpCodes.Ldc_I4_3)
                 throw new PreparationException("Offline leaderboard sign-in UI postcondition failed.");
-        foreach (var (offset, text) in new[] { (0x0170, "Online leaderboards"), (0x017e, "are unavailable offline.") })
+        foreach (var (offset, text) in new[] { (0x0170, "No saved runs yet"), (0x017e, "Play a game to add one.") })
             if (board.Body.Instructions.Single(item => item.Offset == offset).Operand as string != text)
                 throw new PreparationException("Offline leaderboard text postcondition failed.");
     }

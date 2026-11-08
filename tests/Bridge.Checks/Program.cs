@@ -65,6 +65,29 @@ try
         10, null!, null!);
     if (!board.IsCompleted || LeaderboardReader.EndRead(board).Entries.Count != 0)
         throw new Exception("Offline leaderboard did not return an empty result.");
+    var scoresDirectory = Path.Combine(Path.GetTempPath(), "z0mb1es-local-scores-" + Guid.NewGuid().ToString("N"));
+    try
+    {
+        LocalScores.Configure(scoresDirectory);
+        LocalScores.Record(0, 200);
+        LocalScores.Record(1, 500);
+        LocalScores.Record(0, 100);
+        LocalScores.Configure(scoresDirectory);
+        var saved = LeaderboardReader.EndRead(LeaderboardReader.BeginRead(
+            LeaderboardIdentity.Create(default, 0), [local], local, 10, null!, null!)).Entries;
+        if (saved.Count != 2 || saved[0].Rating != 200 || saved[1].Rating != 100 ||
+            !System.Text.RegularExpressions.Regex.IsMatch(saved[0].Gamer.Gamertag,
+                @"^[A-Z][a-z]{2} \d{1,2}, \d{2}:\d{2}$"))
+            throw new Exception("Local leaderboard runs did not persist or format correctly.");
+        var otherMode = LeaderboardReader.EndRead(LeaderboardReader.BeginRead(
+            LeaderboardIdentity.Create(default, 1), [local], local, 10, null!, null!)).Entries;
+        if (otherMode.Count != 1 || otherMode[0].Rating != 500)
+            throw new Exception("Local leaderboard modes were not separated.");
+    }
+    finally
+    {
+        if (Directory.Exists(scoresDirectory)) Directory.Delete(scoresDirectory, recursive: true);
+    }
     var callbackDone = new ManualResetEventSlim();
     IAsyncResult? callbackResult = null;
     var dialogState = new object();

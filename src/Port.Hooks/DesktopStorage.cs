@@ -16,6 +16,7 @@ public static class DesktopStorage
     public static void Configure(string? directory)
     {
         rootOverride = directory is null ? null : Path.GetFullPath(directory);
+        Port.Bridge.LocalScores.Configure(SaveDirectory);
         savedCustomBytes = null;
         customReapplied = false;
     }
