@@ -80,16 +80,29 @@ CheckSwipe(0, 1, 0.5f, 0.875f);
 CheckSwipe(0, 1, 1, 1);
 CheckSwipe(2, 1, 0.5f, 1.125f);
 CheckDirection(new KeyboardState(Keys.D), default, 1, 0);
+CheckDirection(new KeyboardState(Keys.A), default, -1, 0);
 CheckDirection(new KeyboardState(Keys.Right), default, 1, 0);
 CheckDirection(new KeyboardState(Keys.W), default, 0, -1);
+CheckDirection(new KeyboardState(Keys.S), default, 0, 1);
 CheckDirection(default, new GamePadState(Vector2.Zero, Vector2.Zero, 0, 0, Buttons.DPadRight), 1, 0);
 CheckDirection(default, new GamePadState(new Vector2(0.8f, 0), Vector2.Zero, 0, 0), 1, 0);
+if (!MenuNavigation.HitTest(new Vector2(300, 150), new Vector2(300, 150), 40, 12) ||
+    MenuNavigation.HitTest(new Vector2(340, 150), new Vector2(300, 150), 40, 12) ||
+    MenuNavigation.HitTest(new Vector2(300, 162), new Vector2(300, 150), 40, 12) ||
+    MenuNavigation.HitTest(new Vector2(360, 150), new Vector2(300, 150), 40, 12))
+    throw new Exception("Menu hover hit box differs from click bounds.");
 CheckScroll(0, 1240, -120, 0, 1f / 30f, 72);
 CheckScroll(72, 1240, 120, 0, 1f / 30f, 0);
 CheckScroll(0, 1240, 0, -1, 1f / 30f, 25);
 CheckScroll(25, 1240, 0, 1, 1f / 30f, 0);
 CheckScroll(1230, 1240, -120, -1, 1f / 30f, 1240);
 CheckScroll(50, 1240, 0, -0.1f, 1f / 30f, 50);
+CheckLeaderboardScroll(0, 160, -120, 0, 0, 1f / 30f, 72);
+CheckLeaderboardScroll(72, 160, 120, 0, 0, 1f / 30f, 0);
+CheckLeaderboardScroll(0, 160, 0, 1, 0, 1f / 30f, 36);
+CheckLeaderboardScroll(36, 160, 0, -1, 0, 1f / 30f, 0);
+CheckLeaderboardScroll(150, 160, 0, 1, 0, 1f / 30f, 160);
+CheckLeaderboardScroll(0, -200, -120, 0, 0, 1f / 30f, 0);
 Console.WriteLine("INPUT_MENU_NAV_OK");
 
 static void CheckScroll(float current, float maximum, int wheel, float stick, float time, float expected)
@@ -97,6 +110,14 @@ static void CheckScroll(float current, float maximum, int wheel, float stick, fl
     var actual = MenuNavigation.AchievementScroll(current, maximum, wheel, stick, time);
     if (MathF.Abs(actual - expected) > 0.001f)
         throw new Exception($"Expected achievement scroll {expected}; got {actual}.");
+}
+
+static void CheckLeaderboardScroll(float current, float maximum, int wheel, int step,
+    float stick, float time, float expected)
+{
+    var actual = MenuNavigation.LeaderboardScroll(current, maximum, wheel, step, stick, time);
+    if (MathF.Abs(actual - expected) > 0.001f)
+        throw new Exception($"Expected leaderboard scroll {expected}; got {actual}.");
 }
 
 static void Check(Vector2? actual, float x, float y)

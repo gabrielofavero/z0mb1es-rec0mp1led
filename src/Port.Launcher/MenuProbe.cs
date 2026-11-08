@@ -136,6 +136,22 @@ internal sealed class MenuProbe
                 (string?)textField.GetValue(gameplayItems.GetValue(1)) != "  " + Port.Bridge.PlayerIdentity.Name ||
                 (string?)textField.GetValue(gameplayItems.GetValue(2)) != "1NPUT")
                 throw new InvalidOperationException("Gameplay settings rows differ.");
+            var gameplayOffsets = new[] { -45f, 40f, -30f, 25f };
+            for (var i = 0; i < gameplayItems.Length; i++)
+            {
+                var position = (Vector2)gameplayItems.GetValue(i)!.GetType()
+                    .GetField("loc", Instance)!.GetValue(gameplayItems.GetValue(i))!;
+                if (MathF.Abs(position.X - (centeredX + gameplayOffsets[i])) > 0.01f)
+                    throw new InvalidOperationException("Gameplay rows lost their staggered layout.");
+            }
+            if (!DesktopDisplay.IsStaticPlayerNameLabel(gameplayItems.GetValue(0)!) ||
+                DesktopDisplay.IsStaticPlayerNameLabel(gameplayItems.GetValue(1)!))
+                throw new InvalidOperationException("Player Name label selection differs.");
+            var label = gameplayItems.GetValue(0)!;
+            var labelPosition = (Vector2)label.GetType().GetField("loc", Instance)!.GetValue(label)!;
+            if ((bool)label.GetType().GetMethod("TryClick", Instance)!.Invoke(label,
+                    [labelPosition * menuScale, level])!)
+                throw new InvalidOperationException("Player Name label still accepts clicks.");
             gameplayOpened = true;
             openedAt = updates;
             return;
@@ -144,12 +160,15 @@ internal sealed class MenuProbe
         {
             if (!gameplayCaptured || !DesktopDisplay.IsGameplayPage)
                 throw new InvalidOperationException("Gameplay settings page was not rendered.");
-            level.GetType().GetMethod("Click", Instance)!.Invoke(level, ["PLAYER NAME"]);
+            var editingItems = (Array)baseType.GetField("item", Instance)!.GetValue(level)!;
+            var nameValue = (string)editingItems.GetValue(1)!.GetType().GetField("text", Instance)!
+                .GetValue(editingItems.GetValue(1))!;
+            level.GetType().GetMethod("Click", Instance)!.Invoke(level,
+                [nameValue]);
             if (!DesktopDisplay.CapturesInput)
                 throw new InvalidOperationException("Player Name did not capture text input.");
             var textInput = typeof(TextInputEXT).GetMethod("OnTextInput", Static)!;
             for (var i = 0; i < 17; i++) textInput.Invoke(null, ['A']);
-            var editingItems = (Array)baseType.GetField("item", Instance)!.GetValue(level)!;
             var editingText = (string?)editingItems.GetValue(1)!.GetType().GetField("text", Instance)!
                 .GetValue(editingItems.GetValue(1));
             if (editingText != "  " + new string('A', 16) + "_")

@@ -80,6 +80,8 @@ public static class DesktopDisplay
     public static bool IsResolutionPage => resolutionPage;
     public static bool IsTouchPage => touchPage;
     public static bool IsGameplayPage => gameplayPage;
+    public static bool IsStaticPlayerNameLabel(object item) =>
+        gameplayPage && gameplayItems is not null && ReferenceEquals(gameplayItems.GetValue(0), item);
     public static bool IsCustomPage => customPage;
     public static bool IsAssetPage => assetPage;
     internal static IntPtr GameWindowHandle => game?.Window.Handle ?? IntPtr.Zero;
@@ -175,10 +177,10 @@ public static class DesktopDisplay
         settingsItems.SetValue(Item("AUD10", 200, 115), 6);
         settingsItems.SetValue(Item("GAMEPLAY", 250, 15), 7);
         gameplayItems = Array.CreateInstance(itemType, 4);
-        gameplayItems.SetValue(Item("PLAYER NAME", 105, 0, 0.7f), 0);
-        gameplayItems.SetValue(Item("  " + nameText, 145, 0, 0.7f), 1);
-        gameplayItems.SetValue(Item("1NPUT", 195), 2);
-        gameplayItems.SetValue(Item("BACK", 245), 3);
+        gameplayItems.SetValue(Item("PLAYER NAME", 105, -45, 0.7f), 0);
+        gameplayItems.SetValue(Item("  " + nameText, 145, 40, 0.7f), 1);
+        gameplayItems.SetValue(Item("1NPUT", 195, -30), 2);
+        gameplayItems.SetValue(Item("BACK", 245, 25), 3);
         audioItems = Array.CreateInstance(itemType, 6);
         Array.Copy(oldItems, audioItems, 5);
         audioItems.SetValue(Item("BACK", 250), 5);
@@ -353,7 +355,7 @@ public static class DesktopDisplay
         }
         if (gameplayPage)
         {
-            if (text == "PLAYER NAME" || text.StartsWith("  ", StringComparison.Ordinal)) StartEditingName();
+            if (text.StartsWith("  ", StringComparison.Ordinal)) StartEditingName();
             else if (text == "1NPUT") ShowTouchPage();
             else if (text == "BACK") CloseDisplayPage();
             else return false;
@@ -838,6 +840,11 @@ public static class DesktopDisplay
     private static float MenuScale => (float)menuScaleField!.GetValue(null)!;
     private static float TextMenuOffset => MenuOffset / MenuScale;
     private static float CenteredMenuX => sceneSize.Width / (2f * MenuScale);
+
+    // Leaderboard items are recreated after the menu's initial centering pass.
+    public static float CenterLeaderboardHudX(float originalX) => originalX + CenteredMenuX - 240f;
+
+    public static float CenterLeaderboardRowX(float originalX) => originalX + sceneSize.Width / 2f - 280f;
 
     private static void CenterMenuItems()
     {

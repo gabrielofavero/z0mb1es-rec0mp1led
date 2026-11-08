@@ -6,6 +6,10 @@ namespace Port.Hooks;
 /// <summary>Chooses the next menu item from its actual screen position.</summary>
 public static class MenuNavigation
 {
+    public static bool HitTest(Vector2 pointer, Vector2 center, float halfWidth, float halfHeight) =>
+        pointer.X > center.X - halfWidth && pointer.X < center.X + halfWidth &&
+        pointer.Y > center.Y - halfHeight && pointer.Y < center.Y + halfHeight;
+
     public static Vector2 Direction(KeyboardState keyboard, GamePadState pad)
     {
         var x = (pad.DPad.Right == ButtonState.Pressed || keyboard.IsKeyDown(Keys.Right) || keyboard.IsKeyDown(Keys.D) ? 1 : 0) -
@@ -29,6 +33,15 @@ public static class MenuNavigation
         var stick = MathF.Abs(rightStickY) < 0.2f ? 0f : rightStickY;
         var movement = -wheelDelta * 0.6f - stick * 750f * Math.Clamp(frameTime, 0f, 0.05f);
         return Math.Clamp(current + movement, 0f, maximum);
+    }
+
+    public static float LeaderboardScroll(float current, float maximum, int wheelDelta,
+        int verticalStep, float rightStickY, float frameTime)
+    {
+        var stick = MathF.Abs(rightStickY) < 0.2f ? 0f : rightStickY;
+        var movement = -wheelDelta * 0.6f + verticalStep * 36f -
+            stick * 750f * Math.Clamp(frameTime, 0f, 0.05f);
+        return Math.Clamp(current + movement, 0f, Math.Max(0f, maximum));
     }
 
     public static float CarouselSwipePosition(float start, float target, float progress)

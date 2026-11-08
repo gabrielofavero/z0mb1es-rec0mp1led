@@ -8,6 +8,8 @@ The save lives at `%LOCALAPPDATA%\Z0MB1ES on teh ph0ne\savegame` on Windows. The
 
 The local achievements screen displays the original 20 keys and reads earned flags from the game's profile. It shows zero Xbox Gamerscore and generic descriptions because the phone service's display metadata is unavailable offline. Locked entry labels and icons use a more readable opacity on desktop. Only the original `AchievementMgr.AwardAchievement`/`PlayerProfile.AddAchievable` path changes earned flags; calling the bridge award completion alone does not. The original profile serializer persists those flags. The leaderboard screen shows the ten highest locally saved runs per game mode, with each row labeled by the local date and time of play. Runs are saved to `leaderboard-runs.json` beside the desktop save. The local gamer reports `IsSignedInToLive == false`; score submission is redirected to local storage. The menu's Xbox Live sign-in prompt is bypassed for the offline desktop reader.
 
+On Leaderboards, controller left/right and keyboard Left/Right or A/D switch boards directly. Up/Down or W/S scroll saved rows. The mouse wheel scrolls populated rows and switches boards when the current board is empty. The on-screen arrows remain clickable with mouse and touch.
+
 For a reproducible runtime check from a staged build:
 
 ```powershell

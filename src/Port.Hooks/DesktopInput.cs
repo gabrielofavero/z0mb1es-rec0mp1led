@@ -45,10 +45,16 @@ public static class DesktopInput
     private static FieldInfo? menuLevelItemsField;
     private static FieldInfo? menuLevelScrollField;
     private static FieldInfo? menuLevelScrollMaxField;
+    private static FieldInfo? leaderboardReadingField;
+    private static MethodInfo? leaderboardClickMethod;
     private static FieldInfo? frameTimeField;
     private static FieldInfo? menuItemFlagField;
     private static FieldInfo? menuItemPositionField;
     private static FieldInfo? menuItemClickFrameField;
+    private static FieldInfo? menuItemTextField;
+    private static FieldInfo? menuItemCheckTextField;
+    private static FieldInfo? menuItemLayerField;
+    private static MethodInfo? textWidthMethod;
     private static FieldInfo? menuScaleField;
     private static FieldInfo? mainMenuField;
     private static FieldInfo? mainMenuSceneField;
@@ -104,11 +110,21 @@ public static class DesktopInput
         menuLevelItemsField = RequireField(menuLevel, "item", instanceFlags);
         menuLevelScrollField = RequireField(menuLevel, "scroll", instanceFlags);
         menuLevelScrollMaxField = RequireField(menuLevel, "scrollMax", instanceFlags);
+        var leaderboardType = RequireType(assembly, "IMAK3Z0MB1EGAEM.menu.Leaderboards");
+        leaderboardReadingField = RequireField(leaderboardType, "reading", instanceFlags);
+        leaderboardClickMethod = leaderboardType.GetMethod("Click", instanceFlags)
+            ?? throw new MissingMethodException("Leaderboards.Click");
         frameTimeField = RequireField(runningGame.GetType(), "frameTime", staticFlags);
         var menuItem = RequireType(assembly, "ZombiesWP7.menu.MenuItem");
         menuItemFlagField = RequireField(menuItem, "flag", instanceFlags);
         menuItemPositionField = RequireField(menuItem, "tiltLoc", instanceFlags);
         menuItemClickFrameField = RequireField(menuItem, "clickFrame", instanceFlags);
+        menuItemTextField = RequireField(menuItem, "text", instanceFlags);
+        menuItemCheckTextField = RequireField(menuItem, "checkText", instanceFlags);
+        menuItemLayerField = RequireField(menuItem, "layer", instanceFlags);
+        textWidthMethod = RequireType(assembly, "IMAK3Z0MB1EGAEM.Text")
+            .GetMethod("GetStringWidth", staticFlags, [typeof(string)])
+            ?? throw new MissingMethodException("Text.GetStringWidth");
         menuScaleField = RequireField(runningGame.GetType(), "MENUSCALE", staticFlags);
         mainMenuField = RequireField(runningGame.GetType(), "mainMenu", staticFlags);
         var mainMenu = RequireType(assembly, "Viking_x86.main.MainMenu");
@@ -245,10 +261,21 @@ public static class DesktopInput
             touches, inside ? gestures : null);
 
         var level = active ? ActiveMenuLevel() : null;
+        var leaderboard = level?.GetType().FullName == "IMAK3Z0MB1EGAEM.menu.Leaderboards";
         if (level?.GetType().FullName == "IMAK3Z0MB1EGAEM.menu.Achievements")
             ScrollAchievements(level, inside ? wheelDelta : 0, pad.ThumbSticks.Right.Y,
                 (float)frameTimeField!.GetValue(null)!);
-        var items = level is null ? [] : ClickableItems(level);
+        if (leaderboard && level is not null && LeaderboardIsReading(level))
+            menuLevelScrollField!.SetValue(level, 0f);
+        if (leaderboard && level is not null && inside && wheelDelta != 0 && !LeaderboardIsReading(level))
+        {
+            if ((float)menuLevelScrollMaxField!.GetValue(level)! > 0f)
+                ScrollLeaderboards(level, wheelDelta, 0, 0f);
+            else
+                TurnLeaderboard(level, wheelDelta < 0 ? 1 : -1);
+        }
+        var hoverItems = level is null ? [] : ClickableItems(level);
+        var items = leaderboard ? [] : hoverItems;
         var itemArray = level is null ? null : menuLevelItemsField!.GetValue(level);
         if (!ReferenceEquals(level, focusedLevel) || !ReferenceEquals(itemArray, focusedItems))
         {
@@ -261,6 +288,7 @@ public static class DesktopInput
         else if ((focusedIndex < 0 && items.Count > 0) || focusedIndex >= items.Count)
             focusedIndex = InitialFocus(items);
         var direction = active ? MenuNavigation.Direction(keyboard, pad) : Vector2.Zero;
+        if (direction != Vector2.Zero) cursorSource = CursorSource.Controller;
         var directionCode = direction.X < 0 ? -1 : direction.X > 0 ? 1 :
             direction.Y < 0 ? -2 : direction.Y > 0 ? 2 : 0;
         var now = Stopwatch.GetTimestamp();
@@ -270,9 +298,17 @@ public static class DesktopInput
         {
             if (level is not null)
             {
-                focusedIndex = MenuNavigation.Next(items.Select(item => item.Position).ToArray(),
-                    focusedIndex, (int)direction.X, (int)direction.Y);
-                focusVisible = true;
+                if (leaderboard)
+                {
+                    if (direction.X != 0) TurnLeaderboard(level, (int)direction.X);
+                    else if (direction.Y != 0) ScrollLeaderboards(level, 0, (int)direction.Y, 0f);
+                }
+                else
+                {
+                    focusedIndex = MenuNavigation.Next(items.Select(item => item.Position).ToArray(),
+                        focusedIndex, (int)direction.X, (int)direction.Y);
+                    focusVisible = true;
+                }
             }
             else if (mode == 1 && direction.X != 0)
                 MoveCarousel((int)direction.X);
@@ -280,20 +316,34 @@ public static class DesktopInput
                 (directionCode != previousDirection ? 0.35 : 0.12));
         }
         previousDirection = directionCode;
+        if (leaderboard && level is not null && MathF.Abs(pad.ThumbSticks.Right.Y) >= 0.2f)
+            ScrollLeaderboards(level, 0, 0, pad.ThumbSticks.Right.Y);
         if (inside && mode == 1 && level is null && wheelDelta != 0)
             MoveCarousel(wheelDelta < 0 ? 1 : -1);
         if (active && mode == 1 && level is null && native.Count == 0 && !pointAndClick)
             AdvanceCarousel(now);
         else
             carouselAnimating = false;
-        if (level is not null && focusedIndex >= 0 && focusedIndex < items.Count)
+        var hovered = cursorSource == CursorSource.Mouse && inside && pointer is Vector2 hoverPoint &&
+            level is not null && (float)menuLevelAlphaField!.GetValue(level)! > 0.9f
+            ? HoveredItem(hoverItems, hoverPoint) : -1;
+        if (cursorSource == CursorSource.Mouse && level is not null)
+        {
+            focusedItem = hovered >= 0 ? hoverItems[hovered].Item : null;
+            focusVisible = focusedItem is not null;
+            if (!leaderboard && hovered >= 0) focusedIndex = hovered;
+        }
+        else if (level is not null && focusedIndex >= 0 && focusedIndex < items.Count)
         {
             var selected = items[focusedIndex].Item;
             focusedItem = selected;
-            var frame = (float)menuItemClickFrameField!.GetValue(selected)!;
-            if (frame < 0.07f) menuItemClickFrameField.SetValue(selected, 0.07f);
         }
         else focusedItem = null;
+        if (focusedItem is { } highlighted)
+        {
+            var frame = (float)menuItemClickFrameField!.GetValue(highlighted)!;
+            if (frame < 0.07f) menuItemClickFrameField.SetValue(highlighted, 0.07f);
+        }
         var accept = active && (keyboard.IsKeyDown(Keys.Enter) ||
             pad.Buttons.A == ButtonState.Pressed);
         if (accept && !previousAccept)
@@ -333,13 +383,13 @@ public static class DesktopInput
         previousMousePosition = new Point(mouse.X, mouse.Y);
         if (touchActive)
             cursorSource = CursorSource.Touch;
-        else if (ControllerActive())
-            cursorSource = CursorSource.Controller;
         else if (inside && moved)
         {
             cursorSource = CursorSource.Mouse;
             lastMouseMovement = Stopwatch.GetTimestamp();
         }
+        else if (ControllerActive())
+            cursorSource = CursorSource.Controller;
     }
 
     private static bool ControllerActive()
@@ -395,6 +445,25 @@ public static class DesktopInput
         menuLevelScrollField.SetValue(level, MenuNavigation.AchievementScroll(
             current, maximum, wheelDelta, rightStickY, frameTime));
     }
+
+    private static void ScrollLeaderboards(object level, int wheelDelta, int verticalStep, float rightStickY)
+    {
+        if (LeaderboardIsReading(level)) return;
+        var current = (float)menuLevelScrollField!.GetValue(level)!;
+        var maximum = (float)menuLevelScrollMaxField!.GetValue(level)!;
+        menuLevelScrollField.SetValue(level, MenuNavigation.LeaderboardScroll(current, maximum,
+            wheelDelta, verticalStep, rightStickY, (float)frameTimeField!.GetValue(null)!));
+    }
+
+    private static void TurnLeaderboard(object level, int direction)
+    {
+        if (LeaderboardIsReading(level)) return;
+        menuLevelScrollField!.SetValue(level, 0f);
+        leaderboardClickMethod!.Invoke(level, [direction > 0 ? ">" : "<"]);
+    }
+
+    private static bool LeaderboardIsReading(object level) =>
+        (bool)leaderboardReadingField!.GetValue(level)!;
 
     public static Vector2 VirtualStickCenter(Vector2 size, float viewScale, bool right)
     {
@@ -485,12 +554,32 @@ public static class DesktopInput
         if (menuLevelItemsField!.GetValue(level) is not Array items) return result;
         foreach (var item in items)
         {
-            if (item is null || (int)menuItemFlagField!.GetValue(item)! is not (0 or 1)) continue;
+            if (item is null || DesktopDisplay.IsStaticPlayerNameLabel(item) ||
+                (int)menuItemFlagField!.GetValue(item)! is not (0 or 1)) continue;
             var position = (Vector2)menuItemPositionField!.GetValue(item)!;
             if (position.X < 0 || position.Y < 0) continue;
             result.Add((item, position));
         }
         return result;
+    }
+
+    private static int HoveredItem(List<(object Item, Vector2 Position)> items, Vector2 pointer)
+    {
+        var scale = (float)menuScaleField!.GetValue(null)!;
+        for (var i = 0; i < items.Count; i++)
+        {
+            var item = items[i].Item;
+            var flag = (int)menuItemFlagField!.GetValue(item)!;
+            var label = flag == 1
+                ? ((string[])menuItemCheckTextField!.GetValue(item)!)[0]
+                : (string)menuItemTextField!.GetValue(item)!;
+            var width = (float)textWidthMethod!.Invoke(null, [label])!;
+            var layer = (float)menuItemLayerField!.GetValue(item)!;
+            if (MenuNavigation.HitTest(pointer, items[i].Position * scale,
+                    width * layer * scale, 5f * layer * scale))
+                return i;
+        }
+        return -1;
     }
 
     private static int InitialFocus(List<(object Item, Vector2 Position)> items)

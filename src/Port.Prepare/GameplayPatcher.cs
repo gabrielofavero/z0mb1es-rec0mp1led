@@ -13,8 +13,8 @@ namespace Port.Prepare;
 public static class GameplayPatcher
 {
     private const string OriginalHash = "7b819cb562826ae4d2592ff741877e76da0e57bfbe48192aabb79319fdb36823";
-    private const string DebugHooksHash = "abe1ccc9a6e815e6d65d3a7f1530b667f96114e59c82258e49ebf0c177adc175";
-    private const string ReleaseHooksHash = "b5e3fbb42d690abd1376bf40366a0042a6cd6e96d84bd773a7f3946a19f0749a";
+    private const string DebugHooksHash = "bf82606144e6e19efd4ae55bb150b67811dc36b73ce354070163958711f35818";
+    private const string ReleaseHooksHash = "e0dacc6ff344f241a121e535c24230263bff9d968f936a51440fbbad6ab5cf5c";
     private const string OriginalMethodBodyHash = "54407b733f8c2d7cdc67534f66899e99191731e2e0beeed8481bc673ff54f425";
     private const string TouchBodyHash = "5d5aea53560307207b175bab14d39138756165598972d7604491f4cd44d7bfc6";
     private const string StorageWriteHash = "887e2f79ecea6543a5ba56aecd08b4c6c82dcda8b790ee81a3e8e5a568249433";
@@ -112,8 +112,10 @@ public static class GameplayPatcher
                 PatchStorage(module, hooks);
                 PatchAchievementAwards(module, hooks);
                 PatchOfflineLeaderboards(module);
+                CenterLeaderboards(module, hooks);
                 PatchLocalScoreSubmission(module, hooks);
                 BrightenLockedAchievements(module);
+                SpaceAchievementList(module);
                 DisableTouchPadsByDefault(module);
                 PatchDisplay(module, hooks);
                 PatchSpriteBatches(module, hooks);
@@ -156,8 +158,10 @@ public static class GameplayPatcher
                     StorageSerializers.Contains(method.DeclaringType.FullName)) != 10)
                     throw new PreparationException("Desktop serializer signatures did not update.");
                 VerifyOfflineLeaderboards(check);
+                VerifyCenteredLeaderboards(check);
                 VerifyAchievementAwards(check);
                 VerifyLockedAchievements(check);
+                VerifyAchievementListSpacing(check);
                 VerifyTouchPadDefault(check);
                 VerifyDisplay(check);
                 VerifySpriteBatches(check);
@@ -234,7 +238,7 @@ public static class GameplayPatcher
                     new PatchRecord("gameplay-call", OriginalHash,
                         "0x060002cc IMAK3Z0MB1EGAEM.menu.CustomMapper::Init()",
                         CustomMapperInitHash,
-                        "choose and load a desktop picture folder before opening the mapper",
+                        "load the remembered picture folder and add a visible folder picker action",
                         "the creator uses imported thumbnails through its original source list"),
                     new PatchRecord("gameplay-il", OriginalHash,
                         "0x060001f9 IMAK3Z0MB1EGAEM.menu.HelpAndOptions::.ctor()",
@@ -405,10 +409,11 @@ public static class GameplayPatcher
             .Methods.Single(method => method.MetadataToken.ToInt32() == 0x06000081);
         var board = module.Types.Single(type => type.FullName == "IMAK3Z0MB1EGAEM.menu.Leaderboards")
             .Methods.Single(method => method.MetadataToken.ToInt32() == 0x06000072);
-        foreach (var (method, offset) in new[] { (main, 0x05fe), (board, 0x0205) })
+        // The centering call inserted into Update moves later IL offsets by five bytes.
+        foreach (var (method, offset) in new[] { (main, 0x05fe), (board, 0x020a) })
             if (method.Body.Instructions.Single(item => item.Offset == offset).OpCode != OpCodes.Ldc_I4_3)
                 throw new PreparationException("Offline leaderboard sign-in UI postcondition failed.");
-        foreach (var (offset, text) in new[] { (0x0170, "No saved runs yet"), (0x017e, "Play a game to add one.") })
+        foreach (var (offset, text) in new[] { (0x0175, "No saved runs yet"), (0x0183, "Play a game to add one.") })
             if (board.Body.Instructions.Single(item => item.Offset == offset).Operand as string != text)
                 throw new PreparationException("Offline leaderboard text postcondition failed.");
     }
@@ -442,6 +447,69 @@ public static class GameplayPatcher
                 throw new PreparationException($"Locked achievement opacity anchor differs at IL_{offset:x4}.");
             instruction.Operand = 0.7f;
         }
+    }
+
+    private static void SpaceAchievementList(ModuleDefinition module)
+    {
+        var achievements = module.Types.Single(type => type.FullName == "IMAK3Z0MB1EGAEM.menu.Achievements");
+        ReplaceUniqueFloat(achievements.Methods.Single(method => method.Name == "Update"), 90f, 112f);
+        ReplaceUniqueFloat(achievements.Methods.Single(method => method.IsConstructor && !method.IsStatic), 1240f, 1262f);
+    }
+
+    private static void VerifyAchievementListSpacing(ModuleDefinition module)
+    {
+        var achievements = module.Types.Single(type => type.FullName == "IMAK3Z0MB1EGAEM.menu.Achievements");
+        if (!achievements.Methods.Single(method => method.Name == "Update").Body.Instructions.Any(item =>
+                item.OpCode == OpCodes.Ldc_R4 && item.Operand is float value && value == 112f) ||
+            !achievements.Methods.Single(method => method.IsConstructor && !method.IsStatic).Body.Instructions.Any(item =>
+                item.OpCode == OpCodes.Ldc_R4 && item.Operand is float value && value == 1262f))
+            throw new PreparationException("Achievement list spacing postcondition failed.");
+    }
+
+    private static void CenterLeaderboards(ModuleDefinition module, ModuleDefinition hooks)
+    {
+        var board = module.Types.Single(type => type.FullName == "IMAK3Z0MB1EGAEM.menu.Leaderboards");
+        var display = hooks.Types.Single(type => type.FullName == "Port.Hooks.DesktopDisplay");
+        var hud = module.ImportReference(display.Methods.Single(method => method.Name == "CenterLeaderboardHudX"));
+        var row = module.ImportReference(display.Methods.Single(method => method.Name == "CenterLeaderboardRowX"));
+        InsertAfterUniqueFloat(board.Methods.Single(method => method.Name == "InitHUDItems"), 30f, hud);
+        InsertAfterUniqueFloat(board.Methods.Single(method => method.Name == "InitHUDItems"), 450f, hud);
+        InsertAfterUniqueFloat(board.Methods.Single(method => method.Name == "Update"), 80f, row);
+    }
+
+    private static void VerifyCenteredLeaderboards(ModuleDefinition module)
+    {
+        var board = module.Types.Single(type => type.FullName == "IMAK3Z0MB1EGAEM.menu.Leaderboards");
+        foreach (var (name, hook, count) in new[]
+        {
+            ("InitHUDItems", "CenterLeaderboardHudX", 2),
+            ("Update", "CenterLeaderboardRowX", 1)
+        })
+        {
+            var method = board.Methods.Single(candidate => candidate.Name == name);
+            if (method.Body.Instructions.Count(item => item.Operand is MethodReference target &&
+                    target.DeclaringType.FullName == "Port.Hooks.DesktopDisplay" && target.Name == hook) != count)
+                throw new PreparationException($"Leaderboard {name} centering postcondition failed.");
+        }
+    }
+
+    private static void InsertAfterUniqueFloat(Mono.Cecil.MethodDefinition method, float value, MethodReference target)
+    {
+        var matches = method.Body.Instructions.Where(item =>
+            item.OpCode == OpCodes.Ldc_R4 && item.Operand is float found && found == value).ToArray();
+        if (matches.Length != 1 || matches[0].Next?.OpCode != OpCodes.Ldc_R4)
+            throw new PreparationException($"Leaderboard coordinate {value} differs in {method.FullName}.");
+        method.Body.GetILProcessor().InsertAfter(matches[0],
+            method.Body.GetILProcessor().Create(OpCodes.Call, target));
+    }
+
+    private static void ReplaceUniqueFloat(Mono.Cecil.MethodDefinition method, float oldValue, float newValue)
+    {
+        var matches = method.Body.Instructions.Where(item =>
+            item.OpCode == OpCodes.Ldc_R4 && item.Operand is float value && value == oldValue).ToArray();
+        if (matches.Length != 1)
+            throw new PreparationException($"Expected one {oldValue} constant in {method.FullName}.");
+        matches[0].Operand = newValue;
     }
 
     private static void VerifyLockedAchievements(ModuleDefinition module)
@@ -539,6 +607,20 @@ public static class GameplayPatcher
         il.InsertBefore(cancelFirst, il.Create(OpCodes.Call, Target("HandleSettingsCancel", 1)));
         il.InsertBefore(cancelFirst, il.Create(OpCodes.Brfalse, cancelFirst));
         il.InsertBefore(cancelFirst, il.Create(OpCodes.Ret));
+
+        var itemClick = module.Types.Single(type => type.FullName == "ZombiesWP7.menu.MenuItem")
+            .Methods.Single(method => method.Name == "TryClick" && method.Parameters.Count == 2);
+        if (itemClick.ReturnType.FullName != "System.Boolean" ||
+            itemClick.Parameters[0].ParameterType.FullName != "Microsoft.Xna.Framework.Vector2" ||
+            itemClick.Parameters[1].ParameterType.FullName != "IMAK3Z0MB1EGAEM.menu.MenuLevel")
+            throw new PreparationException("Original MenuItem.TryClick signature differs.");
+        var itemClickFirst = itemClick.Body.Instructions.First();
+        il = itemClick.Body.GetILProcessor();
+        il.InsertBefore(itemClickFirst, il.Create(OpCodes.Ldarg_0));
+        il.InsertBefore(itemClickFirst, il.Create(OpCodes.Call, Target("IsStaticPlayerNameLabel", 1)));
+        il.InsertBefore(itemClickFirst, il.Create(OpCodes.Brfalse, itemClickFirst));
+        il.InsertBefore(itemClickFirst, il.Create(OpCodes.Ldc_I4_0));
+        il.InsertBefore(itemClickFirst, il.Create(OpCodes.Ret));
     }
 
     private static void VerifyDisplay(ModuleDefinition module)
@@ -567,6 +649,11 @@ public static class GameplayPatcher
         if (cancel.Body.Instructions.Count(item => item.Operand is MethodReference method &&
                 method.DeclaringType.FullName == "Port.Hooks.DesktopDisplay" && method.Name == "HandleSettingsCancel") != 1)
             throw new PreparationException("Settings display cancel postcondition failed.");
+        var itemClick = module.Types.Single(type => type.FullName == "ZombiesWP7.menu.MenuItem")
+            .Methods.Single(method => method.Name == "TryClick" && method.Parameters.Count == 2);
+        if (itemClick.Body.Instructions.Count(item => item.Operand is MethodReference method &&
+                method.DeclaringType.FullName == "Port.Hooks.DesktopDisplay" && method.Name == "IsStaticPlayerNameLabel") != 1)
+            throw new PreparationException("Static player name label postcondition failed.");
     }
 
     private static void PatchSpriteBatches(ModuleDefinition module, ModuleDefinition hooks)
@@ -759,8 +846,7 @@ public static class GameplayPatcher
     {
         var pictureHooks = hooks.Types.Single(type => type.FullName == "Port.Hooks.DesktopPictures");
         MethodReference Target(string name) => module.ImportReference(pictureHooks.Methods.Single(method =>
-            method.Name == name && method.IsStatic && method.Parameters.Count == 2 &&
-            method.Parameters.All(parameter => parameter.ParameterType.FullName == "System.Object")));
+            method.Name == name && method.IsStatic));
         var mapper = module.Types.Single(type => type.FullName == "IMAK3Z0MB1EGAEM.menu.CustomMapper")
             .Methods.Single(method => method.MetadataToken.ToInt32() == 0x060002cc);
         var first = mapper.Body.Instructions.First();
@@ -769,22 +855,43 @@ public static class GameplayPatcher
             throw new PreparationException("CustomMapper.Init picture picker anchor differs.");
         var il = mapper.Body.GetILProcessor();
         il.InsertBefore(first, il.Create(OpCodes.Ldsfld, gameCustom));
-        il.InsertBefore(first, il.Create(OpCodes.Ldarg_0));
-        il.InsertBefore(first, il.Create(OpCodes.Call, Target("ChooseFolder")));
+        il.InsertBefore(first, il.Create(OpCodes.Call, Target("LoadRememberedFolder")));
+        var returns = mapper.Body.Instructions.Where(instruction => instruction.OpCode == OpCodes.Ret).ToArray();
+        if (returns.Length is < 1 or > 2)
+            throw new PreparationException("CustomMapper.Init return layout differs.");
+        foreach (var ret in returns)
+        {
+            ret.OpCode = OpCodes.Ldarg_0;
+            il.InsertAfter(ret, il.Create(OpCodes.Call, Target("OfferFolderButton")));
+            il.InsertAfter(ret.Next, il.Create(OpCodes.Ret));
+        }
+
+        var click = mapper.DeclaringType.Methods.Single(method => method.Name == "Click" && method.Parameters.Count == 1);
+        var clickFirst = click.Body.Instructions.First();
+        var clickIl = click.Body.GetILProcessor();
+        clickIl.InsertBefore(clickFirst, clickIl.Create(OpCodes.Ldsfld, gameCustom));
+        clickIl.InsertBefore(clickFirst, clickIl.Create(OpCodes.Ldarg_0));
+        clickIl.InsertBefore(clickFirst, clickIl.Create(OpCodes.Ldarg_1));
+        clickIl.InsertBefore(clickFirst, clickIl.Create(OpCodes.Call, Target("HandleMapperClick")));
+        clickIl.InsertBefore(clickFirst, clickIl.Create(OpCodes.Brfalse, clickFirst));
+        clickIl.InsertBefore(clickFirst, clickIl.Create(OpCodes.Ret));
     }
 
     private static void VerifyPictures(ModuleDefinition module)
     {
         foreach (var (typeName, methodName, hookName) in new[]
         {
-            ("IMAK3Z0MB1EGAEM.menu.CustomMapper", "Init", "ChooseFolder")
+            ("IMAK3Z0MB1EGAEM.menu.CustomMapper", "Init", "LoadRememberedFolder"),
+            ("IMAK3Z0MB1EGAEM.menu.CustomMapper", "Init", "OfferFolderButton"),
+            ("IMAK3Z0MB1EGAEM.menu.CustomMapper", "Click", "HandleMapperClick")
         })
         {
             var method = module.Types.Single(type => type.FullName == typeName)
                 .Methods.Single(candidate => candidate.Name == methodName);
+            var expected = hookName == "OfferFolderButton" ? 2 : 1;
             if (method.Body.Instructions.Count(item => item.Operand is MethodReference target &&
                 target.DeclaringType.FullName == "Port.Hooks.DesktopPictures" &&
-                target.Name == hookName) != 1)
+                target.Name == hookName) != expected)
                 throw new PreparationException($"Picture hook {hookName} postcondition failed.");
         }
     }

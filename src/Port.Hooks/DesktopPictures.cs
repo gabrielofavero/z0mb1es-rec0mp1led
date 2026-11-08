@@ -5,6 +5,7 @@ using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Security.Cryptography;
 using System.Text;
+using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 
 namespace Port.Hooks;
@@ -20,14 +21,62 @@ public static class DesktopPictures
         { ".png", ".jpg", ".jpeg" };
     private static PendingPicker? pending;
     private static bool refreshingMapper;
+    private static readonly BrowseCallback BringPickerForward = OnBrowseEvent;
     private static string FolderFile => Path.Combine(DesktopStorage.SaveDirectory, "pictures-folder.txt");
+    private const string ChooseFolderLabel = "CHOOSE PICTURE FOLDER";
 
     public static bool ImportFolder(object manager, string folder) => Import(manager, folder);
 
+    public static void LoadRememberedFolder(object manager)
+    {
+        if (!File.Exists(FolderFile) ||
+            (int)manager.GetType().GetMethod("GetSrcImageCount", InstanceFields)!.Invoke(manager, null)! > 0)
+            return;
+        try
+        {
+            if (Import(manager, File.ReadAllText(FolderFile).Trim()))
+                DesktopStorage.ReapplyCustom(manager);
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+        {
+            Trace.TraceWarning($"Could not reload picture folder: {error.Message}");
+        }
+    }
+
+    public static void OfferFolderButton(object mapper)
+    {
+        var type = mapper.GetType();
+        var fields = type.BaseType!;
+        var itemsField = fields.GetField("item", InstanceFields)!;
+        var items = (Array?)itemsField.GetValue(mapper);
+        var itemType = type.Assembly.GetType("ZombiesWP7.menu.MenuItem", true)!;
+        var constructor = itemType.GetConstructor([typeof(string), typeof(Vector2), typeof(float)])!;
+        var gameType = type.Assembly.GetType("ZombiesWP7.Game1", true)!;
+        var menuScale = (float)gameType.GetField("MENUSCALE", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)!.GetValue(null)!;
+        var center = DesktopDisplay.SceneSize.X / (2f * menuScale);
+        var hasPictures = (bool)type.GetField("havePics", InstanceFields)!.GetValue(mapper)!;
+        var button = constructor.Invoke([ChooseFolderLabel, new Vector2(hasPictures ? center + 95f : center, hasPictures ? 280f : 245f), 0.55f]);
+        var next = Array.CreateInstance(itemType, (items?.Length ?? 0) + 1);
+        if (items is not null) Array.Copy(items, next, items.Length);
+        next.SetValue(button, next.Length - 1);
+        itemsField.SetValue(mapper, next);
+        if (!hasPictures)
+            fields.GetField("infos", InstanceFields)!.SetValue(mapper,
+                new[] { new StringBuilder(), new StringBuilder(),
+                        new StringBuilder("Choose a folder with PNG or JPEG pictures."),
+                        new StringBuilder("You can add custom monster sprites from them.") });
+    }
+
+    public static bool HandleMapperClick(object manager, object mapper, string label)
+    {
+        if (label != ChooseFolderLabel) return false;
+        ChooseFolder(manager, mapper);
+        return true;
+    }
+
     public static void ChooseFolder(object manager, object mapper)
     {
-        if (refreshingMapper || pending is not null ||
-            !OperatingSystem.IsWindows() || !Environment.UserInteractive) return;
+        if (refreshingMapper || pending is not null || !OperatingSystem.IsWindows()) return;
         Trace.TraceInformation("Opening picture folder picker for Mega Game Creator 2000.");
         pending = new PendingPicker(manager, mapper, StartBrowse(DesktopDisplay.GameWindowHandle));
     }
@@ -164,8 +213,15 @@ public static class DesktopPictures
         var completion = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
         var thread = new Thread(() =>
         {
-            try { completion.SetResult(BrowseFolder(owner)); }
+            var initialized = false;
+            try
+            {
+                Marshal.ThrowExceptionForHR(CoInitializeEx(IntPtr.Zero, 0x2));
+                initialized = true;
+                completion.SetResult(BrowseFolder(owner));
+            }
             catch (Exception error) { completion.SetException(error); }
+            finally { if (initialized) CoUninitialize(); }
         }) { IsBackground = true };
         thread.SetApartmentState(ApartmentState.STA);
         thread.Start();
@@ -183,7 +239,8 @@ public static class DesktopPictures
             {
                 Owner = owner, DisplayName = display,
                 Title = "Choose a picture folder for Mega Game Creator 2000",
-                Flags = 0x0001 | 0x0010 | 0x0040
+                Flags = 0x0001 | 0x0010 | 0x0040,
+                Callback = Marshal.GetFunctionPointerForDelegate(BringPickerForward)
             };
             var item = SHBrowseForFolderW(ref info);
             if (item == IntPtr.Zero) return null;
@@ -196,6 +253,18 @@ public static class DesktopPictures
             Marshal.FreeHGlobal(path);
         }
     }
+
+    private static int OnBrowseEvent(IntPtr window, uint message, IntPtr parameter, IntPtr data)
+    {
+        if (message == 1) // BFFM_INITIALIZED
+        {
+            SetWindowPos(window, new IntPtr(-1), 0, 0, 0, 0, 0x0043);
+            SetForegroundWindow(window);
+        }
+        return 0;
+    }
+
+    private delegate int BrowseCallback(IntPtr window, uint message, IntPtr parameter, IntPtr data);
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     private struct BrowseInfo
@@ -212,11 +281,21 @@ public static class DesktopPictures
 
     [DllImport("shell32.dll", CharSet = CharSet.Unicode, ExactSpelling = true)]
     private static extern IntPtr SHBrowseForFolderW(ref BrowseInfo info);
+    [DllImport("ole32.dll", ExactSpelling = true)]
+    private static extern int CoInitializeEx(IntPtr reserved, uint coInit);
+    [DllImport("ole32.dll", ExactSpelling = true)]
+    private static extern void CoUninitialize();
     [DllImport("shell32.dll", CharSet = CharSet.Unicode, ExactSpelling = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool SHGetPathFromIDListW(IntPtr item, IntPtr path);
     [DllImport("user32.dll", CharSet = CharSet.Unicode, ExactSpelling = true)]
     private static extern int MessageBoxW(IntPtr owner, string text, string title, uint flags);
+    [DllImport("user32.dll", ExactSpelling = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool SetForegroundWindow(IntPtr window);
+    [DllImport("user32.dll", ExactSpelling = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool SetWindowPos(IntPtr window, IntPtr after, int x, int y, int width, int height, uint flags);
 
     private sealed record PendingPicker(object Manager, object Mapper, Task<string?> Result);
 }
