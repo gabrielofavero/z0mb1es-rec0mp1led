@@ -539,8 +539,8 @@
         "runtimeTexture": null,
         "resolution": "exact"
       },
-      "status": "uncertain",
-      "reason": "crop differs materially; keep Original until manually remapped",
+      "status": "candidate",
+      "reason": "reviewed 360 character crop; phone baked shadow reaches atlas cell edge",
       "source": {
         "path": "gfx/sprites.xnb",
         "sha256": "80b13ecc8f71092c0ab31441e5ff0c6768eba4e0c1b33586134a5bc6f4d2ef80",
@@ -591,8 +591,8 @@
         "runtimeTexture": null,
         "resolution": "exact"
       },
-      "status": "uncertain",
-      "reason": "crop differs materially; keep Original until manually remapped",
+      "status": "candidate",
+      "reason": "reviewed 360 character crop; phone baked shadow reaches atlas cell edge",
       "source": {
         "path": "gfx/sprites.xnb",
         "sha256": "80b13ecc8f71092c0ab31441e5ff0c6768eba4e0c1b33586134a5bc6f4d2ef80",
@@ -643,8 +643,8 @@
         "runtimeTexture": null,
         "resolution": "exact"
       },
-      "status": "uncertain",
-      "reason": "crop differs materially; keep Original until manually remapped",
+      "status": "candidate",
+      "reason": "reviewed 360 character crop; phone baked shadow reaches atlas cell edge",
       "source": {
         "path": "gfx/sprites.xnb",
         "sha256": "80b13ecc8f71092c0ab31441e5ff0c6768eba4e0c1b33586134a5bc6f4d2ef80",
@@ -3603,8 +3603,8 @@
         "runtimeTexture": null,
         "resolution": "exact"
       },
-      "status": "uncertain",
-      "reason": "crop differs materially; keep Original until manually remapped",
+      "status": "candidate",
+      "reason": "reviewed 360 character crop; phone baked shadow reaches atlas cell edge",
       "source": {
         "path": "gfx/sprites.xnb",
         "sha256": "80b13ecc8f71092c0ab31441e5ff0c6768eba4e0c1b33586134a5bc6f4d2ef80",
@@ -3655,8 +3655,8 @@
         "runtimeTexture": null,
         "resolution": "exact"
       },
-      "status": "uncertain",
-      "reason": "crop differs materially; keep Original until manually remapped",
+      "status": "candidate",
+      "reason": "reviewed 360 character crop; phone baked shadow reaches atlas cell edge",
       "source": {
         "path": "gfx/sprites.xnb",
         "sha256": "80b13ecc8f71092c0ab31441e5ff0c6768eba4e0c1b33586134a5bc6f4d2ef80",
@@ -3707,8 +3707,8 @@
         "runtimeTexture": null,
         "resolution": "exact"
       },
-      "status": "uncertain",
-      "reason": "crop differs materially; keep Original until manually remapped",
+      "status": "candidate",
+      "reason": "reviewed 360 character crop; phone baked shadow reaches atlas cell edge",
       "source": {
         "path": "gfx/sprites.xnb",
         "sha256": "80b13ecc8f71092c0ab31441e5ff0c6768eba4e0c1b33586134a5bc6f4d2ef80",
@@ -3759,8 +3759,8 @@
         "runtimeTexture": null,
         "resolution": "exact"
       },
-      "status": "uncertain",
-      "reason": "crop differs materially; keep Original until manually remapped",
+      "status": "candidate",
+      "reason": "reviewed 360 character crop; phone baked shadow reaches atlas cell edge",
       "source": {
         "path": "gfx/sprites.xnb",
         "sha256": "80b13ecc8f71092c0ab31441e5ff0c6768eba4e0c1b33586134a5bc6f4d2ef80",
@@ -3811,8 +3811,8 @@
         "runtimeTexture": null,
         "resolution": "exact"
       },
-      "status": "uncertain",
-      "reason": "crop differs materially; keep Original until manually remapped",
+      "status": "candidate",
+      "reason": "reviewed 360 character crop; phone baked shadow reaches atlas cell edge",
       "source": {
         "path": "gfx/sprites.xnb",
         "sha256": "80b13ecc8f71092c0ab31441e5ff0c6768eba4e0c1b33586134a5bc6f4d2ef80",

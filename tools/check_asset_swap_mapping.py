@@ -80,6 +80,13 @@ def check() -> None:
             for name in ("moon/stage1", "moon/stage2", "moon/stage3-left", "moon/stage3-right"):
                 assert by_id[name]["status"] == "candidate"
                 assert by_id[name]["source"]["path"] == "gfx/moon.xnb"
+        if source == "i-maed-360":
+            by_id = {e["id"]: e for e in manifest["elements"]}
+            shadowed = {f"draw/IMAK3Z0MB1EGAEM.character/Monster/{i:03d}" for i in (8, 9, 10)}
+            shadowed.update(f"frame/IMAK3Z0MB1EGAEM.character/Hero/001/{i:03d}" for i in range(5))
+            for name in shadowed:
+                assert by_id[name]["status"] == "candidate", name
+                assert by_id[name]["source"]["path"] == "gfx/sprites.xnb", name
 
     endless = read(RECORDS / "asset-swap-mappings/endless-360.json")
     assert endless["sourcePriority"] == ["i-maed-360", "i-maed-steam", "time-viking-360", "phone"]

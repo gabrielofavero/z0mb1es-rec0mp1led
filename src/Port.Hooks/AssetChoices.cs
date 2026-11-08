@@ -28,12 +28,11 @@ public static class AssetChoices
     public static bool NormalImported => Wants(preferences.Normal, normalOverride, normalConfigured) && normalAvailable;
     public static bool VikingImported => Wants(preferences.Viking, vikingOverride, vikingConfigured) && vikingAvailable;
     public static bool EndlessImported => Wants(preferences.Endless, endlessOverride, endlessConfigured) && endlessAvailable;
-    public static string NormalLabel => NormalImported ? normalKind.ToUpperInvariant() :
+    public static string NormalLabel => NormalImported ? "ENHANCED" :
         Wants(preferences.Normal, normalOverride, normalConfigured) ? "UNAVAILABLE" : "ORIGINAL";
-    public static string VikingLabel => VikingImported ? "360" :
+    public static string VikingLabel => VikingImported ? "ENHANCED" :
         Wants(preferences.Viking, vikingOverride, vikingConfigured) ? "UNAVAILABLE" : "ORIGINAL";
-    public static string EndlessLabel => EndlessImported ?
-        normalKind == "steam" ? (vikingAvailable ? "MIXED" : "STEAM") : "360" :
+    public static string EndlessLabel => EndlessImported ? "ENHANCED" :
         Wants(preferences.Endless, endlessOverride, endlessConfigured) ? "UNAVAILABLE" : "ORIGINAL";
 
     public static void Initialize(string? store, string? normal, string? viking, string? endless)

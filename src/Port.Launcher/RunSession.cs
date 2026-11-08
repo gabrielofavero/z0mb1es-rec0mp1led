@@ -15,13 +15,14 @@ internal static class RunSession
     {
         if (args.Length < 4 || args[2] != "--content")
         {
-            Console.Error.WriteLine("Usage: Z0MB1ES --run <prepared.dll> --content <prepared-content-root> [--frames N] [--windowed] [--save-dir <directory>] [--probe-services] [--probe-mode normal|endless|viking] [--probe-menus] [--probe-resize WIDTHxHEIGHT] [--art-store <prepared-art-root>] [--art-normal original|steam|360] [--art-viking original|360] [--art-endless original|imported]");
+            Console.Error.WriteLine("Usage: Z0MB1ES --run <prepared.dll> --content <prepared-content-root> [--frames N] [--windowed] [--save-dir <directory>] [--probe-services] [--probe-mode normal|endless|viking] [--probe-art-toggle] [--probe-menus] [--probe-resize WIDTHxHEIGHT] [--art-store <prepared-art-root>] [--art-normal original|steam|360] [--art-viking original|360] [--art-endless original|imported]");
             return 2;
         }
         int? frameLimit = null;
         var windowed = false;
         var probeServices = false;
         var probeMenus = false;
+        var probeArtToggle = false;
         string? probeMode = null;
         string? saveDirectory = null;
         string? artStore = null;
@@ -34,6 +35,7 @@ internal static class RunSession
             if (args[i] == "--windowed") windowed = true;
             else if (args[i] == "--probe-services") probeServices = true;
             else if (args[i] == "--probe-menus") probeMenus = true;
+            else if (args[i] == "--probe-art-toggle") probeArtToggle = true;
             else if (args[i] == "--probe-mode" && ++i < args.Length &&
                      args[i] is "normal" or "endless" or "viking") probeMode = args[i];
             else if (args[i] == "--frames" && ++i < args.Length &&
@@ -67,7 +69,7 @@ internal static class RunSession
         }
         if ((probeMode is not null || probeMenus) && (saveDirectory is null ||
             (probeMode is not null && (probeServices || probeMenus)) ||
-            (probeMenus && probeServices)) || (probeResize is not null && probeMode is null))
+            (probeMenus && probeServices)) || ((probeResize is not null || probeArtToggle) && probeMode is null))
         {
             Console.Error.WriteLine("RUN_FAIL diagnostic probes require an isolated --save-dir and cannot be combined");
             return 2;
@@ -99,7 +101,8 @@ internal static class RunSession
             DesktopAchievements.Configure();
             DesktopInput.Configure(game);
             game.Content.RootDirectory = Path.Combine(content, "Content");
-            var monitor = new RunMonitor(game, gameType, frameLimit, windowed, probeServices, probeMode, probeMenus, probeResize);
+            var monitor = new RunMonitor(game, gameType, frameLimit, windowed, probeServices,
+                probeMode, probeMenus, probeArtToggle, probeResize);
             game.Components.Add(monitor);
             Console.WriteLine("RUN_START original=ZombiesWP7.Game1 method=Run");
             try { game.Run(); }
@@ -108,10 +111,11 @@ internal static class RunSession
                 Console.Error.WriteLine($"RUN_PRIMARY_EXCEPTION {error}");
                 throw;
             }
-            Console.WriteLine($"RUN_END updates={monitor.Updates} frames={monitor.Frames} menuReached={monitor.MenuReached} menuAnimated={monitor.MenuAnimated} rendered={monitor.RenderedMenu} serviceScreens={monitor.ServiceScreens} serviceVerified={monitor.ServiceStatesVerified} modeProbe={probeMode} modeVerified={monitor.ModeVerified} menusVerified={monitor.MenusVerified} artDraws={AssetDraw.Replacements} originalDraws={AssetDraw.OriginalDraws} artUnique={AssetDraw.UsedCount} artSample={AssetDraw.UsedSample} inputSamples={DesktopInput.Samples} activeSamples={DesktopInput.ActiveSamples} mouseSamples={DesktopInput.MouseSamples} keyboardSamples={DesktopInput.KeyboardSamples} movementSeen={monitor.MovementSeen} aimSeen={monitor.AimSeen} clickSeen={monitor.ClickSeen} backSeen={monitor.BackSeen} pauseSeen={monitor.PauseSeen} hostQuit={monitor.HostQuit} timedOut={monitor.TimedOut}");
+            Console.WriteLine($"RUN_END updates={monitor.Updates} frames={monitor.Frames} menuReached={monitor.MenuReached} menuAnimated={monitor.MenuAnimated} rendered={monitor.RenderedMenu} serviceScreens={monitor.ServiceScreens} serviceVerified={monitor.ServiceStatesVerified} modeProbe={probeMode} modeVerified={monitor.ModeVerified} artToggleVerified={monitor.ArtToggleVerified} menusVerified={monitor.MenusVerified} artDraws={AssetDraw.Replacements} originalDraws={AssetDraw.OriginalDraws} artUnique={AssetDraw.UsedCount} artSample={AssetDraw.UsedSample} inputSamples={DesktopInput.Samples} activeSamples={DesktopInput.ActiveSamples} mouseSamples={DesktopInput.MouseSamples} keyboardSamples={DesktopInput.KeyboardSamples} movementSeen={monitor.MovementSeen} aimSeen={monitor.AimSeen} clickSeen={monitor.ClickSeen} backSeen={monitor.BackSeen} pauseSeen={monitor.PauseSeen} hostQuit={monitor.HostQuit} timedOut={monitor.TimedOut}");
             return monitor.MenuReached && monitor.MenuAnimated && monitor.RenderedMenu &&
                 monitor.Frames >= 2 && !monitor.TimedOut && (!probeServices || monitor.ServiceStatesVerified) &&
-                (probeMode is null || monitor.ModeVerified) && (!probeMenus || monitor.MenusVerified) ? 0 : 1;
+                (probeMode is null || monitor.ModeVerified) && (!probeArtToggle || monitor.ArtToggleVerified) &&
+                (!probeMenus || monitor.MenusVerified) ? 0 : 1;
         }
         catch (Exception error)
         {
@@ -179,6 +183,7 @@ internal sealed class RunMonitor : DrawableGameComponent
     private readonly bool probeServices;
     private readonly ModeProbe? modeProbe;
     private readonly MenuProbe? menuProbe;
+    private readonly bool probeArtToggle;
     private readonly (int Width, int Height)? probeResize;
     private readonly Stopwatch elapsed = Stopwatch.StartNew();
     public int Updates { get; private set; }
@@ -199,21 +204,25 @@ internal sealed class RunMonitor : DrawableGameComponent
     public bool ServiceStatesVerified => achievementStateVerified && leaderboardStateVerified;
     public bool ModeVerified => modeProbe?.Verified ?? false;
     public bool MenusVerified => menuProbe?.Verified ?? false;
+    public bool ArtToggleVerified { get; private set; }
     private bool achievementCaptured;
     private bool leaderboardCaptured;
     private bool artProbeCaptured;
+    private int artDrawsAt150;
     private bool resizedCaptured;
     private int achievementOpenedAt;
     private int leaderboardOpenedAt;
     private float? firstMenuFrame;
 
     public RunMonitor(Game game, Type gameType, int? frameLimit, bool windowed, bool probeServices,
-        string? probeMode, bool probeMenus, (int Width, int Height)? probeResize) : base(game)
+        string? probeMode, bool probeMenus, bool probeArtToggle,
+        (int Width, int Height)? probeResize) : base(game)
     {
         this.gameType = gameType;
         this.frameLimit = frameLimit;
         this.windowed = windowed;
         this.probeServices = probeServices;
+        this.probeArtToggle = probeArtToggle;
         this.probeResize = probeResize;
         if (probeMode is not null) modeProbe = new ModeProbe(game, gameType, probeMode);
         if (probeMenus) menuProbe = new MenuProbe(game, gameType);
@@ -277,6 +286,34 @@ internal sealed class RunMonitor : DrawableGameComponent
             if (menuFrame != firstMenuFrame) MenuAnimated = true;
         }
         modeProbe?.Update(Updates, MenuReached && MenuAnimated);
+        if (probeArtToggle && modeProbe is { PlayStartedAt: >= 0 } artMode)
+        {
+            var elapsedPlay = Updates - artMode.PlayStartedAt;
+            var mode = artMode.Mode;
+            if (elapsedPlay == 60)
+            {
+                if (AssetDraw.RouteCount(mode) == 0 || AssetChoices.Toggle(mode).Length != 0 ||
+                    AssetDraw.RouteCount(mode) != 0)
+                    throw new InvalidOperationException($"Art did not switch to Original during {mode} gameplay.");
+                Console.WriteLine($"ART_TOGGLE mode={mode} choice=ORIGINAL update={Updates}");
+            }
+            else if (elapsedPlay == 120)
+            {
+                if (AssetDraw.Replacements != 0 || AssetDraw.OriginalDraws == 0 ||
+                    AssetChoices.Toggle(mode).Length != 0 || AssetDraw.RouteCount(mode) == 0)
+                    throw new InvalidOperationException($"Original drew imported art or Enhanced did not load during {mode} gameplay.");
+                Console.WriteLine($"ART_TOGGLE mode={mode} choice=ENHANCED update={Updates}");
+            }
+            else if (elapsedPlay == 150)
+                artDrawsAt150 = AssetDraw.Replacements;
+            else if (elapsedPlay == 180)
+            {
+                if (AssetDraw.Replacements <= artDrawsAt150)
+                    throw new InvalidOperationException($"Enhanced art was not drawn after the {mode} gameplay switch.");
+                ArtToggleVerified = true;
+                Console.WriteLine($"ART_TOGGLE mode={mode} verified=True importedDraws={AssetDraw.Replacements}");
+            }
+        }
         if (probeResize is { } resize && modeProbe is not null && Updates == 300)
         {
             if (!DesktopDisplay.ApplyForProbe("Windowed", resize.Width, resize.Height))

@@ -28,6 +28,8 @@ internal sealed class ModeProbe
 
     public bool Verified { get; private set; }
     public string Mode => mode;
+    public int PlayStartedAt => step >= 2 ? playStartedAt : -1;
+    private int playStartedAt = -1;
     public bool ShouldCapture(int updates) => step == 2 && !frameCaptured && updates - stepAt >= 120;
     public void MarkCaptured() => frameCaptured = true;
     public bool ShouldCapturePause(int updates) => step == 3 && !pauseCaptured && updates - stepAt >= 20;
@@ -75,6 +77,7 @@ internal sealed class ModeProbe
             if (mode == "endless") Invoke(target, "Play", true);
             else Invoke(target, "Play");
             Require(State == playState, "play state was not entered");
+            playStartedAt = updates;
             Advance(2, updates, "playing");
         }
         else if (step == 2 && mode == "endless" && !progressionChecked && updates - stepAt >= 180)

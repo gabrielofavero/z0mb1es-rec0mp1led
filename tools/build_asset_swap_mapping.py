@@ -26,6 +26,16 @@ SOURCE_ROOTS = {
     "i-maed-steam": pathlib.Path("D:/Program Files (x86)/Steam/steamapps/common/IMAGWZII/Content"),
 }
 
+# The phone atlas bakes a wide shadow into these character cells. Its shadow
+# reaches the cell boundary, while the matching 360 character art has clean
+# alpha. The low alpha IoU is therefore expected for these reviewed crops.
+SHADOW_BAKED_PHONE_FRAMES = {
+    "draw/IMAK3Z0MB1EGAEM.character/Monster/008",
+    "draw/IMAK3Z0MB1EGAEM.character/Monster/009",
+    "draw/IMAK3Z0MB1EGAEM.character/Monster/010",
+    *(f"frame/IMAK3Z0MB1EGAEM.character/Hero/001/{i:03d}" for i in range(5)),
+}
+
 
 def visible(array: np.ndarray) -> np.ndarray:
     return array[:, :, :3].astype(np.float32) * array[:, :, 3:4].astype(np.float32) / 255
@@ -166,8 +176,12 @@ def main() -> None:
                         item["status"] = "original"
                         item["reason"] = "empty phone atlas cell; no imported artwork selected"
                     elif scores["alphaIoU"] < 0.8 or (scores["luminanceCorrelation"] < 0.75 and scores["visibleMae"] >= 1):
-                        item["status"] = "uncertain"
-                        item["reason"] = "crop differs materially; keep Original until manually remapped"
+                        if (source == "i-maed-360" and row["id"] in SHADOW_BAKED_PHONE_FRAMES
+                                and scores["luminanceCorrelation"] >= 0.98):
+                            item["reason"] = "reviewed 360 character crop; phone baked shadow reaches atlas cell edge"
+                        else:
+                            item["status"] = "uncertain"
+                            item["reason"] = "crop differs materially; keep Original until manually remapped"
                     previews[path].append((row["id"], a, b, scores))
             elements.append(item)
         if source == "time-viking-360":

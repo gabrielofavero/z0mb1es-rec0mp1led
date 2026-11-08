@@ -21,8 +21,8 @@ public static class IlRewriter
     private const string OriginalDllHash = "7b819cb562826ae4d2592ff741877e76da0e57bfbe48192aabb79319fdb36823";
     private const string FnaHash = "952ecb3d8a869ad1343bd5b761b8a1d19c3af21e9c3cd2fab3dbc75d6893a89d";
     private const string AbiReportHash = "2edec771cbbf30e59541ed851e1865463fc26c26a5c79bb54bbc69228301bd44";
-    private const string BridgeAbiReportHash = "6cc019b7e659908eb94267bc463deac5ef1fc1b038b1284945e896e3b486d33b";
-    private const string BridgeHash = "e080097db2eb5171ff200676f9de8fc40378ea4488e364c980467cfcd79a2def";
+    private const string BridgeAbiReportHash = "27dedb6dc2aa1f2b8a32a4f4f82969400091466554253c67f861b8ff9c7dedc6";
+    private const string BridgeHash = "d7b11e67fcc1c6794f214c4d37b6a6bbc566661a20d8b12414cad3f3a462d5c2";
     private static readonly string[] LegacyAssemblies =
     [
         "Microsoft.Xna.Framework", "Microsoft.Xna.Framework.Game", "Microsoft.Xna.Framework.Graphics",

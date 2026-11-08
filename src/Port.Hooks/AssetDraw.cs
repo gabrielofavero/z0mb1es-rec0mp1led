@@ -22,16 +22,26 @@ public static class AssetDraw
     }
 
     private static readonly ConcurrentDictionary<Texture2D, string> Names = new();
+    private static readonly Dictionary<(Texture2D Atlas, Rectangle Source), Texture2D> PhoneCharacters = new();
+    private static readonly Dictionary<Texture2D, Texture2D> PhoneShadows = new();
     private static readonly Dictionary<Key, Route> Normal = new();
     private static readonly Dictionary<Key, Route> Viking = new();
     private static readonly Dictionary<Key, Route> Endless = new();
     private static FieldInfo? stateField;
+    private static FieldInfo? zoomField;
     private static int replacements;
     private static int originalDraws;
     private static readonly ConcurrentDictionary<string, int> Used = new();
 
     public static int Replacements => Volatile.Read(ref replacements);
     public static int OriginalDraws => Volatile.Read(ref originalDraws);
+    public static int RouteCount(string mode) => mode switch
+    {
+        "normal" => Normal.Count,
+        "viking" => Viking.Count,
+        "endless" => Endless.Count,
+        _ => throw new ArgumentOutOfRangeException(nameof(mode))
+    };
     public static int UsedCount => Used.Count;
     public static string UsedSample => string.Join(",", Used.Keys.Order(StringComparer.Ordinal).Take(12));
 
@@ -66,11 +76,16 @@ public static class AssetDraw
 
     public static void Configure(string? store, string normal, string viking, string endless)
     {
+        foreach (var character in PhoneCharacters.Values) character.Dispose();
+        PhoneCharacters.Clear();
+        foreach (var shadow in PhoneShadows.Values) shadow.Dispose();
+        PhoneShadows.Clear();
         foreach (var texture in Normal.Values.Concat(Viking.Values).Concat(Endless.Values)
                      .Select(route => route.Texture).OfType<Texture2D>().Distinct())
             texture.Dispose();
         Normal.Clear(); Viking.Clear(); Endless.Clear(); Used.Clear();
         stateField = null;
+        zoomField = null;
         replacements = originalDraws = 0;
         if (normal == "original" && viking == "original" && endless == "original") return;
         if (store is null) throw new InvalidDataException("Imported art requires --art-store.");
@@ -298,6 +313,14 @@ public static class AssetDraw
             source = physical;
             ratio = new Vector2(logical.Width / (float)w, logical.Height / (float)h);
         }
+        texture = GetRouteTexture(sprite, route);
+        Used.AddOrUpdate(route.Id, 1, (_, count) => count + 1);
+        Interlocked.Increment(ref replacements);
+        return true;
+    }
+
+    private static Texture2D GetRouteTexture(SpriteBatch sprite, Route route)
+    {
         if (route.Texture is null || route.Texture.IsDisposed)
         {
             using var stream = File.OpenRead(route.File);
@@ -305,9 +328,136 @@ public static class AssetDraw
             if (route.Texture.Width < route.Content.Right || route.Texture.Height < route.Content.Bottom)
                 throw new InvalidDataException($"Prepared art bounds mismatch: {route.Id}");
         }
-        texture = route.Texture;
-        Used.AddOrUpdate(route.Id, 1, (_, count) => count + 1);
+        return route.Texture;
+    }
+
+    private static void Draw360CharacterShadow(SpriteBatch sprite, Texture2D texture,
+        Vector2 position, Rectangle? source)
+    {
+        var routes = CurrentRoutes();
+        if (routes is null || !Names.TryGetValue(texture, out var name) ||
+            name != "gfx_2/zombie/sprites.xnb") return;
+        var logical = source ?? new Rectangle(0, 0, texture.Width, texture.Height);
+        if (!routes.TryGetValue(new Key(name, logical), out var body) ||
+            !(body.Id.StartsWith("frame/IMAK3Z0MB1EGAEM.character/Hero/001/", StringComparison.Ordinal) ||
+              body.Id is "draw/IMAK3Z0MB1EGAEM.character/Monster/008" or
+                         "draw/IMAK3Z0MB1EGAEM.character/Monster/009" or
+                         "draw/IMAK3Z0MB1EGAEM.character/Monster/010") ||
+            !routes.TryGetValue(new Key(name, new Rectangle(288, 64, 96, 96)), out var shadow) ||
+            !shadow.File.Contains("i-maed-360", StringComparison.OrdinalIgnoreCase)) return;
+        zoomField ??= stateField?.DeclaringType?.Assembly
+            .GetType("IMAK3Z0MB1EGAEM.ScrollMan", false)?
+            .GetField("zoom", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+        if (zoomField?.GetValue(null) is not float zoom) return;
+        // The 360 game draws this clean circular shadow at each living character's
+        // location before its sprite. The phone game instead baked a clipped shadow
+        // into the character atlas and left its own DrawShadow method unused.
+        sprite.Draw(GetRouteTexture(sprite, shadow), position, shadow.Content,
+            new Color(0f, 0f, 0f, 0.5f), 0f, new Vector2(96f, 96f),
+            0.4f * zoom, SpriteEffects.None, 1f);
+        Used.AddOrUpdate(shadow.Id, 1, (_, count) => count + 1);
         Interlocked.Increment(ref replacements);
+    }
+
+    private static bool IsPhoneCharacter(Rectangle source) =>
+        (source.Y == 0 && source.Width == 128 && source.Height == 64 &&
+         source.X is 0 or 128 or 256 or 384 or 512) ||
+        source == new Rectangle(192, 64, 96, 96) ||
+        source == new Rectangle(416, 192, 96, 128) ||
+        source == new Rectangle(576, 0, 64, 96);
+
+    private static Texture2D GetPhoneShadow(SpriteBatch sprite, Texture2D atlas)
+    {
+        if (PhoneShadows.TryGetValue(atlas, out var shadow) && !shadow.IsDisposed) return shadow;
+        const int size = 96;
+        var pixels = new Color[size * size];
+        atlas.GetData(0, new Rectangle(288, 64, size, size), pixels, 0, pixels.Length);
+        for (var y = 0; y < size; y++)
+        for (var x = 0; x < size; x++)
+        {
+            var index = y * size + x;
+            var edge = Math.Min(Math.Min(x, size - 1 - x), Math.Min(y, size - 1 - y));
+            pixels[index].A = (byte)(pixels[index].A * Math.Min(edge, 12) / 12);
+        }
+        shadow = new Texture2D(sprite.GraphicsDevice, size, size);
+        shadow.SetData(pixels);
+        PhoneShadows[atlas] = shadow;
+        return shadow;
+    }
+
+    private static bool TryDrawPhoneCharacter(SpriteBatch sprite, Texture2D atlas, Vector2 position,
+        Rectangle? source, Color color, float rotation, Vector2 origin, Vector2 scale,
+        SpriteEffects effects, float depth)
+    {
+        if (CurrentRoutes()?.Count != 0 || source is not Rectangle frame || !IsPhoneCharacter(frame) ||
+            !Names.TryGetValue(atlas, out var name) || name != "gfx_2/zombie/sprites.xnb") return false;
+
+        if (!PhoneCharacters.TryGetValue((atlas, frame), out var character) || character.IsDisposed)
+        {
+            var pixels = new Color[frame.Width * frame.Height];
+            atlas.GetData(0, frame, pixels, 0, pixels.Length);
+            // Opaque pixels form the character, including its dark outlines.
+            // The broad baked shadow has lower alpha. Keep a short soft fringe
+            // around the character and discard the rest of that shadow.
+            var distance = new byte[pixels.Length];
+            Array.Fill(distance, (byte)6);
+            var frontier = new Queue<int>();
+            for (var index = 0; index < pixels.Length; index++)
+                if (pixels[index].A >= 235)
+                {
+                    distance[index] = 0;
+                    frontier.Enqueue(index);
+                }
+            while (frontier.Count > 0)
+            {
+                var index = frontier.Dequeue();
+                var next = (byte)(distance[index] + 1);
+                if (next > 5) continue;
+                var x = index % frame.Width;
+                var y = index / frame.Width;
+                for (var dy = -1; dy <= 1; dy++)
+                for (var dx = -1; dx <= 1; dx++)
+                {
+                    var nx = x + dx;
+                    var ny = y + dy;
+                    if (nx < 0 || nx >= frame.Width || ny < 0 || ny >= frame.Height) continue;
+                    var neighbor = ny * frame.Width + nx;
+                    if (distance[neighbor] <= next) continue;
+                    distance[neighbor] = next;
+                    frontier.Enqueue(neighbor);
+                }
+            }
+            for (var y = 0; y < frame.Height; y++)
+            for (var x = 0; x < frame.Width; x++)
+            {
+                var index = y * frame.Width + x;
+                var pixel = pixels[index];
+                if (pixel.A >= 235) continue;
+                var alpha = pixel.A * Math.Min(4, 6 - distance[index]) / 4;
+                // A few body pixels sit close to a frame edge. Remove only the
+                // remaining dark translucent fringe there, leaving those pixels.
+                if (Math.Max(pixel.R, Math.Max(pixel.G, pixel.B)) <= 32)
+                {
+                    var edge = Math.Min(Math.Min(x, frame.Width - 1 - x),
+                                        Math.Min(y, frame.Height - 1 - y));
+                    alpha = alpha * Math.Min(edge, 10) / 10;
+                }
+                pixels[index].A = (byte)alpha;
+            }
+            character = new Texture2D(sprite.GraphicsDevice, frame.Width, frame.Height);
+            character.SetData(pixels);
+            PhoneCharacters[(atlas, frame)] = character;
+        }
+
+        zoomField ??= stateField?.DeclaringType?.Assembly
+            .GetType("IMAK3Z0MB1EGAEM.ScrollMan", false)?
+            .GetField("zoom", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+        if (zoomField?.GetValue(null) is float zoom)
+            sprite.Draw(GetPhoneShadow(sprite, atlas), position, null,
+                new Color(0f, 0f, 0f, 0.5f), 0f, new Vector2(48f, 48f),
+                0.8f * zoom, SpriteEffects.None, depth);
+        sprite.Draw(character, position, null, color, rotation, origin, scale, effects, depth);
+        Interlocked.Increment(ref originalDraws);
         return true;
     }
 
@@ -329,6 +479,9 @@ public static class AssetDraw
     public static void Draw(SpriteBatch sprite, Texture2D texture, Vector2 position, Rectangle? source, Color color,
         float rotation, Vector2 origin, float scale, SpriteEffects effects, float depth)
     {
+        if (TryDrawPhoneCharacter(sprite, texture, position, source, color, rotation, origin,
+                new Vector2(scale), effects, depth)) return;
+        Draw360CharacterShadow(sprite, texture, position, source);
         if (RouteDraw(sprite, ref texture, ref source, out var ratio))
             sprite.Draw(texture, position, source, color, rotation,
                 new Vector2(origin.X / ratio.X, origin.Y / ratio.Y), scale * ratio, effects, depth);
@@ -338,6 +491,9 @@ public static class AssetDraw
     public static void Draw(SpriteBatch sprite, Texture2D texture, Vector2 position, Rectangle? source, Color color,
         float rotation, Vector2 origin, Vector2 scale, SpriteEffects effects, float depth)
     {
+        if (TryDrawPhoneCharacter(sprite, texture, position, source, color, rotation, origin,
+                scale, effects, depth)) return;
+        Draw360CharacterShadow(sprite, texture, position, source);
         if (RouteDraw(sprite, ref texture, ref source, out var ratio))
             sprite.Draw(texture, position, source, color, rotation,
                 new Vector2(origin.X / ratio.X, origin.Y / ratio.Y), scale * ratio, effects, depth);

@@ -30,7 +30,12 @@ function Invoke-DevGame {
     }
     $game = Join-Path $Build.FullName 'ZombiesWP7.dll'
     Write-Host "Running $($Build.Name)..."
-    Invoke-DevDotnet -Arguments @($launcher, '--run', $game, '--content', $Build.FullName)
+    $arguments = @($launcher, '--run', $game, '--content', $Build.FullName)
+    $localArt = Join-Path $script:DevRoot 'private/asset-swap/prepared'
+    if (Test-Path -LiteralPath $localArt -PathType Container) {
+        $arguments += @('--art-store', $localArt)
+    }
+    Invoke-DevDotnet -Arguments $arguments
 }
 
 function build-game {
@@ -92,6 +97,10 @@ function build-game {
             -PreparedDirectory $hooked -ContentDirectory $content -OutputDirectory $candidate
         if (-not (Test-Path -LiteralPath (Join-Path $candidate 'Z0MB1ES.dll') -PathType Leaf)) {
             throw 'Game staging did not produce a runnable build.'
+        }
+        $localArt = Join-Path $script:DevRoot 'private/asset-swap/prepared'
+        if (Test-Path -LiteralPath $localArt -PathType Container) {
+            Copy-Item -LiteralPath $localArt -Destination (Join-Path $candidate 'optional-art') -Recurse
         }
         $priorMoved = $false
         try {

@@ -1167,8 +1167,41 @@
         "runtimeTexture": null,
         "resolution": "exact"
       },
-      "variants": [],
-      "status": "original",
+      "variants": [
+        {
+          "sourceId": "i-maed-360",
+          "source": {
+            "path": "gfx/sprites.xnb",
+            "sha256": "80b13ecc8f71092c0ab31441e5ff0c6768eba4e0c1b33586134a5bc6f4d2ef80",
+            "decodedSha256": "f65c6ad46b3e766d75b6843c188edc986260ae9268282dcbede0a1e3afa9f89e",
+            "packageEntryPath": "584E07D1/Content/gfx/sprites.xnb",
+            "rectangle": [
+              1152,
+              0,
+              128,
+              192
+            ]
+          },
+          "expectedOutput": {
+            "physicalSize": [
+              128,
+              192
+            ],
+            "logicalSize": [
+              64,
+              96
+            ]
+          },
+          "comparison": {
+            "phoneVisiblePixels": 4206,
+            "sourceVisiblePixels": 1908,
+            "alphaIoU": 0.4516,
+            "visibleMae": 3.168,
+            "luminanceCorrelation": 0.9824
+          }
+        }
+      ],
+      "status": "candidate",
       "reason": "source priority is I MAED 360, Steam I MAED, Time Viking 360, then phone Original"
     },
     {
@@ -1190,8 +1223,41 @@
         "runtimeTexture": null,
         "resolution": "exact"
       },
-      "variants": [],
-      "status": "original",
+      "variants": [
+        {
+          "sourceId": "i-maed-360",
+          "source": {
+            "path": "gfx/sprites.xnb",
+            "sha256": "80b13ecc8f71092c0ab31441e5ff0c6768eba4e0c1b33586134a5bc6f4d2ef80",
+            "decodedSha256": "f65c6ad46b3e766d75b6843c188edc986260ae9268282dcbede0a1e3afa9f89e",
+            "packageEntryPath": "584E07D1/Content/gfx/sprites.xnb",
+            "rectangle": [
+              384,
+              128,
+              192,
+              192
+            ]
+          },
+          "expectedOutput": {
+            "physicalSize": [
+              192,
+              192
+            ],
+            "logicalSize": [
+              96,
+              96
+            ]
+          },
+          "comparison": {
+            "phoneVisiblePixels": 4620,
+            "sourceVisiblePixels": 1902,
+            "alphaIoU": 0.4059,
+            "visibleMae": 1.244,
+            "luminanceCorrelation": 0.995
+          }
+        }
+      ],
+      "status": "candidate",
       "reason": "source priority is I MAED 360, Steam I MAED, Time Viking 360, then phone Original"
     },
     {
@@ -1213,8 +1279,41 @@
         "runtimeTexture": null,
         "resolution": "exact"
       },
-      "variants": [],
-      "status": "original",
+      "variants": [
+        {
+          "sourceId": "i-maed-360",
+          "source": {
+            "path": "gfx/sprites.xnb",
+            "sha256": "80b13ecc8f71092c0ab31441e5ff0c6768eba4e0c1b33586134a5bc6f4d2ef80",
+            "decodedSha256": "f65c6ad46b3e766d75b6843c188edc986260ae9268282dcbede0a1e3afa9f89e",
+            "packageEntryPath": "584E07D1/Content/gfx/sprites.xnb",
+            "rectangle": [
+              832,
+              384,
+              192,
+              256
+            ]
+          },
+          "expectedOutput": {
+            "physicalSize": [
+              192,
+              256
+            ],
+            "logicalSize": [
+              96,
+              128
+            ]
+          },
+          "comparison": {
+            "phoneVisiblePixels": 6792,
+            "sourceVisiblePixels": 4009,
+            "alphaIoU": 0.5893,
+            "visibleMae": 1.701,
+            "luminanceCorrelation": 0.9982
+          }
+        }
+      ],
+      "status": "candidate",
       "reason": "source priority is I MAED 360, Steam I MAED, Time Viking 360, then phone Original"
     },
     {
@@ -7050,8 +7149,41 @@
         "runtimeTexture": null,
         "resolution": "exact"
       },
-      "variants": [],
-      "status": "original",
+      "variants": [
+        {
+          "sourceId": "i-maed-360",
+          "source": {
+            "path": "gfx/sprites.xnb",
+            "sha256": "80b13ecc8f71092c0ab31441e5ff0c6768eba4e0c1b33586134a5bc6f4d2ef80",
+            "decodedSha256": "f65c6ad46b3e766d75b6843c188edc986260ae9268282dcbede0a1e3afa9f89e",
+            "packageEntryPath": "584E07D1/Content/gfx/sprites.xnb",
+            "rectangle": [
+              0,
+              0,
+              256,
+              128
+            ]
+          },
+          "expectedOutput": {
+            "physicalSize": [
+              256,
+              128
+            ],
+            "logicalSize": [
+              128,
+              64
+            ]
+          },
+          "comparison": {
+            "phoneVisiblePixels": 4383,
+            "sourceVisiblePixels": 2761,
+            "alphaIoU": 0.6247,
+            "visibleMae": 1.431,
+            "luminanceCorrelation": 0.982
+          }
+        }
+      ],
+      "status": "candidate",
       "reason": "source priority is I MAED 360, Steam I MAED, Time Viking 360, then phone Original"
     },
     {
@@ -7073,8 +7205,41 @@
         "runtimeTexture": null,
         "resolution": "exact"
       },
-      "variants": [],
-      "status": "original",
+      "variants": [
+        {
+          "sourceId": "i-maed-360",
+          "source": {
+            "path": "gfx/sprites.xnb",
+            "sha256": "80b13ecc8f71092c0ab31441e5ff0c6768eba4e0c1b33586134a5bc6f4d2ef80",
+            "decodedSha256": "f65c6ad46b3e766d75b6843c188edc986260ae9268282dcbede0a1e3afa9f89e",
+            "packageEntryPath": "584E07D1/Content/gfx/sprites.xnb",
+            "rectangle": [
+              256,
+              0,
+              256,
+              128
+            ]
+          },
+          "expectedOutput": {
+            "physicalSize": [
+              256,
+              128
+            ],
+            "logicalSize": [
+              128,
+              64
+            ]
+          },
+          "comparison": {
+            "phoneVisiblePixels": 4361,
+            "sourceVisiblePixels": 2749,
+            "alphaIoU": 0.6266,
+            "visibleMae": 1.291,
+            "luminanceCorrelation": 0.9839
+          }
+        }
+      ],
+      "status": "candidate",
       "reason": "source priority is I MAED 360, Steam I MAED, Time Viking 360, then phone Original"
     },
     {
@@ -7096,8 +7261,41 @@
         "runtimeTexture": null,
         "resolution": "exact"
       },
-      "variants": [],
-      "status": "original",
+      "variants": [
+        {
+          "sourceId": "i-maed-360",
+          "source": {
+            "path": "gfx/sprites.xnb",
+            "sha256": "80b13ecc8f71092c0ab31441e5ff0c6768eba4e0c1b33586134a5bc6f4d2ef80",
+            "decodedSha256": "f65c6ad46b3e766d75b6843c188edc986260ae9268282dcbede0a1e3afa9f89e",
+            "packageEntryPath": "584E07D1/Content/gfx/sprites.xnb",
+            "rectangle": [
+              512,
+              0,
+              256,
+              128
+            ]
+          },
+          "expectedOutput": {
+            "physicalSize": [
+              256,
+              128
+            ],
+            "logicalSize": [
+              128,
+              64
+            ]
+          },
+          "comparison": {
+            "phoneVisiblePixels": 4357,
+            "sourceVisiblePixels": 2749,
+            "alphaIoU": 0.6268,
+            "visibleMae": 1.224,
+            "luminanceCorrelation": 0.9861
+          }
+        }
+      ],
+      "status": "candidate",
       "reason": "source priority is I MAED 360, Steam I MAED, Time Viking 360, then phone Original"
     },
     {
@@ -7119,8 +7317,41 @@
         "runtimeTexture": null,
         "resolution": "exact"
       },
-      "variants": [],
-      "status": "original",
+      "variants": [
+        {
+          "sourceId": "i-maed-360",
+          "source": {
+            "path": "gfx/sprites.xnb",
+            "sha256": "80b13ecc8f71092c0ab31441e5ff0c6768eba4e0c1b33586134a5bc6f4d2ef80",
+            "decodedSha256": "f65c6ad46b3e766d75b6843c188edc986260ae9268282dcbede0a1e3afa9f89e",
+            "packageEntryPath": "584E07D1/Content/gfx/sprites.xnb",
+            "rectangle": [
+              768,
+              0,
+              256,
+              128
+            ]
+          },
+          "expectedOutput": {
+            "physicalSize": [
+              256,
+              128
+            ],
+            "logicalSize": [
+              128,
+              64
+            ]
+          },
+          "comparison": {
+            "phoneVisiblePixels": 4358,
+            "sourceVisiblePixels": 2749,
+            "alphaIoU": 0.6263,
+            "visibleMae": 1.199,
+            "luminanceCorrelation": 0.9859
+          }
+        }
+      ],
+      "status": "candidate",
       "reason": "source priority is I MAED 360, Steam I MAED, Time Viking 360, then phone Original"
     },
     {
@@ -7142,8 +7373,41 @@
         "runtimeTexture": null,
         "resolution": "exact"
       },
-      "variants": [],
-      "status": "original",
+      "variants": [
+        {
+          "sourceId": "i-maed-360",
+          "source": {
+            "path": "gfx/sprites.xnb",
+            "sha256": "80b13ecc8f71092c0ab31441e5ff0c6768eba4e0c1b33586134a5bc6f4d2ef80",
+            "decodedSha256": "f65c6ad46b3e766d75b6843c188edc986260ae9268282dcbede0a1e3afa9f89e",
+            "packageEntryPath": "584E07D1/Content/gfx/sprites.xnb",
+            "rectangle": [
+              1024,
+              0,
+              256,
+              128
+            ]
+          },
+          "expectedOutput": {
+            "physicalSize": [
+              256,
+              128
+            ],
+            "logicalSize": [
+              128,
+              64
+            ]
+          },
+          "comparison": {
+            "phoneVisiblePixels": 4419,
+            "sourceVisiblePixels": 2770,
+            "alphaIoU": 0.6137,
+            "visibleMae": 2.822,
+            "luminanceCorrelation": 0.9902
+          }
+        }
+      ],
+      "status": "candidate",
       "reason": "source priority is I MAED 360, Steam I MAED, Time Viking 360, then phone Original"
     },
     {
