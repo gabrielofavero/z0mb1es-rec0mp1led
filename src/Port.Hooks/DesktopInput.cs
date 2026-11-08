@@ -35,6 +35,7 @@ public static class DesktopInput
     private static float carouselStart;
     private static int carouselTarget;
     private static long carouselStartedAt;
+    private static int? returnCarouselSlot;
     private static FieldInfo? modeField;
     private static FieldInfo? viewScaleField;
     private static FieldInfo? menuLevelsField;
@@ -81,6 +82,7 @@ public static class DesktopInput
         carouselAnimating = false;
         carouselStart = carouselTarget = 0;
         carouselStartedAt = 0;
+        returnCarouselSlot = null;
         Samples = ActiveSamples = MouseSamples = KeyboardSamples = 0;
         var assembly = runningGame.GetType().Assembly;
         const BindingFlags staticFlags = BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
@@ -171,6 +173,8 @@ public static class DesktopInput
 
     public static TouchCollection GetState()
     {
+        var mode = ReadMode();
+        RestoreCarouselOnReturn(mode);
         DesktopPictures.Update();
         Samples++;
         if (DesktopDisplay.CapturesInput)
@@ -192,7 +196,6 @@ public static class DesktopInput
         if (active) ActiveSamples++;
         var keyboard = active ? Keyboard.GetState() : default;
         var pad = active ? GamePad.GetState(PlayerIndex.One) : default;
-        var mode = ReadMode();
         var playing = IsPlaying(mode) && !MenuIsActive();
         var left = Direction(keyboard, Keys.A, Keys.D, Keys.W, Keys.S) +
             new Vector2(pad.ThumbSticks.Left.X, -pad.ThumbSticks.Left.Y);
@@ -423,6 +426,23 @@ public static class DesktopInput
         var video = scene is null ? null : sceneVideoField!.GetValue(scene);
         if (video is not null) videoTimeField!.SetValue(video, (float)carouselTarget);
         carouselAnimating = false;
+    }
+
+    private static void RestoreCarouselOnReturn(int mode)
+    {
+        if (mode is 4 or 5) returnCarouselSlot = 1;
+        else if (mode is 6 or 7) returnCarouselSlot = 2;
+        else if (mode is 2 or 3) returnCarouselSlot = null;
+        else if (mode == 1 && returnCarouselSlot is int slot)
+        {
+            var menu = mainMenuField?.GetValue(null);
+            var scene = menu is null ? null : mainMenuSceneField!.GetValue(menu);
+            var video = scene is null ? null : sceneVideoField!.GetValue(scene);
+            if (video is null) return;
+            videoTimeField!.SetValue(video, (float)slot);
+            carouselAnimating = false;
+            returnCarouselSlot = null;
+        }
     }
 
     private static object? ActiveMenuLevel()

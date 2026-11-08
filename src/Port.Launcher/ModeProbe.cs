@@ -19,6 +19,7 @@ internal sealed class ModeProbe
     private readonly int playState;
     private int step;
     private int stepAt;
+    private int mainMenuReturnedAt = -1;
     private bool progressionChecked;
     private bool frameCaptured;
     private bool pauseCaptured;
@@ -122,6 +123,16 @@ internal sealed class ModeProbe
         }
         else if (step == 6 && State == 1 && mainMenuReady)
         {
+            // Game1 enters state 1 after TouchMgr.Update, so the input hook restores
+            // the new menu on the following update.
+            if (mainMenuReturnedAt < 0) { mainMenuReturnedAt = updates; return; }
+            var mainMenu = gameType.GetField("mainMenu", Static)!.GetValue(null)!;
+            var scene = mainMenu.GetType().GetField("sceneMgr", Instance)!.GetValue(mainMenu)!;
+            var video = scene.GetType().GetField("video", Instance)!.GetValue(scene)!;
+            var position = (float)video.GetType().GetField("time", Instance)!.GetValue(video)!;
+            var expected = mode switch { "viking" => 1f, "endless" => 2f, _ => 0f };
+            Require(MathF.Abs(position - expected) < 0.01f,
+                $"main carousel returned to {position} instead of {expected}");
             Verified = true;
             Advance(7, updates, "main-menu");
             game.Exit();
