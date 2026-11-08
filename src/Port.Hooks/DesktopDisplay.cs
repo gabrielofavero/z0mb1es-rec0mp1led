@@ -724,7 +724,8 @@ public static class DesktopDisplay
         {
             batch.Begin(SpriteSortMode.Deferred, BlendState.Additive, SamplerState.PointClamp,
                 DepthStencilState.None, RasterizerState.CullNone, null, transform);
-            var frame = (float)(Stopwatch.GetTimestamp() / (double)Stopwatch.Frequency * 0.6 % 0.5);
+            var frame = ReduceFlashing ? 0.125f :
+                (float)(Stopwatch.GetTimestamp() / (double)Stopwatch.Frequency * 0.6 % 0.5);
             for (var i = 0; i < 2; i++)
             {
                 var phase = i * 0.25f + frame;

@@ -14,6 +14,19 @@ internal static class InstallerEngine
     private sealed record FileRow(string Path, long Bytes, string Sha256);
     private sealed record InstallManifest(int Format, string SourceXapSha256, FileRow[] Files);
 
+    public static void SetInitialFlashing(bool enabled)
+    {
+        if (!enabled) return;
+        var directory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "Z0MB1ES on teh ph0ne");
+        Directory.CreateDirectory(directory);
+        var path = Path.Combine(directory, "display.json");
+        if (File.Exists(path)) return; // Never overwrite a player's existing display settings.
+        using var file = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+        using var writer = new StreamWriter(file);
+        writer.Write("{\"Mode\":\"Fullscreen\",\"Width\":600,\"Height\":360,\"VSync\":true,\"ReduceFlashing\":true}\n");
+    }
+
     public static void Verify(string directory, Action<int, int>? progress = null)
     {
         var root = Path.GetFullPath(directory).TrimEnd(Path.DirectorySeparatorChar);

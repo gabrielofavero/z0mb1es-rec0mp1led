@@ -8,13 +8,14 @@ Build from the repository root after dependency bootstrap:
 ./installer/build.ps1 -FfmpegPath 'C:/path/to/pinned/ffmpeg.exe'
 ```
 
-The converter must match `config/content-tools.json`. The build checks the .NET runtime-pack hashes in `installer/config/runtime-packs.json` and writes `installer/out/Z0MB1ES-0.1.0.exe` plus `installer/out/FFmpeg-8.1.1-source.zip`. Both files must be offered together at the same release location; the player only needs setup, their XAP, and any optional Steam/360 source they choose. See the [FFmpeg source build and delivery instructions](ffmpeg/README.md). For automated testing, setup accepts `/XAP="C:\path\to\game.xap"` together with Inno Setup's `/VERYSILENT` and `/DIR` switches. Silent optional import uses `/ARTNORMAL=steam|360`, `/ARTNORMALSOURCE=<path>`, `/ARTVIKING=360`, and `/ARTVIKINGSOURCE=<path>`; `keep` and `none` support later updates and removal.
+The converter must match `config/content-tools.json`. The build checks the .NET runtime-pack hashes in `installer/config/runtime-packs.json` and writes `installer/out/Z0MB1ES-0.1.0.exe` plus `installer/out/FFmpeg-8.1.1-source.zip`. Both files must be offered together at the same release location; the player only needs setup, their XAP, and any optional Steam/360 source they choose. See the [FFmpeg source build and delivery instructions](ffmpeg/README.md). For automated testing, setup accepts `/XAP="C:\path\to\game.xap"` together with Inno Setup's `/VERYSILENT` and `/DIR` switches. Silent setup requires `/ACCEPTFLASHINGWARNING=1`; `/REDUCEFLASHING=1` enables the first-start preference. Silent optional import uses `/ARTNORMAL=steam|360`, `/ARTNORMALSOURCE=<path>`, `/ARTVIKING=360`, and `/ARTVIKINGSOURCE=<path>`; `keep` and `none` support later updates and removal.
 
 ## User experience
 
 | Wizard page | Behavior |
 | --- | --- |
 | Welcome | Introduces the fan-made PC port and says the player's own XAP is required. |
+| Flashing lights warning | Explains that the original art style includes flashes and that Reduce Flashing cannot remove them all. Agree continues; Disagree cancels setup. The optional first-start Reduce Flashing checkbox starts unchecked. Existing display preferences are preserved on reinstall. |
 | Destination | Defaults to a per-user install location, using Inno Setup's [`PrivilegesRequired=lowest`](https://jrsoftware.org/ishelp/topic_setup_privilegesrequired.htm) to avoid an admin prompt. |
 | Game XAP | Browse to a `.xap`; Next checks the exact supported package SHA-256 without starting the .NET helper. Full DLL, manifest, and entry checks run during local preparation. Explain wrong versions clearly. |
 | I MAED A GAM3 W1TH Z0MB1ES 1N IT!!!1 artwork | Choose no import, Steam, or an Xbox 360 package. Keep and remove appear when this install contains imported artwork. Original artwork stays available in game settings. |

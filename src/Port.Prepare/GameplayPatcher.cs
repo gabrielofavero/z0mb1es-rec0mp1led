@@ -13,8 +13,8 @@ namespace Port.Prepare;
 public static class GameplayPatcher
 {
     private const string OriginalHash = "7b819cb562826ae4d2592ff741877e76da0e57bfbe48192aabb79319fdb36823";
-    private const string DebugHooksHash = "37a5e5a2a3a1221e4c0373c2c567d957712c04ea96b3d114801a665932b0490a";
-    private const string ReleaseHooksHash = "5663e442789411ad0d1d2f33463e88a191758aa247f264bd6fc46a1382c290e9";
+    private const string DebugHooksHash = "e17eb1e3afa8e68e20f579712f57a43a57340d1d77673d990f2c12f0eaba131b";
+    private const string ReleaseHooksHash = "26be8b190f2b62b6f373650b8983404643120f1bccc525f150832d474b2ad481";
     private const string OriginalMethodBodyHash = "54407b733f8c2d7cdc67534f66899e99191731e2e0beeed8481bc673ff54f425";
     private const string TouchBodyHash = "5d5aea53560307207b175bab14d39138756165598972d7604491f4cd44d7bfc6";
     private const string StorageWriteHash = "887e2f79ecea6543a5ba56aecd08b4c6c82dcda8b790ee81a3e8e5a568249433";
@@ -118,6 +118,7 @@ public static class GameplayPatcher
                 PatchSpriteBatches(module, hooks);
                 PatchReducedFlashing(module, hooks);
                 PatchMenuVisuals(module, hooks);
+                PatchOtherFlashing(module, hooks);
                 PatchPictures(module, hooks);
                 RemoveHelpAndOptionsInfo(module);
                 PatchAssetDraw(module, hooks);
@@ -161,6 +162,7 @@ public static class GameplayPatcher
                 VerifySpriteBatches(check);
                 VerifyReducedFlashing(check);
                 VerifyMenuVisuals(check);
+                VerifyOtherFlashing(check);
                 VerifyPictures(check);
                 VerifyHelpAndOptionsInfo(check);
                 VerifyAssetDraw(check);
@@ -171,7 +173,7 @@ public static class GameplayPatcher
                 "one call target is Port.Hooks; original method control flow is preserved");
             var manifest = prior with
             {
-                ToolVersion = "0.13.0",
+                ToolVersion = "0.14.0",
                 PreparedSha256 = outputHash,
                 Plan = "pinned ABI rewrite plus guarded desktop media, input, storage, local achievements and offline leaderboards",
                 Patches = [.. prior.Patches, patch,
@@ -223,6 +225,11 @@ public static class GameplayPatcher
                         OriginalHash,
                         "map strobe rows to steady colors through Port.Hooks.DesktopDisplay when reduced flashing is enabled",
                         "other light rows retain their original color"),
+                    new PatchRecord("gameplay-call", OriginalHash,
+                        "pinned random-tint and Metal background draw sites",
+                        OriginalHash,
+                        "route menu text, flash characters, selected gameplay tints, and Metal background beat reads through Port.Hooks.MenuVisuals",
+                        "Reduce Flashing steadies these visuals; the original draw path remains when it is off"),
                     new PatchRecord("gameplay-call", OriginalHash,
                         "0x060002cc IMAK3Z0MB1EGAEM.menu.CustomMapper::Init()",
                         CustomMapperInitHash,
@@ -599,6 +606,99 @@ public static class GameplayPatcher
             il.InsertAfter(color, il.Create(OpCodes.Ldarg_0));
             il.InsertAfter(color.Next, il.Create(OpCodes.Call, Target("Highlight")));
         }
+    }
+
+    // Pin every changed color constructor to the supported phone assembly. These
+    // calls generate a fresh tint each frame or alternate a spawn tint rapidly.
+    private static readonly (string Type, string Method, int[] Offsets, string Hook)[] FlashColors =
+    [
+        ("IMAK3Z0MB1EGAEM.menu.Menu", "Draw", [0x00e7, 0x0157, 0x01c2, 0x0232, 0x029d], "Steady"),
+        ("IMAK3Z0MB1EGAEM.particles.particles.Score", "Draw", [0x0046], "Steady"),
+        ("Viking_x86.particles.pickups.Score", "Draw", [0x0040], "Steady"),
+        ("IMAK3Z0MB1EGAEM.particles.particles.Dying", "Draw", [0x003e], "Steady"),
+        ("Viking_x86.vikinggame.world.WorldTools", "DrawText", [0x003e], "Steady"),
+        ("Viking_x86.vikinggame.world.SpaceTools", "DrawTechnoLines", [0x016a], "Steady"),
+        ("Viking_x86.vikinggame.world.EmoTools", "DrawEmoBlast", [0x020d], "Steady"),
+        ("IMAK3Z0MB1EGAEM.character.Monster", "Draw", [0x0395, 0x0463], "Steady"),
+        ("IMAK3Z0MB1EGAEM.character.Monster", "Draw", [0x05a1], "SteadySpawn")
+    ];
+
+    private static void PatchOtherFlashing(ModuleDefinition module, ModuleDefinition hooks)
+    {
+        var visuals = hooks.Types.Single(type => type.FullName == "Port.Hooks.MenuVisuals");
+        foreach (var (typeName, name, offsets, hookName) in FlashColors)
+        {
+            var method = module.Types.Single(type => type.FullName == typeName)
+                .Methods.Single(candidate => candidate.Name == name && candidate.Body.Instructions.Any(i => i.Offset == offsets[0]));
+            var target = module.ImportReference(visuals.Methods.Single(candidate => candidate.Name == hookName));
+            var il = method.Body.GetILProcessor();
+            foreach (var offset in offsets)
+            {
+                var instruction = method.Body.Instructions.SingleOrDefault(item => item.Offset == offset);
+                if (instruction?.OpCode != OpCodes.Newobj || instruction.Operand is not MethodReference constructor ||
+                    constructor.FullName != "System.Void Microsoft.Xna.Framework.Color::.ctor(System.Single,System.Single,System.Single,System.Single)")
+                    throw new PreparationException($"Flashing color anchor differs at {typeName}::{name} IL_{offset:x4}.");
+                il.InsertAfter(instruction, il.Create(OpCodes.Call, target));
+            }
+        }
+        var mapText = module.Types.Single(type => type.FullName == "IMAK3Z0MB1EGAEM.map.MapMan")
+            .Methods.Single(method => method.MetadataToken.ToInt32() == 0x06000097);
+        var mapColor = mapText.Body.Instructions.SingleOrDefault(item => item.Offset == 0x004d);
+        if (mapColor?.OpCode != OpCodes.Ldloc_0 || mapColor.Next?.OpCode != OpCodes.Ldc_I4_2)
+            throw new PreparationException("Map light text color anchor differs.");
+        mapText.Body.GetILProcessor().InsertAfter(mapColor, mapText.Body.GetILProcessor().Create(OpCodes.Call,
+            module.ImportReference(visuals.Methods.Single(method => method.Name == "Steady"))));
+        var mapDraw = module.Types.Single(type => type.FullName == "IMAK3Z0MB1EGAEM.map.MapMan")
+            .Methods.Single(method => method.MetadataToken.ToInt32() == 0x06000093);
+        var steadyBeat = module.ImportReference(visuals.Methods.Single(method => method.Name == "SteadyMetalBeat"));
+        foreach (var offset in new[] { 0x04e3, 0x04f1, 0x0502, 0x0513, 0x0526, 0x05f1 })
+        {
+            var fieldLoad = mapDraw.Body.Instructions.SingleOrDefault(item => item.Offset == offset);
+            if (fieldLoad?.OpCode != OpCodes.Ldfld || fieldLoad.Operand is not FieldReference field ||
+                field.DeclaringType.FullName != "IMAK3Z0MB1EGAEM.director.BaseTimeMgr" ||
+                field.Name != (offset is 0x0526 or 0x05f1 ? "octobeat" : "beat"))
+                throw new PreparationException($"Metal background beat anchor differs at IL_{offset:x4}.");
+            mapDraw.Body.GetILProcessor().InsertAfter(fieldLoad,
+                mapDraw.Body.GetILProcessor().Create(OpCodes.Call, steadyBeat));
+        }
+        var text = module.Types.Single(type => type.FullName == "IMAK3Z0MB1EGAEM.Text")
+            .Methods.Single(method => method.MetadataToken.ToInt32() == 0x060002f8);
+        if (text.Parameters.Count != 7 || text.Parameters[6].Name != "flashChar")
+            throw new PreparationException("Flashing text character signature differs.");
+        var first = text.Body.Instructions.First();
+        var processor = text.Body.GetILProcessor();
+        var flashChar = text.Parameters[6];
+        processor.InsertBefore(first, processor.Create(OpCodes.Ldarg_S, flashChar));
+        processor.InsertBefore(first, processor.Create(OpCodes.Call,
+            module.ImportReference(visuals.Methods.Single(method => method.Name == "FlashCharacter"))));
+        processor.InsertBefore(first, processor.Create(OpCodes.Starg_S, flashChar));
+    }
+
+    private static void VerifyOtherFlashing(ModuleDefinition module)
+    {
+        var mapText = module.Types.Single(type => type.FullName == "IMAK3Z0MB1EGAEM.map.MapMan")
+            .Methods.Single(method => method.MetadataToken.ToInt32() == 0x06000097);
+        if (mapText.Body.Instructions.Count(item => item.Operand is MethodReference target &&
+                target.DeclaringType.FullName == "Port.Hooks.MenuVisuals" && target.Name == "Steady") != 1)
+            throw new PreparationException("Reduced flashing map text hook failed.");
+        var mapDraw = module.Types.Single(type => type.FullName == "IMAK3Z0MB1EGAEM.map.MapMan")
+            .Methods.Single(method => method.MetadataToken.ToInt32() == 0x06000093);
+        if (mapDraw.Body.Instructions.Count(item => item.Operand is MethodReference target &&
+                target.DeclaringType.FullName == "Port.Hooks.MenuVisuals" && target.Name == "SteadyMetalBeat") != 6)
+            throw new PreparationException("Reduced flashing Metal background hook failed.");
+        foreach (var (typeName, name, offsets, hookName) in FlashColors)
+        {
+            var methods = module.Types.Single(type => type.FullName == typeName).Methods
+                .Where(method => method.Name == name && method.HasBody).ToArray();
+            if (methods.Sum(method => method.Body.Instructions.Count(item => item.Operand is MethodReference target &&
+                    target.DeclaringType.FullName == "Port.Hooks.MenuVisuals" && target.Name == hookName)) != offsets.Length)
+                throw new PreparationException($"Reduced flashing hook failed for {typeName}::{name}.");
+        }
+        var text = module.Types.Single(type => type.FullName == "IMAK3Z0MB1EGAEM.Text")
+            .Methods.Single(method => method.MetadataToken.ToInt32() == 0x060002f8);
+        if (text.Body.Instructions.Count(item => item.Operand is MethodReference target &&
+                target.DeclaringType.FullName == "Port.Hooks.MenuVisuals" && target.Name == "FlashCharacter") != 1)
+            throw new PreparationException("Reduced flashing text character hook failed.");
     }
 
     private static void PatchReducedFlashing(ModuleDefinition module, ModuleDefinition hooks)

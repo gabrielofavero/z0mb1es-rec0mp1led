@@ -52,6 +52,11 @@ Type: filesandordirs; Name: "{app}\current"
 
 [Code]
 var
+  FlashWarningPage: TWizardPage;
+  FlashWarningText: TNewStaticText;
+  AgreeFlashing: TNewRadioButton;
+  DisagreeFlashing: TNewRadioButton;
+  FirstStartReduceFlashing: TNewCheckBox;
   XapPage: TInputFileWizardPage;
   NormalPage: TInputOptionWizardPage;
   NormalReinstallPage: TInputOptionWizardPage;
@@ -75,6 +80,20 @@ var
   PreparingGame: Boolean;
   CancellationRequested: Boolean;
   CancelFile: String;
+
+function InitializeSetup: Boolean;
+begin
+  Result := not WizardSilent or
+    (ExpandConstant('{param:ACCEPTFLASHINGWARNING|0}') = '1');
+  if not Result then
+    Log('Silent setup requires /ACCEPTFLASHINGWARNING=1.');
+end;
+
+function WantsReducedFlashing: Boolean;
+begin
+  if WizardSilent then Result := ExpandConstant('{param:REDUCEFLASHING|0}') = '1'
+  else Result := FirstStartReduceFlashing.Checked;
+end;
 
 function HasNormalArt: Boolean;
 begin
@@ -281,6 +300,32 @@ end;
 
 procedure InitializeWizard;
 begin
+  FlashWarningPage := CreateCustomPage(wpWelcome, 'Flashing lights warning',
+    'Please read this before installing.');
+  FlashWarningText := TNewStaticText.Create(FlashWarningPage);
+  FlashWarningText.Parent := FlashWarningPage.Surface;
+  FlashWarningText.SetBounds(0, 0, FlashWarningPage.SurfaceWidth, ScaleY(150));
+  FlashWarningText.AutoSize := False;
+  FlashWarningText.WordWrap := True;
+  FlashWarningText.Caption :=
+    'This game was designed with flashing visuals as part of its original art style. ' +
+    'The in-game Reduce Flashing setting reduces some effects, but flashing visuals ' +
+    'can still occur during gameplay, even with that setting on.' + #13#10#13#10 +
+    'This game is not recommended for people with photosensitive epilepsy or ' +
+    'other sensitivity to flashing lights. Continue only if you understand this warning.';
+  AgreeFlashing := TNewRadioButton.Create(FlashWarningPage);
+  AgreeFlashing.Parent := FlashWarningPage.Surface;
+  AgreeFlashing.SetBounds(0, ScaleY(160), FlashWarningPage.SurfaceWidth, ScaleY(24));
+  AgreeFlashing.Caption := 'I understand and agree to continue';
+  DisagreeFlashing := TNewRadioButton.Create(FlashWarningPage);
+  DisagreeFlashing.Parent := FlashWarningPage.Surface;
+  DisagreeFlashing.SetBounds(0, ScaleY(190), FlashWarningPage.SurfaceWidth, ScaleY(24));
+  DisagreeFlashing.Caption := 'I disagree and cancel installation';
+  FirstStartReduceFlashing := TNewCheckBox.Create(FlashWarningPage);
+  FirstStartReduceFlashing.Parent := FlashWarningPage.Surface;
+  FirstStartReduceFlashing.SetBounds(0, ScaleY(230), FlashWarningPage.SurfaceWidth, ScaleY(32));
+  FirstStartReduceFlashing.Caption := 'Enable Reduce Flashing on first start';
+  FirstStartReduceFlashing.Checked := False;
   XapPage := CreateInputFilePage(wpSelectDir, 'Game XAP',
     'Select your Z0MB1ES (on teh ph0ne) XAP.',
     'Choose the supported game package.');
@@ -340,6 +385,8 @@ begin
     'Game XAP: ' + SelectedXap + NewLine +
     'I MAED A GAM3 W1TH Z0MB1ES 1N IT!!!1 artwork: ' + NormalChoice + NewLine +
     'TIME VIKING artwork: ' + VikingChoice + NewLine +
+    'Reduce Flashing on first start (if no saved preference): ' +
+      IntToStr(Ord(WantsReducedFlashing)) + NewLine +
     'Setup will prepare and verify the game locally before installing it.';
 end;
 
@@ -490,7 +537,20 @@ function NextButtonClick(CurPageID: Integer): Boolean;
 begin
   Result := True;
   if WizardSilent then Exit;
-  if CurPageID = XapPage.ID then Result := CheckXapPage
+  if CurPageID = FlashWarningPage.ID then
+  begin
+    if DisagreeFlashing.Checked then
+    begin
+      Result := False;
+      WizardForm.Close;
+    end
+    else if not AgreeFlashing.Checked then
+    begin
+      MsgBox('Choose Agree to continue or Disagree to cancel installation.', mbInformation, MB_OK);
+      Result := False;
+    end;
+  end
+  else if CurPageID = XapPage.ID then Result := CheckXapPage
   else if CurPageID = SteamPage.ID then Result := SteamPage.Values[0] = ValidatedSteam
   else if CurPageID = Normal360Page.ID then Result := Normal360Page.Values[0] = ValidatedNormal360
   else if CurPageID = Viking360Page.ID then Result := Viking360Page.Values[0] = ValidatedViking360;
@@ -498,6 +558,12 @@ end;
 
 procedure CancelButtonClick(CurPageID: Integer; var Cancel, Confirm: Boolean);
 begin
+  if (CurPageID = FlashWarningPage.ID) and DisagreeFlashing.Checked then
+  begin
+    Cancel := True;
+    Confirm := False;
+    Exit;
+  end;
   if not PreparingGame then Exit;
   Cancel := False;
   Confirm := False;
@@ -522,6 +588,19 @@ begin
       if WizardSilent then Log(ErrorText)
       else MsgBox(ErrorText, mbError, MB_OK);
       Abort;
+    end;
+    if WantsReducedFlashing then
+    begin
+      Code := -1;
+      if not Exec(ExpandConstant('{tmp}\Port.SetupHelper.exe'),
+         'set-initial-flashing --enabled true', '', SW_HIDE, ewWaitUntilTerminated, Code) or
+         (Code <> 0) then
+      begin
+        if WizardSilent then Log('Could not save the first-start Reduce Flashing preference.')
+        else MsgBox('Could not save the first-start Reduce Flashing preference.', mbError, MB_OK);
+        Abort;
+      end;
+      Log('FIRST_START_FLASHING_PREFERENCE_SET');
     end;
     Exit;
   end;
