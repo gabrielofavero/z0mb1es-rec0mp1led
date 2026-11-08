@@ -67,6 +67,9 @@ CheckIndex(MenuNavigation.Next(customPage, 1, 0, 1), 2);
 CheckIndex(MenuNavigation.CarouselNext(0, 1), 1);
 CheckIndex(MenuNavigation.CarouselNext(6, 1), 6);
 CheckIndex(MenuNavigation.CarouselNext(0, -1), 0);
+var backBounds = DesktopInput.BackButtonBounds(new Vector2(860, 360));
+if (!backBounds.Contains(new Point(21, 324)) || !backBounds.Contains(new Point(65, 324)))
+    throw new Exception("Back hit area misses one of the animated left arrows.");
 CheckSwipe(0, 1, 0, 0);
 CheckSwipe(0, 1, 0.5f, 0.875f);
 CheckSwipe(0, 1, 1, 1);

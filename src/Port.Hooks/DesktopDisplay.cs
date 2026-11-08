@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Diagnostics;
 using System.Reflection;
 using System.Text;
 using System.Text.Json;
@@ -23,6 +24,9 @@ public static class DesktopDisplay
     private static GraphicsDeviceManager? graphics;
     private static RenderTarget2D? scene;
     private static SpriteBatch? batch;
+    private static Texture2D? overlayPixel;
+    private static MethodInfo? drawArrowText;
+    private static object? arrowCenter;
     private static FieldInfo? viewportField;
     private static FieldInfo? zombieScreenField;
     private static FieldInfo? vikingScreenField;
@@ -83,8 +87,16 @@ public static class DesktopDisplay
         scene = null;
         batch?.Dispose();
         batch = null;
+        overlayPixel?.Dispose();
+        overlayPixel = null;
         var assembly = runningGame.GetType().Assembly;
         const BindingFlags staticFields = BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
+        var textType = assembly.GetType("IMAK3Z0MB1EGAEM.Text", true)!;
+        drawArrowText = textType.GetMethods(staticFields).Single(method => method.Name == "DrawString" &&
+            method.GetParameters().Length == 6 &&
+            method.GetParameters()[1].ParameterType == typeof(string) &&
+            method.GetParameters()[5].ParameterType.IsEnum);
+        arrowCenter = Enum.Parse(drawArrowText.GetParameters()[5].ParameterType, "Center");
         viewportField = runningGame.GetType().GetField("VIEWPORT", staticFields)
             ?? throw new MissingFieldException("Game1.VIEWPORT");
         menuScaleField = runningGame.GetType().GetField("MENUSCALE", staticFields)
@@ -567,6 +579,54 @@ public static class DesktopDisplay
             DepthStencilState.None, RasterizerState.CullNone);
         batch.Draw(scene, Vector2.Zero, Color.White);
         batch.End();
+        DrawInputOverlay(device);
+    }
+
+    private static void DrawInputOverlay(GraphicsDevice device)
+    {
+        if (game is null || !game.IsActive || batch is null) return;
+        var mouse = Mouse.GetState();
+        var pointer = MapPointer(mouse.X, mouse.Y, game.Window.ClientBounds);
+        var backVisible = DesktopInput.BackButtonVisible();
+        var cursorVisible = pointer is not null && DesktopInput.CursorVisible;
+        if (!backVisible && !cursorVisible) return;
+        var placement = Presentation(device.PresentationParameters.BackBufferWidth,
+            device.PresentationParameters.BackBufferHeight, sceneSize);
+        var transform = Matrix.CreateScale(placement.Scale, placement.Scale, 1f) *
+            Matrix.CreateTranslation(placement.Offset.X, placement.Offset.Y, 0f);
+        if (backVisible)
+        {
+            batch.Begin(SpriteSortMode.Deferred, BlendState.Additive, SamplerState.PointClamp,
+                DepthStencilState.None, RasterizerState.CullNone, null, transform);
+            var frame = (float)(Stopwatch.GetTimestamp() / (double)Stopwatch.Frequency * 0.6 % 0.5);
+            for (var i = 0; i < 2; i++)
+            {
+                var phase = i * 0.25f + frame;
+                if (phase > 0.5f) phase -= 0.5f;
+                phase -= 0.25f;
+                var brightness = (0.25f - MathF.Abs(phase)) * 4f;
+                var position = SceneSize * new Vector2(0.05f - phase * 0.1f, 0.9f);
+                drawArrowText!.Invoke(null, [batch, "<", position, 2f,
+                    new Color(brightness, brightness, brightness, 1f), arrowCenter!]);
+            }
+            batch.End();
+        }
+        if (cursorVisible && pointer is Vector2 cursor)
+        {
+            if (overlayPixel is null)
+            {
+                overlayPixel = new Texture2D(device, 1, 1);
+                overlayPixel.SetData([Color.White]);
+            }
+            batch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp,
+                DepthStencilState.None, RasterizerState.CullNone, null, transform);
+            var x = (int)MathF.Round(cursor.X);
+            var y = (int)MathF.Round(cursor.Y);
+            var color = new Color(255, 255, 255, 230);
+            batch.Draw(overlayPixel, new Rectangle(x - 8, y, 17, 1), color);
+            batch.Draw(overlayPixel, new Rectangle(x, y - 8, 1, 17), color);
+            batch.End();
+        }
     }
 
     // The game still works in phone coordinates. Transform its batches while the

@@ -21,8 +21,8 @@ public static class IlRewriter
     private const string OriginalDllHash = "7b819cb562826ae4d2592ff741877e76da0e57bfbe48192aabb79319fdb36823";
     private const string FnaHash = "952ecb3d8a869ad1343bd5b761b8a1d19c3af21e9c3cd2fab3dbc75d6893a89d";
     private const string AbiReportHash = "2edec771cbbf30e59541ed851e1865463fc26c26a5c79bb54bbc69228301bd44";
-    private const string BridgeAbiReportHash = "3cae4bc14163b386a040d561447731e0a3d1d66849751e057ce0074cccc1c490";
-    private const string BridgeHash = "70152487f8a0b63a10d0a78774fd235d255815002248fe73d7540d6373412f82";
+    private const string BridgeAbiReportHash = "fa250150abe35fa3c726030a29061931afdad8c5a645e8a307e6f38c8c267cdd";
+    private const string BridgeHash = "bd712c99c7c2af351f58bcdbc6ab93c20f3bc4e357f87b4fbaeb50a024859d67";
     private static readonly string[] LegacyAssemblies =
     [
         "Microsoft.Xna.Framework", "Microsoft.Xna.Framework.Game", "Microsoft.Xna.Framework.Graphics",
@@ -46,7 +46,7 @@ public static class IlRewriter
             throw new PreparationException("ABI report or FNA does not match the pinned input.");
         var bridgeHash = Hash(bridgePath);
         if (bridgeHash != BridgeHash)
-            throw new PreparationException("Bridge DLL differs from the pinned supported bridge.");
+            throw new PreparationException($"Bridge DLL differs from the pinned supported bridge: {bridgeHash}; expected {BridgeHash}.");
         if (reportHash == BridgeAbiReportHash &&
             root.GetProperty("input").GetProperty("bridgeSha256").GetString() != bridgeHash)
             throw new PreparationException("Bridge DLL differs from the verified ABI report.");

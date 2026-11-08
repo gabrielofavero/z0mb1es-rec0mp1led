@@ -15,6 +15,14 @@ public static class DesktopInput
     private static readonly Contact[] contacts = [new(100), new(101), new(102), new(103)];
     private static bool previousAccept;
     private static bool previousBack;
+    private static bool previousRightMouse;
+    private static bool previousLeftMouse;
+    private static bool suppressLeftClick;
+    private static int previousWheel;
+    private static Point previousMousePosition;
+    private static long lastMouseMovement;
+    private static CursorSource cursorSource;
+    private const double CursorIdleSeconds = 3;
     private static object? focusedLevel;
     private static object? focusedItems;
     private static int focusedIndex;
@@ -57,6 +65,12 @@ public static class DesktopInput
         gestures.Clear();
         foreach (var contact in contacts) contact.Reset();
         previousAccept = previousBack = false;
+        previousRightMouse = previousLeftMouse = suppressLeftClick = false;
+        var initialMouse = Mouse.GetState();
+        previousWheel = initialMouse.ScrollWheelValue;
+        previousMousePosition = new Point(initialMouse.X, initialMouse.Y);
+        lastMouseMovement = 0;
+        cursorSource = CursorSource.None;
         focusedLevel = null;
         focusedItems = null;
         focusedItem = null;
@@ -125,6 +139,19 @@ public static class DesktopInput
         if (DesktopDisplay.CapturesInput) return default;
         var state = GamePad.GetState(player);
         var keyboard = Keyboard.GetState();
+        var mouse = Mouse.GetState();
+        var pointer = game is null ? null : DesktopDisplay.MapPointer(mouse.X, mouse.Y, game.Window.ClientBounds);
+        var backClick = (game?.IsActive ?? false) && pointer is Vector2 position &&
+            BackButtonVisible() && BackButtonBounds(DesktopDisplay.SceneSize).Contains(new Point((int)position.X, (int)position.Y));
+        var rightMouse = (game?.IsActive ?? false) && mouse.RightButton == ButtonState.Pressed;
+        var leftMouse = (game?.IsActive ?? false) && mouse.LeftButton == ButtonState.Pressed;
+        var leftBack = backClick && leftMouse && !previousLeftMouse;
+        if (!leftMouse) suppressLeftClick = false;
+        if (leftBack) suppressLeftClick = true;
+        var mouseBack = (rightMouse && !previousRightMouse) ||
+            leftBack;
+        previousRightMouse = rightMouse;
+        previousLeftMouse = leftMouse;
         var playing = IsPlaying(ReadMode());
         var back = (game?.IsActive ?? false) &&
             (keyboard.IsKeyDown(Keys.Back) || keyboard.IsKeyDown(Keys.Escape) ||
@@ -133,7 +160,7 @@ public static class DesktopInput
                                      state.Buttons.Back == ButtonState.Pressed))
                  : state.Buttons.B == ButtonState.Pressed ||
                    state.Buttons.Back == ButtonState.Pressed));
-        var pressed = back && !previousBack;
+        var pressed = (back && !previousBack) || mouseBack;
         previousBack = back;
         return pressed ? new GamePadState(Vector2.Zero, Vector2.Zero, 0, 0, Buttons.Back) :
             state.Buttons.Back == ButtonState.Pressed ?
@@ -146,6 +173,10 @@ public static class DesktopInput
         Samples++;
         if (DesktopDisplay.CapturesInput)
         {
+            var capturedMouse = Mouse.GetState();
+            previousWheel = capturedMouse.ScrollWheelValue;
+            previousMousePosition = new Point(capturedMouse.X, capturedMouse.Y);
+            cursorSource = CursorSource.None;
             gestures.Clear();
             foreach (var contact in contacts) contact.Reset();
             return new TouchCollection([]);
@@ -175,8 +206,13 @@ public static class DesktopInput
             rightCenter + Clamp(right) * radius, touches, pressOrigin: rightCenter);
 
         var mouse = Mouse.GetState();
+        var wheelDelta = mouse.ScrollWheelValue - previousWheel;
+        previousWheel = mouse.ScrollWheelValue;
         var pointer = DesktopDisplay.MapPointer(mouse.X, mouse.Y, game.Window.ClientBounds);
         var inside = active && pointer is not null;
+        UpdateCursorSource(native.Count > 0, mouse, inside && mode != 0);
+        var backClick = inside && pointer is Vector2 backPosition && BackButtonVisible() &&
+            BackButtonBounds(size).Contains(new Point((int)backPosition.X, (int)backPosition.Y));
         var pauseHotspot = pointer is Vector2 point && point.X > size.X - 70 &&
             point.X < size.X - 10 && point.Y >= 0 && point.Y < 60;
         if (inside && (mouse.LeftButton == ButtonState.Pressed || mouse.RightButton == ButtonState.Pressed)) MouseSamples++;
@@ -184,14 +220,15 @@ public static class DesktopInput
             keyboard.IsKeyDown(Keys.D) || keyboard.IsKeyDown(Keys.Enter) ||
             keyboard.IsKeyDown(Keys.Left) || keyboard.IsKeyDown(Keys.Right) ||
             keyboard.IsKeyDown(Keys.Up) || keyboard.IsKeyDown(Keys.Down)) KeyboardSamples++;
-        var shoot = inside && playing && !pauseHotspot &&
-            (mouse.LeftButton == ButtonState.Pressed || mouse.RightButton == ButtonState.Pressed);
+        var shoot = inside && playing && !pauseHotspot && !backClick && !suppressLeftClick &&
+            mouse.LeftButton == ButtonState.Pressed;
         var origin = shoot ? (mode == 5 ? vikingOrigin?.Invoke() : zombieOrigin?.Invoke()) : null;
         var aim = pointer is Vector2 target && origin is Vector2 player
             ? AimDirection(target, player) : Vector2.Zero;
         contacts[2].Sample(shoot && origin is not null && aim != Vector2.Zero,
             rightCenter + aim * radius, touches, pressOrigin: rightCenter);
-        var pointAndClick = inside && mouse.LeftButton == ButtonState.Pressed && (!playing || pauseHotspot);
+        var pointAndClick = inside && !suppressLeftClick && !backClick &&
+            mouse.LeftButton == ButtonState.Pressed && (!playing || pauseHotspot);
         contacts[3].Sample(pointAndClick, pointer ?? Vector2.Zero,
             touches, inside ? gestures : null);
 
@@ -228,6 +265,8 @@ public static class DesktopInput
                 (directionCode != previousDirection ? 0.35 : 0.12));
         }
         previousDirection = directionCode;
+        if (inside && mode == 1 && level is null && wheelDelta != 0)
+            MoveCarousel(wheelDelta < 0 ? 1 : -1);
         if (active && mode == 1 && level is null && native.Count == 0 && !pointAndClick)
             AdvanceCarousel(now);
         else
@@ -268,6 +307,63 @@ public static class DesktopInput
         new(GestureType.Tap, TimeSpan.Zero, position, Vector2.Zero, Vector2.Zero, Vector2.Zero);
 
     public static bool IsFocusedMenuItem(object item) => focusVisible && ReferenceEquals(item, focusedItem);
+
+    public static bool CursorVisible => game?.IsActive == true && ReadMode() != 0 &&
+        cursorSource == CursorSource.Mouse && lastMouseMovement != 0 &&
+        Stopwatch.GetTimestamp() - lastMouseMovement < Stopwatch.Frequency * CursorIdleSeconds;
+
+    private static void UpdateCursorSource(bool touchActive, MouseState mouse, bool inside)
+    {
+        var moved = mouse.X != previousMousePosition.X || mouse.Y != previousMousePosition.Y;
+        previousMousePosition = new Point(mouse.X, mouse.Y);
+        if (touchActive)
+            cursorSource = CursorSource.Touch;
+        else if (ControllerActive())
+            cursorSource = CursorSource.Controller;
+        else if (inside && moved)
+        {
+            cursorSource = CursorSource.Mouse;
+            lastMouseMovement = Stopwatch.GetTimestamp();
+        }
+    }
+
+    private static bool ControllerActive()
+    {
+        for (var player = PlayerIndex.One; player <= PlayerIndex.Four; player++)
+        {
+            var pad = GamePad.GetState(player);
+            if (!pad.IsConnected) continue;
+            if (pad.ThumbSticks.Left.LengthSquared() > 0.09f ||
+                pad.ThumbSticks.Right.LengthSquared() > 0.09f ||
+                pad.Triggers.Left > 0.15f || pad.Triggers.Right > 0.15f ||
+                pad.Buttons.A == ButtonState.Pressed || pad.Buttons.B == ButtonState.Pressed ||
+                pad.Buttons.X == ButtonState.Pressed || pad.Buttons.Y == ButtonState.Pressed ||
+                pad.Buttons.Start == ButtonState.Pressed || pad.Buttons.Back == ButtonState.Pressed ||
+                pad.Buttons.LeftShoulder == ButtonState.Pressed ||
+                pad.Buttons.RightShoulder == ButtonState.Pressed ||
+                pad.DPad.Up == ButtonState.Pressed || pad.DPad.Down == ButtonState.Pressed ||
+                pad.DPad.Left == ButtonState.Pressed || pad.DPad.Right == ButtonState.Pressed)
+                return true;
+        }
+        return false;
+    }
+
+    private enum CursorSource { None, Mouse, Controller, Touch }
+
+    public static bool BackButtonVisible()
+    {
+        var level = ActiveMenuLevel();
+        if (level is not null)
+            return (float)menuLevelAlphaField!.GetValue(level)! > 0.9f;
+        return ReadMode() is 2 or 4 or 6;
+    }
+
+    public static Rectangle BackButtonBounds(Vector2 size)
+    {
+        var width = Math.Max(44, (int)(size.X * 0.05f) + 12);
+        return new Rectangle((int)(size.X * 0.05f) - width / 2,
+            (int)(size.Y * 0.9f) - 20, width, 40);
+    }
 
     private static Vector2 Direction(KeyboardState state, Keys negativeX, Keys positiveX,
         Keys negativeY, Keys positiveY) => new(

@@ -91,7 +91,7 @@ internal static class RunSession
             var gameType = assembly.GetType("ZombiesWP7.Game1", throwOnError: true)!;
             using var game = (Game)(Activator.CreateInstance(gameType)
                 ?? throw new InvalidDataException("Game1 construction returned null."));
-            game.IsMouseVisible = true;
+            game.IsMouseVisible = false;
             game.Window.AllowUserResizing = true;
             DesktopDisplay.Configure(game);
             DesktopInput.Configure(game);
