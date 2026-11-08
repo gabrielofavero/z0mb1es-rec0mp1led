@@ -36,6 +36,7 @@ public static class DesktopInput
     private static int carouselTarget;
     private static long carouselStartedAt;
     private static FieldInfo? modeField;
+    private static FieldInfo? viewScaleField;
     private static FieldInfo? menuLevelsField;
     private static MethodInfo? menuActiveMethod;
     private static FieldInfo? menuLevelActiveField;
@@ -86,6 +87,7 @@ public static class DesktopInput
         const BindingFlags instanceFlags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
         modeField = RequireType(assembly, "IMAK3Z0MB1EGAEM.director.GameState").GetField("state", staticFlags)
             ?? throw new MissingFieldException("GameState.state");
+        viewScaleField = RequireField(runningGame.GetType(), "VIEWSCALE", staticFlags);
         var menu = RequireType(assembly, "IMAK3Z0MB1EGAEM.menu.Menu");
         menuLevelsField = menu.GetField("menuLevel", staticFlags)
             ?? throw new MissingFieldException("Menu.menuLevel");
@@ -197,9 +199,10 @@ public static class DesktopInput
         var right = Direction(keyboard, Keys.Left, Keys.Right, Keys.Up, Keys.Down) +
             new Vector2(pad.ThumbSticks.Right.X, -pad.ThumbSticks.Right.Y);
         var size = DesktopDisplay.SceneSize;
+        var viewScale = (float)viewScaleField!.GetValue(null)!;
         const float radius = 80f;
-        var leftCenter = new Vector2(120, size.Y - 120);
-        var rightCenter = new Vector2(size.X - 120, size.Y - 120);
+        var leftCenter = VirtualStickCenter(size, viewScale, right: false);
+        var rightCenter = VirtualStickCenter(size, viewScale, right: true);
         contacts[0].Sample(active && playing && left.LengthSquared() > 0.04f,
             leftCenter + Clamp(left) * radius, touches, pressOrigin: leftCenter);
         contacts[1].Sample(active && playing && right.LengthSquared() > 0.04f,
@@ -372,6 +375,12 @@ public static class DesktopInput
 
     private static Vector2 Clamp(Vector2 vector) => vector.LengthSquared() > 1
         ? Vector2.Normalize(vector) : vector;
+
+    public static Vector2 VirtualStickCenter(Vector2 size, float viewScale, bool right)
+    {
+        var inset = 120f * viewScale;
+        return new Vector2(right ? size.X - inset : inset, size.Y - inset);
+    }
 
     private static void MoveCarousel(int direction)
     {

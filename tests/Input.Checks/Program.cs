@@ -9,6 +9,11 @@ Check(DesktopInput.MapPointer(500, 250, new Rectangle(0, 0, 1000, 500), target),
 Check(DesktopInput.AimDirection(new Vector2(500, 180), new Vector2(300, 180)), 1, 0);
 Check(DesktopInput.AimDirection(new Vector2(300, 20), new Vector2(300, 180)), 0, -1);
 Check(DesktopInput.AimDirection(new Vector2(300, 180), new Vector2(300, 180)), 0, 0);
+var leftStick = DesktopInput.VirtualStickCenter(target, 0.75f, right: false);
+var rightStick = DesktopInput.VirtualStickCenter(target, 0.75f, right: true);
+Check(leftStick, 90, 270);
+Check(rightStick, 510, 270);
+Check(DesktopInput.VirtualStickCenter(new Vector2(860, 360), 0.75f, right: true), 770, 270);
 if (DesktopInput.MapPointer(10, 250, new Rectangle(0, 0, 1000, 500), target) is not null ||
     DesktopInput.MapPointer(990, 250, new Rectangle(0, 0, 1000, 500), target) is not null ||
     DesktopInput.MapPointer(0, 0, new Rectangle(0, 0, 0, 500), target) is not null)
