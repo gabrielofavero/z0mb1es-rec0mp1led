@@ -43,6 +43,9 @@ public static class DesktopInput
     private static FieldInfo? menuLevelActiveField;
     private static FieldInfo? menuLevelAlphaField;
     private static FieldInfo? menuLevelItemsField;
+    private static FieldInfo? menuLevelScrollField;
+    private static FieldInfo? menuLevelScrollMaxField;
+    private static FieldInfo? frameTimeField;
     private static FieldInfo? menuItemFlagField;
     private static FieldInfo? menuItemPositionField;
     private static FieldInfo? menuItemClickFrameField;
@@ -99,6 +102,9 @@ public static class DesktopInput
         menuLevelActiveField = RequireField(menuLevel, "active", instanceFlags);
         menuLevelAlphaField = RequireField(menuLevel, "alpha", instanceFlags);
         menuLevelItemsField = RequireField(menuLevel, "item", instanceFlags);
+        menuLevelScrollField = RequireField(menuLevel, "scroll", instanceFlags);
+        menuLevelScrollMaxField = RequireField(menuLevel, "scrollMax", instanceFlags);
+        frameTimeField = RequireField(runningGame.GetType(), "frameTime", staticFlags);
         var menuItem = RequireType(assembly, "ZombiesWP7.menu.MenuItem");
         menuItemFlagField = RequireField(menuItem, "flag", instanceFlags);
         menuItemPositionField = RequireField(menuItem, "tiltLoc", instanceFlags);
@@ -239,6 +245,9 @@ public static class DesktopInput
             touches, inside ? gestures : null);
 
         var level = active ? ActiveMenuLevel() : null;
+        if (level?.GetType().FullName == "IMAK3Z0MB1EGAEM.menu.Achievements")
+            ScrollAchievements(level, inside ? wheelDelta : 0, pad.ThumbSticks.Right.Y,
+                (float)frameTimeField!.GetValue(null)!);
         var items = level is null ? [] : ClickableItems(level);
         var itemArray = level is null ? null : menuLevelItemsField!.GetValue(level);
         if (!ReferenceEquals(level, focusedLevel) || !ReferenceEquals(itemArray, focusedItems))
@@ -378,6 +387,14 @@ public static class DesktopInput
 
     private static Vector2 Clamp(Vector2 vector) => vector.LengthSquared() > 1
         ? Vector2.Normalize(vector) : vector;
+
+    private static void ScrollAchievements(object level, int wheelDelta, float rightStickY, float frameTime)
+    {
+        var current = (float)menuLevelScrollField!.GetValue(level)!;
+        var maximum = (float)menuLevelScrollMaxField!.GetValue(level)!;
+        menuLevelScrollField.SetValue(level, MenuNavigation.AchievementScroll(
+            current, maximum, wheelDelta, rightStickY, frameTime));
+    }
 
     public static Vector2 VirtualStickCenter(Vector2 size, float viewScale, bool right)
     {

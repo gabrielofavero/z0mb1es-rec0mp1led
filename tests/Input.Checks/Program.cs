@@ -84,7 +84,20 @@ CheckDirection(new KeyboardState(Keys.Right), default, 1, 0);
 CheckDirection(new KeyboardState(Keys.W), default, 0, -1);
 CheckDirection(default, new GamePadState(Vector2.Zero, Vector2.Zero, 0, 0, Buttons.DPadRight), 1, 0);
 CheckDirection(default, new GamePadState(new Vector2(0.8f, 0), Vector2.Zero, 0, 0), 1, 0);
+CheckScroll(0, 1240, -120, 0, 1f / 30f, 72);
+CheckScroll(72, 1240, 120, 0, 1f / 30f, 0);
+CheckScroll(0, 1240, 0, -1, 1f / 30f, 25);
+CheckScroll(25, 1240, 0, 1, 1f / 30f, 0);
+CheckScroll(1230, 1240, -120, -1, 1f / 30f, 1240);
+CheckScroll(50, 1240, 0, -0.1f, 1f / 30f, 50);
 Console.WriteLine("INPUT_MENU_NAV_OK");
+
+static void CheckScroll(float current, float maximum, int wheel, float stick, float time, float expected)
+{
+    var actual = MenuNavigation.AchievementScroll(current, maximum, wheel, stick, time);
+    if (MathF.Abs(actual - expected) > 0.001f)
+        throw new Exception($"Expected achievement scroll {expected}; got {actual}.");
+}
 
 static void Check(Vector2? actual, float x, float y)
 {

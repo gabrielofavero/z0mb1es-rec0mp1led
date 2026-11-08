@@ -94,6 +94,7 @@ internal static class RunSession
             game.IsMouseVisible = false;
             game.Window.AllowUserResizing = true;
             DesktopDisplay.Configure(game);
+            DesktopAchievements.Configure();
             DesktopInput.Configure(game);
             game.Content.RootDirectory = Path.Combine(content, "Content");
             var monitor = new RunMonitor(game, gameType, frameLimit, windowed, probeServices, probeMode, probeMenus, probeResize);

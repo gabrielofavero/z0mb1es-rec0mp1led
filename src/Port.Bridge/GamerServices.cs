@@ -121,30 +121,25 @@ public sealed class LeaderboardWriter
 
 public sealed class AchievementCollection
 {
-    private static readonly string[] Keys =
-    [
-        "im_100k", "im_million", "im_win", "im_invincible", "im_asteroids", "im_nomove", "im_laser",
-        "tv_100k", "tv_million", "tv_win", "tv_tower", "tv_invincible", "ez_100k", "ez_million",
-        "ez_oneroom", "ez_oneround", "ez_tworounds", "kill1000", "kill10000", "mega"
-    ];
     private readonly Achievement[] achievements;
-    internal AchievementCollection(bool[] flags) => achievements = Keys.Select((key, index) =>
-        new Achievement(key, index < flags.Length && flags[index])).ToArray();
+    internal AchievementCollection(bool[] flags) => achievements = AchievementCatalog.Keys.Select((key, index) =>
+        new Achievement(index, key, index < flags.Length && flags[index])).ToArray();
     public int Count => achievements.Length;
     public Achievement this[int index] => achievements[index];
 }
 
 public sealed class Achievement
 {
+    private readonly int index;
     private readonly string key;
     private readonly bool earned;
-    internal Achievement(string key, bool earned) { this.key = key; this.earned = earned; }
-    public string Name => key.Replace('_', ' ');
+    internal Achievement(int index, string key, bool earned) { this.index = index; this.key = key; this.earned = earned; }
+    public string Name => AchievementCatalog.Names[index];
     public int GamerScore => 0;
     public string Key => key;
     public bool IsEarned => earned;
-    public string HowToEarn => "Earn during play";
-    public string Description => "Earned locally";
+    public string HowToEarn => AchievementCatalog.Conditions[index];
+    public string Description => AchievementCatalog.Conditions[index];
 }
 
 internal sealed class CompletedResult<T> : IAsyncResult

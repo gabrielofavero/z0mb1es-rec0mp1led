@@ -13,8 +13,8 @@ namespace Port.Prepare;
 public static class GameplayPatcher
 {
     private const string OriginalHash = "7b819cb562826ae4d2592ff741877e76da0e57bfbe48192aabb79319fdb36823";
-    private const string DebugHooksHash = "42f514b7bad891f31ee9eed6fa1af1ae01bdfe9f661bc2b9d19c21fb34522481";
-    private const string ReleaseHooksHash = "cf1659976d7a3c402e90303ec3f604ee2c916b0a69aa38a8b9e0a713c380ff3f";
+    private const string DebugHooksHash = "5e43a8009566ba5f5a909fea9f4b72c29b9f3fb63c425ac280f28477e1f71e2b";
+    private const string ReleaseHooksHash = "ed92630ae8c407860b8332db7654f827068b4b9fc208a2c3de390e811983532a";
     private const string OriginalMethodBodyHash = "54407b733f8c2d7cdc67534f66899e99191731e2e0beeed8481bc673ff54f425";
     private const string TouchBodyHash = "5d5aea53560307207b175bab14d39138756165598972d7604491f4cd44d7bfc6";
     private const string StorageWriteHash = "887e2f79ecea6543a5ba56aecd08b4c6c82dcda8b790ee81a3e8e5a568249433";
@@ -110,6 +110,7 @@ public static class GameplayPatcher
                 ReplaceTouchCall(module, hooks, touch, 0x0785, "Microsoft.Xna.Framework.Input.Touch.TouchPanel", "get_IsGestureAvailable", "get_IsGestureAvailable");
                 ReplaceTouchCall(module, hooks, touch, 0x078f, "Microsoft.Xna.Framework.Input.Touch.TouchPanel", "ReadGesture", "ReadGesture");
                 PatchStorage(module, hooks);
+                PatchAchievementAwards(module, hooks);
                 PatchOfflineLeaderboards(module);
                 BrightenLockedAchievements(module);
                 DisableTouchPadsByDefault(module);
@@ -153,6 +154,7 @@ public static class GameplayPatcher
                     StorageSerializers.Contains(method.DeclaringType.FullName)) != 10)
                     throw new PreparationException("Desktop serializer signatures did not update.");
                 VerifyOfflineLeaderboards(check);
+                VerifyAchievementAwards(check);
                 VerifyLockedAchievements(check);
                 VerifyTouchPadDefault(check);
                 VerifyDisplay(check);
@@ -171,7 +173,7 @@ public static class GameplayPatcher
             {
                 ToolVersion = "0.13.0",
                 PreparedSha256 = outputHash,
-                Plan = "pinned ABI rewrite plus guarded desktop media, input, storage and offline leaderboards",
+                Plan = "pinned ABI rewrite plus guarded desktop media, input, storage, local achievements and offline leaderboards",
                 Patches = [.. prior.Patches, patch,
                     new PatchRecord("gameplay-call", OriginalHash,
                         "0x0600007a System.Void ZombiesWP7.TouchMgr::Update()", TouchBodyHash,
@@ -182,6 +184,10 @@ public static class GameplayPatcher
                         StorageWriteHash + "/" + StorageReadHash,
                         $"two methods call Port.Hooks.DesktopStorage; ten serializer parameters use Stream [hooksSha256={hooksHash}]",
                         "original version-101 serializers remain in the prepared game"),
+                    new PatchRecord("gameplay-call", OriginalHash,
+                        "ZombiesWP7.xdktools.AchievementMgr::AwardAchievement(int)", OriginalHash,
+                        "route original AddAchievable through Port.Hooks.DesktopAchievements",
+                        "new local awards show a notice and save immediately; earned flags on load are not announced"),
                     new PatchRecord("gameplay-call", OriginalHash,
                         "0x06000081 Viking_x86.main.MainMenu::Update(); 0x06000072 IMAK3Z0MB1EGAEM.menu.Leaderboards::Update()",
                         MainMenuUpdateHash + "/" + LeaderboardsUpdateHash,
@@ -328,6 +334,34 @@ public static class GameplayPatcher
             il.Append(il.Create(OpCodes.Call, module.ImportReference(target)));
             il.Append(end);
         }
+    }
+
+    private static void PatchAchievementAwards(ModuleDefinition module, ModuleDefinition hooks)
+    {
+        var award = module.Types.Single(type => type.FullName == "ZombiesWP7.xdktools.AchievementMgr")
+            .Methods.Single(method => method.Name == "AwardAchievement" && method.Parameters.Count == 1 &&
+                method.Parameters[0].ParameterType.FullName == "System.Int32");
+        var calls = award.Body.Instructions.Where(instruction =>
+            instruction.OpCode == OpCodes.Callvirt && instruction.Operand is MethodReference method &&
+            method.FullName == "System.Void ZombiesWP7.store.PlayerProfile::AddAchievable(System.Int32)").ToArray();
+        if (calls.Length != 1)
+            throw new PreparationException("Original achievement profile award call differs.");
+        var target = hooks.Types.Single(type => type.FullName == "Port.Hooks.DesktopAchievements")
+            .Methods.Single(method => method.Name == "AddAchievable" && method.IsStatic &&
+                method.Parameters.Count == 2 && method.Parameters[0].ParameterType.FullName == "System.Object" &&
+                method.Parameters[1].ParameterType.FullName == "System.Int32");
+        calls[0].OpCode = OpCodes.Call;
+        calls[0].Operand = module.ImportReference(target);
+    }
+
+    private static void VerifyAchievementAwards(ModuleDefinition module)
+    {
+        var award = module.Types.Single(type => type.FullName == "ZombiesWP7.xdktools.AchievementMgr")
+            .Methods.Single(method => method.Name == "AwardAchievement" && method.Parameters.Count == 1);
+        if (award.Body.Instructions.Count(instruction => instruction.OpCode == OpCodes.Call &&
+            instruction.Operand is MethodReference method &&
+            method.FullName == "System.Void Port.Hooks.DesktopAchievements::AddAchievable(System.Object,System.Int32)") != 1)
+            throw new PreparationException("Achievement award hook postcondition failed.");
     }
 
     private static void PatchOfflineLeaderboards(ModuleDefinition module)

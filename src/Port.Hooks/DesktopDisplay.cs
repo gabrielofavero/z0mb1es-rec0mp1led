@@ -28,6 +28,7 @@ public static class DesktopDisplay
     private static MethodInfo? drawArrowText;
     private static object? arrowCenter;
     private static FieldInfo? viewportField;
+    private static FieldInfo? gameFontField;
     private static FieldInfo? zombieScreenField;
     private static FieldInfo? vikingScreenField;
     private static (int Width, int Height) sceneSize = (LogicalWidth, LogicalHeight);
@@ -99,6 +100,8 @@ public static class DesktopDisplay
         arrowCenter = Enum.Parse(drawArrowText.GetParameters()[5].ParameterType, "Center");
         viewportField = runningGame.GetType().GetField("VIEWPORT", staticFields)
             ?? throw new MissingFieldException("Game1.VIEWPORT");
+        gameFontField = runningGame.GetType().GetField("arial", staticFields)
+            ?? throw new MissingFieldException("Game1.arial");
         menuScaleField = runningGame.GetType().GetField("MENUSCALE", staticFields)
             ?? throw new MissingFieldException("Game1.MENUSCALE");
         zombieScreenField = assembly.GetType("IMAK3Z0MB1EGAEM.ScrollMan", true)!
@@ -580,6 +583,33 @@ public static class DesktopDisplay
         batch.Draw(scene, Vector2.Zero, Color.White);
         batch.End();
         DrawInputOverlay(device);
+        DrawAchievementToast(device);
+    }
+
+    private static void DrawAchievementToast(GraphicsDevice device)
+    {
+        var title = DesktopAchievements.CurrentToast();
+        if (title is null || gameFontField?.GetValue(null) is not SpriteFont font || batch is null) return;
+        if (overlayPixel is null)
+        {
+            overlayPixel = new Texture2D(device, 1, 1);
+            overlayPixel.SetData([Color.White]);
+        }
+        var placement = Presentation(device.PresentationParameters.BackBufferWidth,
+            device.PresentationParameters.BackBufferHeight, sceneSize);
+        var transform = Matrix.CreateScale(placement.Scale, placement.Scale, 1f) *
+            Matrix.CreateTranslation(placement.Offset.X, placement.Offset.Y, 0f);
+        var x = (int)SceneSize.X - 320;
+        const int y = 12;
+        batch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp,
+            DepthStencilState.None, RasterizerState.CullNone, null, transform);
+        batch.Draw(overlayPixel, new Rectangle(x, y, 308, 53), new Color(0, 0, 0, 225));
+        batch.Draw(overlayPixel, new Rectangle(x, y, 3, 53), Color.Gold);
+        batch.DrawString(font, "ACHIEVEMENT UNLOCKED", new Vector2(x + 11, y + 6), Color.Gold);
+        var scale = MathF.Min(1f, 285f / MathF.Max(1f, font.MeasureString(title).X));
+        batch.DrawString(font, title, new Vector2(x + 11, y + 30), Color.White,
+            0f, Vector2.Zero, scale, SpriteEffects.None, 0f);
+        batch.End();
     }
 
     private static void DrawInputOverlay(GraphicsDevice device)

@@ -23,6 +23,14 @@ public static class MenuNavigation
     public static int CarouselNext(float time, int direction, int lastOption = 6) =>
         Math.Clamp((int)MathF.Floor(time + 0.5f) + Math.Sign(direction), 0, lastOption);
 
+    public static float AchievementScroll(float current, float maximum, int wheelDelta,
+        float rightStickY, float frameTime)
+    {
+        var stick = MathF.Abs(rightStickY) < 0.2f ? 0f : rightStickY;
+        var movement = -wheelDelta * 0.6f - stick * 750f * Math.Clamp(frameTime, 0f, 0.05f);
+        return Math.Clamp(current + movement, 0f, maximum);
+    }
+
     public static float CarouselSwipePosition(float start, float target, float progress)
     {
         var remaining = 1f - Math.Clamp(progress, 0f, 1f);
