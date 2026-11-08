@@ -20,6 +20,12 @@ internal sealed class ModeProbe
     private int step;
     private int stepAt;
     private int mainMenuReturnedAt = -1;
+    private object? priorTimer;
+    private object? priorHeroes;
+    private object? priorParticles;
+    private object? priorEndless;
+    private object? priorMap;
+    private object? priorSpawner;
     private bool progressionChecked;
     private bool frameCaptured;
     private bool pauseCaptured;
@@ -121,10 +127,29 @@ internal sealed class ModeProbe
         {
             ClickLevel("EndGameYouSure", "End Gam3");
             Require(State == menuState, "end-game did not return to mode menu");
-            menuType.GetField("needsQuit", Static)!.SetValue(null, true);
-            Advance(6, updates, "mode-menu");
+            CaptureRestartState();
+            if (mode != "viking")
+                gameType.Assembly.GetType("IMAK3Z0MB1EGAEM.map.MapMan", true)!
+                    .GetField("frame", Static)!.SetValue(null, 75f);
+            var players = (Array)menuType.GetField("playerState", Static)!.GetValue(null)!;
+            players.SetValue(Enum.ToObject(players.GetType().GetElementType()!, 2), 0);
+            var target = GameObject();
+            if (mode == "endless") Invoke(target, "Play", true);
+            else Invoke(target, "Play");
+            Require(State == playState, "restart did not enter play");
+            VerifyRestartState();
+            Advance(6, updates, "restarted");
         }
-        else if (step == 6 && State == 1 && mainMenuReady)
+        else if (step == 6 && updates - stepAt >= 30)
+        {
+            Pause();
+            ClickLevel("Pause", "End Gam3");
+            ClickLevel("EndGameYouSure", "End Gam3");
+            Require(State == menuState, "restarted run did not end at mode menu");
+            menuType.GetField("needsQuit", Static)!.SetValue(null, true);
+            Advance(7, updates, "mode-menu");
+        }
+        else if (step == 7 && State == 1 && mainMenuReady)
         {
             // Game1 enters state 1 after TouchMgr.Update, so the input hook restores
             // the new menu on the following update.
@@ -137,13 +162,63 @@ internal sealed class ModeProbe
             Require(MathF.Abs(position - expected) < 0.01f,
                 $"main carousel returned to {position} instead of {expected}");
             Verified = true;
-            Advance(7, updates, "main-menu");
+            Advance(8, updates, "main-menu");
             game.Exit();
         }
     }
 
     private object GameObject() => gameType.GetField(mode == "viking" ? "vgame" : "zgame", Static)!
         .GetValue(null) ?? throw new InvalidOperationException("Original mode object is missing.");
+
+    private void CaptureRestartState()
+    {
+        var assembly = gameType.Assembly;
+        var timers = assembly.GetType("Viking_x86.director.TimeMgr", true)!;
+        priorTimer = ((Array)timers.GetField("timeMgr", Static)!.GetValue(null)!).GetValue(mode == "viking" ? 1 : 0);
+        if (mode == "viking")
+            priorSpawner = GameObject().GetType().GetField("spawnMgr", Instance)!.GetValue(GameObject());
+        else
+        {
+            priorHeroes = assembly.GetType("IMAK3Z0MB1EGAEM.character.CharMan", true)!
+                .GetField("hero", Static)!.GetValue(null);
+            priorParticles = assembly.GetType("IMAK3Z0MB1EGAEM.particles.ParticleMan", true)!
+                .GetField("particle", Static)!.GetValue(null);
+            if (mode == "endless")
+            {
+                priorEndless = GameObject().GetType().GetField("endlessUpdate", Static)!.GetValue(null);
+                priorMap = assembly.GetType("IMAK3Z0MB1EGAEM.map.MapMan", true)!
+                    .GetField("map", Static)!.GetValue(null);
+            }
+        }
+    }
+
+    private void VerifyRestartState()
+    {
+        var assembly = gameType.Assembly;
+        var timers = assembly.GetType("Viking_x86.director.TimeMgr", true)!;
+        var currentTimer = ((Array)timers.GetField("timeMgr", Static)!.GetValue(null)!)
+            .GetValue(mode == "viking" ? 1 : 0);
+        Require(priorTimer is not null && currentTimer is not null && !ReferenceEquals(priorTimer, currentTimer),
+            "mode timeline survived restart");
+        if (mode == "viking")
+        {
+            var currentSpawner = GameObject().GetType().GetField("spawnMgr", Instance)!.GetValue(GameObject());
+            Require(priorSpawner is not null && currentSpawner is not null && !ReferenceEquals(priorSpawner, currentSpawner),
+                "Viking spawner survived restart");
+            return;
+        }
+        var characters = assembly.GetType("IMAK3Z0MB1EGAEM.character.CharMan", true)!;
+        var particles = assembly.GetType("IMAK3Z0MB1EGAEM.particles.ParticleMan", true)!;
+        var map = assembly.GetType("IMAK3Z0MB1EGAEM.map.MapMan", true)!;
+        Require(!ReferenceEquals(priorHeroes, characters.GetField("hero", Static)!.GetValue(null)) &&
+                !ReferenceEquals(priorParticles, particles.GetField("particle", Static)!.GetValue(null)) &&
+                (float)map.GetField("frame", Static)!.GetValue(null)! == 0f,
+            "Zombie actors, particles or background survived restart");
+        if (mode == "endless")
+            Require(!ReferenceEquals(priorEndless, GameObject().GetType().GetField("endlessUpdate", Static)!.GetValue(null)) &&
+                    !ReferenceEquals(priorMap, map.GetField("map", Static)!.GetValue(null)),
+                "Endless rooms or map survived restart");
+    }
 
     private int State
     {

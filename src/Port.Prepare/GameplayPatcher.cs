@@ -18,6 +18,8 @@ public static class GameplayPatcher
     private const string CurrentDebugHooksHash = "bb1b1d27e24a45c777536dd517ad0ff0293a5a6d497779509aacd4f408b60ddc";
     private const string CurrentReleaseHooksHash = "c1381d8520fc42ec89c41a5b45ec05caed93185cf18a9f23219d45bdb31c11a6";
     private const string LatestReleaseHooksHash = "bc9f9041175ca757e1285b6cd1f0244ba62f1aadc893ab5396f4a2508034e723";
+    private const string RestartReleaseHooksHash = "dd257b258593fbf90688246cd293886e1816bc650401f46aa58eaae1521b9af1";
+    private const string EdgeArtReleaseHooksHash = "3c924ed10f6a4bbfdf520366f06db470fc9886fadd9b79618da449314390024f";
     private const string OriginalMethodBodyHash = "54407b733f8c2d7cdc67534f66899e99191731e2e0beeed8481bc673ff54f425";
     private const string TouchBodyHash = "5d5aea53560307207b175bab14d39138756165598972d7604491f4cd44d7bfc6";
     private const string StorageWriteHash = "887e2f79ecea6543a5ba56aecd08b4c6c82dcda8b790ee81a3e8e5a568249433";
@@ -31,6 +33,10 @@ public static class GameplayPatcher
     private const string SettingsCancelHash = "f9603f155bd0fa415014acf3d4f0fb7960ade1f793ccc1ea7060968645d162bd";
     private const string CustomMapperInitHash = "e810e1fbeb78b8cb9446befd86cb35dbb680eafd86ba622a7c8402c5f2849683";
     private const string HelpAndOptionsCtorHash = "43f6813612389d29eb7452179c2e01f10f06c73307142ba0e7f29a0730c1abf5";
+    private const string ZombiePlayHash = "d0177b7359c8ade10af5385212220c7445c69442e39b5dd83a38f86a92090e60";
+    private const string VikingPlayHash = "eb57c16e78c4c7e00a6b42d688ca93f171d03458ef52691ecc147008f899067e";
+    private const string MapInitHash = "7ebf709bfc179137a64d31f9352ef699431a9cc641120a6e2020b25e1ca1989f";
+    private const string ParticleInitHash = "7d93b83ca79874f59fdbcc044e5f3b38409179463404e57b098da5517dcd0803";
     private const int MethodToken = 0x06000152;
     private const int TouchMethodToken = 0x0600007a;
     private const int CallOffset = 0x0015;
@@ -62,6 +68,10 @@ public static class GameplayPatcher
             VerifyBody(pe, 0x060002c5, SettingsCancelHash);
             VerifyBody(pe, 0x060002cc, CustomMapperInitHash);
             VerifyBody(pe, 0x060001f9, HelpAndOptionsCtorHash);
+            VerifyBody(pe, 0x0600000d, ZombiePlayHash);
+            VerifyBody(pe, 0x0600002f, VikingPlayHash);
+            VerifyBody(pe, 0x06000091, MapInitHash);
+            VerifyBody(pe, 0x060002a1, ParticleInitHash);
         }
         var priorManifest = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(preparedDll))!, "patch-manifest.json");
         var prior = JsonSerializer.Deserialize<PatchManifest>(File.ReadAllText(priorManifest),
@@ -72,7 +82,7 @@ public static class GameplayPatcher
             prior.Patches.Any(patch => patch.Kind == "gameplay-call"))
             throw new PreparationException("Prepared DLL does not match its original guarded rewrite.");
         var hooksHash = Hash(hooksDll);
-        if (hooksHash is not (DebugHooksHash or ReleaseHooksHash or CurrentDebugHooksHash or CurrentReleaseHooksHash or LatestReleaseHooksHash) ||
+        if (hooksHash is not (DebugHooksHash or ReleaseHooksHash or CurrentDebugHooksHash or CurrentReleaseHooksHash or LatestReleaseHooksHash or RestartReleaseHooksHash or EdgeArtReleaseHooksHash) ||
             System.Reflection.AssemblyName.GetAssemblyName(hooksDll).Name != "Port.Hooks")
             throw new PreparationException("Hook target assembly identity differs.");
 
@@ -129,6 +139,7 @@ public static class GameplayPatcher
                 PatchPictures(module, hooks);
                 RemoveHelpAndOptionsInfo(module);
                 PatchAssetDraw(module, hooks);
+                PatchRunRestart(module);
                 module.Write(stageDll, new WriterParameters { WriteSymbols = false });
             }
             using (var check = ModuleDefinition.ReadModule(stageDll))
@@ -176,6 +187,7 @@ public static class GameplayPatcher
                 VerifyPictures(check);
                 VerifyHelpAndOptionsInfo(check);
                 VerifyAssetDraw(check);
+                VerifyRunRestart(check);
             }
             var outputHash = Hash(stageDll);
             var patch = new PatchRecord("gameplay-call", OriginalHash, MethodSignature,
@@ -250,6 +262,11 @@ public static class GameplayPatcher
                         HelpAndOptionsCtorHash,
                         "set the Help and Options info block to null, removing version and contact text",
                         "Help, Settings, and Credits menu items remain unchanged"),
+                    new PatchRecord("gameplay-il", OriginalHash,
+                        "0x0600000d ZombieGame::Play(bool); 0x0600002f VikingGame::Play()",
+                        ZombiePlayHash + "/" + VikingPlayHash + "/" + MapInitHash + "/" + ParticleInitHash,
+                        "reset each mode's timeline, actors, particles and mutable world before Play; rebuild Endless rooms and Viking spawner",
+                        "a second start from the mode title screen begins a fresh run without changing saved profile data"),
                     new PatchRecord("gameplay-call", OriginalHash,
                         "pinned ContentManager.Load<Texture2D> and SpriteBatch.Draw call sites",
                         OriginalHash,
@@ -1075,5 +1092,130 @@ public static class GameplayPatcher
                 generic.GenericArguments.Count == 1 &&
                 generic.GenericArguments[0].FullName == "Microsoft.Xna.Framework.Graphics.Texture2D"))
             throw new PreparationException($"Art draw hook postcondition failed: loads={loads} draws={draws}.");
+    }
+
+    private static void PatchRunRestart(ModuleDefinition module)
+    {
+        var zombie = module.Types.Single(type => type.FullName == "IMAK3Z0MB1EGAEM.ZombieGame");
+        var viking = module.Types.Single(type => type.FullName == "Viking_x86.VikingGame");
+        var timers = module.Types.Single(type => type.FullName == "Viking_x86.director.TimeMgr");
+        var map = module.Types.Single(type => type.FullName == "IMAK3Z0MB1EGAEM.map.MapMan");
+        var chars = module.Types.Single(type => type.FullName == "IMAK3Z0MB1EGAEM.character.CharMan");
+        var particles = module.Types.Single(type => type.FullName == "IMAK3Z0MB1EGAEM.particles.ParticleMan");
+        var endless = module.Types.Single(type => type.FullName == "Viking_x86.zomb1es.endless.EndlessUpdate");
+        var zombieTimer = module.Types.Single(type => type.FullName == "IMAK3Z0MB1EGAEM.director.ZombieTimeMgr");
+        var vikingTimer = module.Types.Single(type => type.FullName == "IMAK3Z0MB1EGAEM.director.VikingTimeMgr");
+        var zombiePlay = zombie.Methods.Single(method => method.Name == "Play" && method.Parameters.Count == 1);
+        var vikingPlay = viking.Methods.Single(method => method.Name == "Play" && method.Parameters.Count == 0);
+        if (zombiePlay.MetadataToken.ToInt32() != 0x0600000d ||
+            vikingPlay.MetadataToken.ToInt32() != 0x0600002f ||
+            zombiePlay.Body.Instructions[0].OpCode != OpCodes.Ldc_I4_0 ||
+            vikingPlay.Body.Instructions[0].OpCode != OpCodes.Ldarg_0)
+            throw new PreparationException("Run restart Play anchors differ from the supported game.");
+
+        static void Prepend(Mono.Cecil.MethodDefinition method, params Instruction[] instructions)
+        {
+            var il = method.Body.GetILProcessor();
+            var first = method.Body.Instructions[0];
+            foreach (var instruction in instructions) il.InsertBefore(first, instruction);
+        }
+        static Mono.Cecil.MethodDefinition Ctor(Mono.Cecil.TypeDefinition type) =>
+            type.Methods.Single(method => method.IsConstructor && !method.IsStatic && method.Parameters.Count == 0);
+        static Mono.Cecil.FieldDefinition Field(Mono.Cecil.TypeDefinition type, string name) =>
+            type.Fields.Single(field => field.Name == name);
+        static Mono.Cecil.MethodDefinition Method(Mono.Cecil.TypeDefinition type, string name) =>
+            type.Methods.Single(method => method.Name == name && method.Parameters.Count == 0);
+
+        var particleInit = Method(particles, "Init");
+        var particleIl = particleInit.Body.GetILProcessor();
+        var particleReturn = particleInit.Body.Instructions.Last();
+        particleIl.InsertBefore(particleReturn, Instruction.Create(OpCodes.Ldc_I4_0));
+        particleIl.InsertBefore(particleReturn, Instruction.Create(OpCodes.Stsfld, Field(particles, "addIdx")));
+        particleIl.InsertBefore(particleReturn, Instruction.Create(OpCodes.Ldc_I4_0));
+        particleIl.InsertBefore(particleReturn, Instruction.Create(OpCodes.Stsfld, Field(particles, "count")));
+
+        var mapInit = Method(map, "Init");
+        var mapIl = mapInit.Body.GetILProcessor();
+        var mapReturn = mapInit.Body.Instructions.Last();
+        foreach (var name in new[] { "frame", "brite", "goalBrite" })
+        {
+            mapIl.InsertBefore(mapReturn, Instruction.Create(OpCodes.Ldc_R4, 0f));
+            mapIl.InsertBefore(mapReturn, Instruction.Create(OpCodes.Stsfld, Field(map, name)));
+        }
+        var vectorCtor = (MethodReference)zombie.Methods.Single(method => method.Name == "ThreadedLoadEndless")
+            .Body.Instructions.Single(instruction => instruction.OpCode == OpCodes.Newobj &&
+                instruction.Operand is MethodReference target &&
+                target.DeclaringType.FullName == "Microsoft.Xna.Framework.Vector2" &&
+                target.Parameters.Count == 2).Operand;
+
+        // The original Play only hides actors and restarts music. Its static timeline,
+        // particle pool, map lighting and Endless rooms still describe the previous run.
+        Prepend(zombiePlay,
+            Instruction.Create(OpCodes.Ldsfld, Field(timers, "timeMgr")),
+            Instruction.Create(OpCodes.Ldc_I4_0),
+            Instruction.Create(OpCodes.Newobj, Ctor(zombieTimer)),
+            Instruction.Create(OpCodes.Stelem_Ref),
+            Instruction.Create(OpCodes.Call, Method(chars, "Init")),
+            Instruction.Create(OpCodes.Call, particleInit),
+            Instruction.Create(OpCodes.Ldc_I4_0),
+            Instruction.Create(OpCodes.Stsfld, Field(chars, "monsterCount")),
+            Instruction.Create(OpCodes.Call, mapInit),
+            Instruction.Create(OpCodes.Ldarg_1),
+            Instruction.Create(OpCodes.Brfalse, zombiePlay.Body.Instructions[0]),
+            Instruction.Create(OpCodes.Ldc_R4, 3686.4001f),
+            Instruction.Create(OpCodes.Ldc_R4, 2764.8f),
+            Instruction.Create(OpCodes.Newobj, vectorCtor),
+            Instruction.Create(OpCodes.Stsfld, Field(map, "mapSize")),
+            Instruction.Create(OpCodes.Ldarg_0),
+            Instruction.Create(OpCodes.Ldfld, Field(zombie, "Content")),
+            Instruction.Create(OpCodes.Call, map.Methods.Single(method => method.Name == "ReadMap")),
+            Instruction.Create(OpCodes.Newobj, Ctor(endless)),
+            Instruction.Create(OpCodes.Stsfld, Field(zombie, "endlessUpdate")));
+
+        // Viking resets its world and characters already, but kept its old clock and
+        // spawner. Recreate those before the original reset and director startup.
+        var spawner = module.Types.Single(type => type.FullName == "Viking_x86.vikinggame.SpawnMgr");
+        Prepend(vikingPlay,
+            Instruction.Create(OpCodes.Ldsfld, Field(timers, "timeMgr")),
+            Instruction.Create(OpCodes.Ldc_I4_1),
+            Instruction.Create(OpCodes.Newobj, Ctor(vikingTimer)),
+            Instruction.Create(OpCodes.Stelem_Ref),
+            Instruction.Create(OpCodes.Ldarg_0),
+            Instruction.Create(OpCodes.Newobj, Ctor(spawner)),
+            Instruction.Create(OpCodes.Stfld, Field(viking, "spawnMgr")),
+            Instruction.Create(OpCodes.Ldarg_0),
+            Instruction.Create(OpCodes.Ldc_R4, 1f),
+            Instruction.Create(OpCodes.Stfld, Field(viking, "initFrame")));
+    }
+
+    private static void VerifyRunRestart(ModuleDefinition module)
+    {
+        var zombie = module.Types.Single(type => type.FullName == "IMAK3Z0MB1EGAEM.ZombieGame")
+            .Methods.Single(method => method.Name == "Play" && method.Parameters.Count == 1);
+        var viking = module.Types.Single(type => type.FullName == "Viking_x86.VikingGame")
+            .Methods.Single(method => method.Name == "Play" && method.Parameters.Count == 0);
+        var zombieCalls = zombie.Body.Instructions.Take(25).Select(instruction => instruction.Operand)
+            .OfType<MethodReference>().Select(method => method.FullName).ToArray();
+        var vikingCalls = viking.Body.Instructions.Take(10).Select(instruction => instruction.Operand)
+            .OfType<MethodReference>().Select(method => method.FullName).ToArray();
+        if (zombie.Body.Instructions[0].Operand is not FieldReference zombieClock || zombieClock.Name != "timeMgr" ||
+            !zombieCalls.Any(call => call.Contains("CharMan::Init()")) ||
+            !zombieCalls.Any(call => call.Contains("ParticleMan::Init()")) ||
+            !zombieCalls.Any(call => call.Contains("MapMan::Init()")) ||
+            !zombieCalls.Any(call => call.Contains("MapMan::ReadMap(")) ||
+            !zombieCalls.Any(call => call.Contains("EndlessUpdate::.ctor()")) ||
+            viking.Body.Instructions[0].Operand is not FieldReference vikingClock || vikingClock.Name != "timeMgr" ||
+            !vikingCalls.Any(call => call.Contains("VikingTimeMgr::.ctor()")) ||
+            !vikingCalls.Any(call => call.Contains("SpawnMgr::.ctor()")))
+            throw new PreparationException("Run restart postcondition failed.");
+        var particleInit = module.Types.Single(type => type.FullName == "IMAK3Z0MB1EGAEM.particles.ParticleMan")
+            .Methods.Single(method => method.Name == "Init");
+        var mapInit = module.Types.Single(type => type.FullName == "IMAK3Z0MB1EGAEM.map.MapMan")
+            .Methods.Single(method => method.Name == "Init");
+        if (particleInit.Body.Instructions.Count(instruction => instruction.OpCode == OpCodes.Stsfld &&
+                instruction.Operand is FieldReference field && field.Name is "addIdx" or "count") != 2 ||
+            mapInit.Body.Instructions.Count(instruction => instruction.OpCode == OpCodes.Stsfld &&
+                instruction.Operand is FieldReference field && field.Name is "frame" or "brite" or "goalBrite") != 3)
+            throw new PreparationException("Run counters postcondition failed.");
     }
 }

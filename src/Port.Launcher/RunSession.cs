@@ -507,7 +507,10 @@ internal sealed class RunMonitor : DrawableGameComponent
             "normal" => new (string Path, Rectangle Source, Rectangle Destination)[]
             {
                 ("gfx_2/zombie/grass", new Rectangle(40, 40, 160, 90), new Rectangle(0, 0, 600, 360)),
-                ("gfx_2/zombie/sprites", new Rectangle(288, 64, 96, 96), new Rectangle(10, 10, 96, 96))
+                ("gfx_2/zombie/sprites", new Rectangle(288, 64, 96, 96), new Rectangle(10, 10, 96, 96)),
+                ("gfx_2/zombie/grass", new Rectangle(0, 274, 640, 90), new Rectangle(0, 270, 200, 90)),
+                ("gfx_2/zombie/grass", new Rectangle(560, 0, 84, 360), new Rectangle(200, 270, 200, 90)),
+                ("gfx_2/zombie/grass", new Rectangle(640, 0, 84, 360), new Rectangle(400, 270, 200, 90))
             },
             "viking" => new (string, Rectangle, Rectangle)[]
             {
@@ -533,6 +536,9 @@ internal sealed class RunMonitor : DrawableGameComponent
             var texture = AssetDraw.LoadTexture(Game.Content, path);
             AssetDraw.Draw(sprite, texture, destination, source, Color.White);
         }
+        if (mode == "normal" && AssetDraw.RouteCount(mode) > 0 &&
+            AssetDraw.Replacements - beforeImported != cases.Length)
+            throw new InvalidDataException("Normal art probe did not route every grass edge crop.");
         sprite.End();
         GraphicsDevice.SetRenderTarget(null);
         var output = Path.Combine(AppContext.BaseDirectory, $"art-probe-{mode}.png");

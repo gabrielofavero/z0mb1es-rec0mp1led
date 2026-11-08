@@ -281,8 +281,8 @@ public static class AssetDraw
         {
             foreach (var entry in routes)
             {
-                if (entry.Key.Path != name || !entry.Value.Id.StartsWith("background/i-maed/", StringComparison.Ordinal) ||
-                    !entry.Key.Rectangle.Contains(logical)) continue;
+                if (entry.Key.Path != name || !entry.Value.Id.StartsWith("background/i-maed/", StringComparison.Ordinal))
+                    continue;
                 route = entry.Value;
                 phoneRect = entry.Key.Rectangle;
                 break;
@@ -304,13 +304,12 @@ public static class AssetDraw
             var y = route.Content.Y + (int)Math.Round((logical.Y - phoneRect.Y) / route.Ratio.Y);
             var w = (int)Math.Round(logical.Width / route.Ratio.X);
             var h = (int)Math.Round(logical.Height / route.Ratio.Y);
-            var physical = new Rectangle(x, y, w, h);
-            if (!route.Content.Contains(physical))
-            {
-                Interlocked.Increment(ref originalDraws);
-                return false;
-            }
-            source = physical;
+            // The original map draw intentionally pads its camera crop by four
+            // pixels. At a map edge that crop can extend outside the texture;
+            // SpriteBatch's clamp sampler repeats the edge pixels there. Keep
+            // those UVs beyond the enhanced texture too, instead of falling
+            // back to the lower-resolution phone background.
+            source = new Rectangle(x, y, w, h);
             ratio = new Vector2(logical.Width / (float)w, logical.Height / (float)h);
         }
         texture = GetRouteTexture(sprite, route);
