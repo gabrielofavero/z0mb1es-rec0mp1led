@@ -20,6 +20,9 @@ public static class GameplayPatcher
     private const string LatestReleaseHooksHash = "bc9f9041175ca757e1285b6cd1f0244ba62f1aadc893ab5396f4a2508034e723";
     private const string RestartReleaseHooksHash = "dd257b258593fbf90688246cd293886e1816bc650401f46aa58eaae1521b9af1";
     private const string EdgeArtReleaseHooksHash = "3c924ed10f6a4bbfdf520366f06db470fc9886fadd9b79618da449314390024f";
+    private const string VersionReleaseHooksHash = "5dffb36be4520249eb8f330a6b41a69b09b982e81bc8b1bbd60bc7ef5dc25d83";
+    private const string CreditsScrollHooksHash = "b1f077e36eb6cad92b7ea51c955c668561cb9e45ce92f1f59a4ce77473c8f36e";
+    private const string PortCreditHooksHash = "18232ffefca16d60f25252ec1456ff59120209ee8908084ca97a98466a038973";
     private const string OriginalMethodBodyHash = "54407b733f8c2d7cdc67534f66899e99191731e2e0beeed8481bc673ff54f425";
     private const string TouchBodyHash = "5d5aea53560307207b175bab14d39138756165598972d7604491f4cd44d7bfc6";
     private const string StorageWriteHash = "887e2f79ecea6543a5ba56aecd08b4c6c82dcda8b790ee81a3e8e5a568249433";
@@ -82,7 +85,7 @@ public static class GameplayPatcher
             prior.Patches.Any(patch => patch.Kind == "gameplay-call"))
             throw new PreparationException("Prepared DLL does not match its original guarded rewrite.");
         var hooksHash = Hash(hooksDll);
-        if (hooksHash is not (DebugHooksHash or ReleaseHooksHash or CurrentDebugHooksHash or CurrentReleaseHooksHash or LatestReleaseHooksHash or RestartReleaseHooksHash or EdgeArtReleaseHooksHash) ||
+        if (hooksHash is not (DebugHooksHash or ReleaseHooksHash or CurrentDebugHooksHash or CurrentReleaseHooksHash or LatestReleaseHooksHash or RestartReleaseHooksHash or EdgeArtReleaseHooksHash or VersionReleaseHooksHash or CreditsScrollHooksHash or PortCreditHooksHash) ||
             System.Reflection.AssemblyName.GetAssemblyName(hooksDll).Name != "Port.Hooks")
             throw new PreparationException("Hook target assembly identity differs.");
 
@@ -129,6 +132,7 @@ public static class GameplayPatcher
                 PatchLocalScoreSubmission(module, hooks);
                 BrightenLockedAchievements(module);
                 SpaceAchievementList(module);
+                AddPortCredit(module, hooks);
                 DisableTouchPadsByDefault(module);
                 PatchTouchOverlays(module, hooks);
                 PatchDisplay(module, hooks);
@@ -137,7 +141,7 @@ public static class GameplayPatcher
                 PatchMenuVisuals(module, hooks);
                 PatchOtherFlashing(module, hooks);
                 PatchPictures(module, hooks);
-                RemoveHelpAndOptionsInfo(module);
+                PatchHelpAndOptionsInfo(module, hooks);
                 PatchAssetDraw(module, hooks);
                 PatchRunRestart(module);
                 module.Write(stageDll, new WriterParameters { WriteSymbols = false });
@@ -177,6 +181,7 @@ public static class GameplayPatcher
                 VerifyAchievementAwards(check);
                 VerifyLockedAchievements(check);
                 VerifyAchievementListSpacing(check);
+                VerifyPortCredit(check);
                 VerifyTouchPadDefault(check);
                 VerifyTouchOverlays(check);
                 VerifyDisplay(check);
@@ -257,11 +262,16 @@ public static class GameplayPatcher
                         CustomMapperInitHash,
                         "load the remembered picture folder and add a visible folder picker action",
                         "the creator uses imported thumbnails through its original source list"),
-                    new PatchRecord("gameplay-il", OriginalHash,
+                    new PatchRecord("gameplay-call", OriginalHash,
                         "0x060001f9 IMAK3Z0MB1EGAEM.menu.HelpAndOptions::.ctor()",
                         HelpAndOptionsCtorHash,
-                        "set the Help and Options info block to null, removing version and contact text",
-                        "Help, Settings, and Credits menu items remain unchanged"),
+                        "show the launcher build version through Port.Hooks.DesktopDisplay.BuildVersionInfo",
+                        "the Help and Options info block contains only the current build version"),
+                    new PatchRecord("gameplay-call", OriginalHash,
+                        "0x06000133 IMAK3Z0MB1EGAEM.menu.Credits::.ctor()",
+                        OriginalHash,
+                        "insert Port made by Gabriel Favero through Port.Hooks.DesktopCredits",
+                        "the original credit lines and their spacing remain in order"),
                     new PatchRecord("gameplay-il", OriginalHash,
                         "0x0600000d ZombieGame::Play(bool); 0x0600002f VikingGame::Play()",
                         ZombiePlayHash + "/" + VikingPlayHash + "/" + MapInitHash + "/" + ParticleInitHash,
@@ -486,6 +496,45 @@ public static class GameplayPatcher
             !achievements.Methods.Single(method => method.IsConstructor && !method.IsStatic).Body.Instructions.Any(item =>
                 item.OpCode == OpCodes.Ldc_R4 && item.Operand is float value && value == 1262f))
             throw new PreparationException("Achievement list spacing postcondition failed.");
+    }
+
+    private static void AddPortCredit(ModuleDefinition module, ModuleDefinition hooks)
+    {
+        var constructor = module.Types.Single(type => type.FullName == "IMAK3Z0MB1EGAEM.menu.Credits")
+            .Methods.Single(method => method.MetadataToken.ToInt32() == 0x06000133);
+        var instructions = constructor.Body.Instructions;
+        var size = instructions.Single(item => item.Offset == 0x0012);
+        var originalCredit = instructions.Single(item => item.Offset == 0x0043);
+        var nextCredit = instructions.Single(item => item.Offset == 0x005d);
+        var store = instructions.Single(item => item.Offset == 0x065c);
+        if (size.OpCode != OpCodes.Ldc_I4_S || size.Operand is not sbyte count || count != 115 ||
+            originalCredit.OpCode != OpCodes.Ldstr || originalCredit.Operand is not "and Ska Studios!" ||
+            nextCredit.OpCode != OpCodes.Ldstr || nextCredit.Operand is not "Ska Studios is" ||
+            store.OpCode != OpCodes.Stfld || store.Operand is not FieldReference field ||
+            field.FullName != "System.Text.StringBuilder[] IMAK3Z0MB1EGAEM.menu.MenuLevel::infos" ||
+            store.Previous?.OpCode != OpCodes.Ldloc_0)
+            throw new PreparationException("Credits insertion anchor differs from its guard.");
+        var hook = hooks.Types.Single(type => type.FullName == "Port.Hooks.DesktopCredits")
+            .Methods.Single(method => method.Name == "AddPortCredit" && method.IsStatic &&
+                method.Parameters.Count == 1 &&
+                method.Parameters[0].ParameterType.FullName == "System.Text.StringBuilder[]" &&
+                method.ReturnType.FullName == "System.Text.StringBuilder[]");
+        constructor.Body.GetILProcessor().InsertBefore(store,
+            constructor.Body.GetILProcessor().Create(OpCodes.Call, module.ImportReference(hook)));
+    }
+
+    private static void VerifyPortCredit(ModuleDefinition module)
+    {
+        var constructor = module.Types.Single(type => type.FullName == "IMAK3Z0MB1EGAEM.menu.Credits")
+            .Methods.Single(method => method.Name == ".ctor" && method.Parameters.Count == 0);
+        var store = constructor.Body.Instructions.Single(item => item.OpCode == OpCodes.Stfld &&
+            item.Operand is FieldReference field && field.Name == "infos");
+        if (store.Previous?.OpCode != OpCodes.Call ||
+            store.Previous.Operand is not MethodReference hook ||
+            hook.DeclaringType.FullName != "Port.Hooks.DesktopCredits" ||
+            hook.Name != "AddPortCredit" ||
+            store.Previous.Previous?.OpCode != OpCodes.Ldloc_0)
+            throw new PreparationException("Credits insertion postcondition failed.");
     }
 
     private static void CenterLeaderboards(ModuleDefinition module, ModuleDefinition hooks)
@@ -979,7 +1028,7 @@ public static class GameplayPatcher
         }
     }
 
-    private static void RemoveHelpAndOptionsInfo(ModuleDefinition module)
+    private static void PatchHelpAndOptionsInfo(ModuleDefinition module, ModuleDefinition hooks)
     {
         var constructor = module.Types.Single(type => type.FullName == "IMAK3Z0MB1EGAEM.menu.HelpAndOptions")
             .Methods.Single(method => method.MetadataToken.ToInt32() == 0x060001f9);
@@ -988,23 +1037,22 @@ public static class GameplayPatcher
         var size = instructions.Single(item => item.Offset == 0x0083);
         var array = instructions.Single(item => item.Offset == 0x0084);
         var store = instructions.Single(item => item.Offset == 0x00a5);
-        var end = instructions.Single(item => item.Offset == 0x00aa);
         if (loadThis.OpCode != OpCodes.Ldarg_0 || size.OpCode != OpCodes.Ldc_I4_2 ||
             array.OpCode != OpCodes.Newarr ||
             array.Operand is not Mono.Cecil.TypeReference arrayType || arrayType.FullName != "System.Text.StringBuilder" ||
-            store.OpCode != OpCodes.Stfld || store.Operand is not FieldReference infoField ||
-            infoField.FullName != "System.Text.StringBuilder[] IMAK3Z0MB1EGAEM.menu.MenuLevel::infos" ||
-            end.OpCode != OpCodes.Ret ||
+            store.OpCode != OpCodes.Stfld || store.Operand is not FieldReference field ||
+            field.FullName != "System.Text.StringBuilder[] IMAK3Z0MB1EGAEM.menu.MenuLevel::infos" ||
             !instructions.Any(item => item.Offset == 0x008c && item.Operand is string version && version == "Version 1.0") ||
             !instructions.Any(item => item.Offset == 0x0099 && item.Operand is string contact &&
                 contact == "Contact us: support@ska-studios.com"))
             throw new PreparationException("Help and Options info block differs from its guard.");
-        size.OpCode = OpCodes.Ldnull;
-        size.Operand = null;
-        array.OpCode = OpCodes.Stfld;
-        array.Operand = infoField;
+        var hook = hooks.Types.Single(type => type.FullName == "Port.Hooks.DesktopDisplay")
+            .Methods.Single(method => method.Name == "BuildVersionInfo" && method.IsStatic &&
+                method.Parameters.Count == 0 && method.ReturnType.FullName == "System.Text.StringBuilder[]");
+        size.OpCode = OpCodes.Call;
+        size.Operand = module.ImportReference(hook);
         var il = constructor.Body.GetILProcessor();
-        for (var instruction = array.Next; instruction != end;)
+        for (var instruction = array; instruction != store;)
         {
             var next = instruction.Next;
             il.Remove(instruction);
@@ -1016,13 +1064,18 @@ public static class GameplayPatcher
     {
         var constructor = module.Types.Single(type => type.FullName == "IMAK3Z0MB1EGAEM.menu.HelpAndOptions")
             .Methods.Single(method => method.Name == ".ctor" && method.Parameters.Count == 0);
-        var last = constructor.Body.Instructions;
-        if (last[^4].OpCode != OpCodes.Ldarg_0 || last[^3].OpCode != OpCodes.Ldnull ||
-            last[^2].OpCode != OpCodes.Stfld || last[^2].Operand is not FieldReference infoField ||
-            infoField.Name != "infos" || last[^1].OpCode != OpCodes.Ret ||
-            last.Any(item => item.Operand is string value &&
+        var instructions = constructor.Body.Instructions;
+        if (instructions[^4].OpCode != OpCodes.Ldarg_0 ||
+            instructions[^3].OpCode != OpCodes.Call ||
+            instructions[^3].Operand is not MethodReference hook ||
+            hook.DeclaringType.FullName != "Port.Hooks.DesktopDisplay" ||
+            hook.Name != "BuildVersionInfo" ||
+            instructions[^2].OpCode != OpCodes.Stfld ||
+            instructions[^2].Operand is not FieldReference field || field.Name != "infos" ||
+            instructions[^1].OpCode != OpCodes.Ret ||
+            instructions.Any(item => item.Operand is string value &&
                 (value == "Version 1.0" || value == "Contact us: support@ska-studios.com")))
-            throw new PreparationException("Help and Options info removal postcondition failed.");
+            throw new PreparationException("Help and Options build version hook postcondition failed.");
     }
 
     private static IEnumerable<Mono.Cecil.TypeDefinition> AllTypes(IEnumerable<Mono.Cecil.TypeDefinition> roots)

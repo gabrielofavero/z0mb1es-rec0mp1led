@@ -145,6 +145,15 @@ public static class DesktopDisplay
     public static (int Width, int Height)[] AvailablePresets(int displayWidth, int displayHeight) =>
         Presets.Where(preset => preset.Width <= displayWidth && preset.Height <= displayHeight).ToArray();
 
+    public static StringBuilder[] BuildVersionInfo()
+    {
+        var assembly = Assembly.GetEntryAssembly();
+        var version = assembly?.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
+            ?? assembly?.GetName().Version?.ToString(3)
+            ?? "unknown";
+        return [new StringBuilder($"Version {version}")];
+    }
+
     public static void AttachSettingsMenu()
     {
         if (game is null) return;

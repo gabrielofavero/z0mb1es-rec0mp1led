@@ -11,6 +11,6 @@ Dot-source the developer commands from the repository root with `. .\dev.ps1`:
 - `build-game` compiles the solution, prepares the supported local XAP, and replaces the single staged build at ignored `private/run/current/`. It builds in temporary directories and keeps the previous runnable build until the new one is staged. It accepts optional `-XapPath` and `-FfmpegPath` parameters.
 - `run-game` launches `private/run/current/` directly. Use `run-game -List` to show that build without launching; `-Build current` is also accepted.
 - `build-installer` invokes the existing installer build with the pinned converter at `private/tooling/ffmpeg.exe` and the local runtime-pack cache. It accepts the installer script's optional path and source parameters.
-- `run-installer` opens `installer/out/Z0MB1ES-0.1.0.exe` after it has been built. Pass `-InstallerPath <path>` to open a different setup executable.
+- `run-installer` opens `installer/out/Z0MB1ES-1.0.0.exe` after it has been built. Pass `-InstallerPath <path>` to open a different setup executable.
 
 `build-installer-art.py` renders the authored square icon and cover SVGs into committed executable icons and Inno Setup wizard images. It uses local Edge or Chrome plus Pillow and NumPy only on the developer machine; see [artwork](../assets/README.md).

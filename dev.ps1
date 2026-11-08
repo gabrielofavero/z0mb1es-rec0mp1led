@@ -162,7 +162,7 @@ function build-installer {
         [string]$PyInstallerRoot = 'private/tooling/pyinstaller'
     )
     $ErrorActionPreference = 'Stop'
-    Push-Location $script:DevRoot
+    Push-Location $script:DevRoot1.0.0
     try {
         & (Join-Path $script:DevRoot 'installer/build.ps1') -FfmpegPath $FfmpegPath `
             -RuntimePackSource $RuntimePackSource -IsccPath $IsccPath -PyInstallerRoot $PyInstallerRoot

@@ -259,8 +259,9 @@ public static class DesktopInput
 
         var level = active ? ActiveMenuLevel() : null;
         var leaderboard = level?.GetType().FullName == "IMAK3Z0MB1EGAEM.menu.Leaderboards";
-        if (level?.GetType().FullName == "IMAK3Z0MB1EGAEM.menu.Achievements")
-            ScrollAchievements(level, inside ? wheelDelta : 0, pad.ThumbSticks.Right.Y,
+        if (level?.GetType().FullName is "IMAK3Z0MB1EGAEM.menu.Achievements" or
+            "IMAK3Z0MB1EGAEM.menu.Credits")
+            ScrollLongMenu(level, inside ? wheelDelta : 0, pad.ThumbSticks.Right.Y,
                 (float)frameTimeField!.GetValue(null)!);
         if (leaderboard && level is not null && LeaderboardIsReading(level))
             menuLevelScrollField!.SetValue(level, 0f);
@@ -437,7 +438,7 @@ public static class DesktopInput
     private static Vector2 Clamp(Vector2 vector) => vector.LengthSquared() > 1
         ? Vector2.Normalize(vector) : vector;
 
-    private static void ScrollAchievements(object level, int wheelDelta, float rightStickY, float frameTime)
+    private static void ScrollLongMenu(object level, int wheelDelta, float rightStickY, float frameTime)
     {
         var current = (float)menuLevelScrollField!.GetValue(level)!;
         var maximum = (float)menuLevelScrollMaxField!.GetValue(level)!;

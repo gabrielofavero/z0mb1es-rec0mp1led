@@ -69,7 +69,7 @@ def main() -> None:
             (notices / output_name).write_bytes(file.read())
 
     readme = (
-        "FFmpeg converter corresponding source for Z0MB1ES-0.1.0.exe\n\n"
+        "FFmpeg converter corresponding source for Z0MB1ES-1.0.0.exe\n\n"
         f"Windows ffmpeg.exe SHA-256: {binary_hash}\n"
         "FFmpeg revision: 239f2c733d (8.1.1)\n"
         "libogg: 1.3.6; libvorbis: 1.3.7\n\n"
@@ -86,7 +86,7 @@ def main() -> None:
     (notices / "FFmpeg-SOURCE.txt").write_text(
         f"Bundled ffmpeg.exe SHA-256: {binary_hash}. "
         "Matching source for the bundled ffmpeg.exe is the companion download "
-        "FFmpeg-8.1.1-source.zip. Distribute that ZIP alongside Z0MB1ES-0.1.0.exe "
+        "FFmpeg-8.1.1-source.zip. Distribute that ZIP alongside Z0MB1ES-1.0.0.exe "
         "at the same release location. It contains FFmpeg, libogg, libvorbis, and "
         "the build scripts.\n",
         encoding="utf-8",

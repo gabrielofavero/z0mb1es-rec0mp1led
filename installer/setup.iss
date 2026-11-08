@@ -4,12 +4,12 @@
 [Setup]
 AppId={{F393AB61-549B-416A-B34E-E1AB2E96AF07}
 AppName=Z0MB1ES (on teh ph0ne)
-AppVersion=0.1.0
+AppVersion=1.0.0
 DefaultDirName={code:DefaultInstallDir}
 DefaultGroupName=Z0MB1ES (on teh ph0ne)
 PrivilegesRequired=lowest
 OutputDir=out
-OutputBaseFilename=Z0MB1ES-0.1.0
+OutputBaseFilename=Z0MB1ES-1.0.0
 Compression=lzma2/fast
 SolidCompression=no
 WizardStyle=modern

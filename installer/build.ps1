@@ -17,7 +17,7 @@ if ((Get-FileHash -LiteralPath $converter -Algorithm SHA256).Hash -ine $expected
 }
 python (Join-Path $PSScriptRoot 'ffmpeg/package-source.py') --ffmpeg-path $converter
 if ($LASTEXITCODE -ne 0) { throw 'FFmpeg source bundle or license packaging failed.' }
-$priorSetup = Join-Path $PSScriptRoot 'out/Z0MB1ES-0.1.0.exe'
+$priorSetup = Join-Path $PSScriptRoot 'out/Z0MB1ES-1.0.0.exe'
 if (Test-Path -LiteralPath $priorSetup) { Remove-Item -LiteralPath $priorSetup -Force }
 
 $expectedPayload = [System.IO.Path]::GetFullPath((Join-Path $repo 'installer/out/payload'))

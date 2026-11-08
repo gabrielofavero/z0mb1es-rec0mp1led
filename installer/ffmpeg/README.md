@@ -18,6 +18,6 @@ docker run --rm -v "${PWD}:/work" zombies-ffmpeg-build:1
 python installer/ffmpeg/package-source.py
 ```
 
-The build writes `private/tooling/ffmpeg.exe`. The packaging script verifies the pinned binary and source hashes, creates `installer/out/FFmpeg-8.1.1-source.zip`, and extracts full license texts to `installer/out/ffmpeg-notices/`. Ship the source ZIP beside `Z0MB1ES-0.1.0.exe` at the same release location. The source ZIP contains all three complete source archives and the build scripts. Include both files in every mirror and retain both for as long as the setup is offered. The setup itself includes the license and source-location notices in the installed `current/notices/` directory.
+The build writes `private/tooling/ffmpeg.exe`. The packaging script verifies the pinned binary and source hashes, creates `installer/out/FFmpeg-8.1.1-source.zip`, and extracts full license texts to `installer/out/ffmpeg-notices/`. Ship the source ZIP beside `Z0MB1ES-1.0.0.exe` at the same release location. The source ZIP contains all three complete source archives and the build scripts. Include both files in every mirror and retain both for as long as the setup is offered. The setup itself includes the license and source-location notices in the installed `current/notices/` directory.
 
 This is a separate executable. The project license can remain as it is. Any future FFmpeg binary replacement needs its own matching-source package and notice review.
