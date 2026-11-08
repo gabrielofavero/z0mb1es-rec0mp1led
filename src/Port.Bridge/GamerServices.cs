@@ -58,7 +58,7 @@ public static class Guide
 public class Gamer
 {
     public static SignedInGamerCollection SignedInGamers => SignedInGamerCollection.LocalGamers;
-    public string Gamertag => "Local Player";
+    public string Gamertag => PlayerIdentity.Name;
     public LeaderboardWriter LeaderboardWriter =>
         Unavailable.Api<LeaderboardWriter>("Gamer.LeaderboardWriter");
 }

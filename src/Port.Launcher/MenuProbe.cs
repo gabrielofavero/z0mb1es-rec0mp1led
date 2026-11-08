@@ -2,6 +2,7 @@ using System.Collections;
 using System.Reflection;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using Microsoft.Xna.Framework.Input;
 using Port.Hooks;
 
 /// <summary>Developer diagnostic for original menu construction and drawing.</summary>
@@ -17,6 +18,8 @@ internal sealed class MenuProbe
     private bool captured;
     private bool touchOpened;
     private bool touchCaptured;
+    private bool gameplayOpened;
+    private bool gameplayCaptured;
     private bool displayOpened;
     private bool displayCaptured;
     private bool resolutionOpened;
@@ -34,6 +37,9 @@ internal sealed class MenuProbe
     public bool ShouldCaptureTouch(int updates) => current == 5 && touchOpened &&
         !touchCaptured && updates - openedAt >= 2;
     public void MarkTouchCaptured() => touchCaptured = true;
+    public bool ShouldCaptureGameplay(int updates) => current == 5 && gameplayOpened &&
+        !gameplayCaptured && updates - openedAt >= 2;
+    public void MarkGameplayCaptured() => gameplayCaptured = true;
     public bool ShouldCaptureDisplay(int updates) => current == 5 && displayOpened &&
         !displayCaptured && updates - openedAt >= 2;
     public void MarkDisplayCaptured() => displayCaptured = true;
@@ -103,14 +109,14 @@ internal sealed class MenuProbe
                 MathF.Abs(locations[2].X - locations[1].X - (current == 2 ? 100f : 110f)) > 0.01f)
                 throw new InvalidOperationException($"Menu {current} lost its staggered, centered layout.");
         }
-        if (current == 5 && !touchOpened)
+        if (current == 5 && !gameplayOpened)
         {
             var settingsItems = (Array)baseType.GetField("item", Instance)!.GetValue(level)!;
             var textField = settingsItems.GetValue(5)!.GetType().GetField("text", Instance)!;
             if (settingsItems.Length != 8 ||
                 (string?)textField.GetValue(settingsItems.GetValue(5)) != "GRAPH1CS" ||
                 (string?)textField.GetValue(settingsItems.GetValue(6)) != "AUD10" ||
-                (string?)textField.GetValue(settingsItems.GetValue(7)) != "1NPUT")
+                (string?)textField.GetValue(settingsItems.GetValue(7)) != "GAMEPLAY")
                 throw new InvalidOperationException("Settings category order differs.");
             var positions = Enumerable.Range(5, 3).Select(index =>
                 (Vector2)settingsItems.GetValue(index)!.GetType().GetField("loc", Instance)!
@@ -121,9 +127,40 @@ internal sealed class MenuProbe
                 MathF.Abs(positions[1].X - (centeredX + 115f)) > 0.01f ||
                 MathF.Abs(positions[2].X - (centeredX + 15f)) > 0.01f)
                 throw new InvalidOperationException("Settings categories lost their staggered layout.");
+            level.GetType().GetMethod("Click", Instance)!.Invoke(level, ["GAMEPLAY"]);
+            if (!DesktopDisplay.IsGameplayPage)
+                throw new InvalidOperationException("Settings Gameplay entry did not open.");
+            var gameplayItems = (Array)baseType.GetField("item", Instance)!.GetValue(level)!;
+            if (gameplayItems.Length != 4 ||
+                (string?)textField.GetValue(gameplayItems.GetValue(0)) != "PLAYER NAME" ||
+                (string?)textField.GetValue(gameplayItems.GetValue(1)) != "  " + Port.Bridge.PlayerIdentity.Name ||
+                (string?)textField.GetValue(gameplayItems.GetValue(2)) != "1NPUT")
+                throw new InvalidOperationException("Gameplay settings rows differ.");
+            gameplayOpened = true;
+            openedAt = updates;
+            return;
+        }
+        if (current == 5 && !touchOpened)
+        {
+            if (!gameplayCaptured || !DesktopDisplay.IsGameplayPage)
+                throw new InvalidOperationException("Gameplay settings page was not rendered.");
+            level.GetType().GetMethod("Click", Instance)!.Invoke(level, ["PLAYER NAME"]);
+            if (!DesktopDisplay.CapturesInput)
+                throw new InvalidOperationException("Player Name did not capture text input.");
+            var textInput = typeof(TextInputEXT).GetMethod("OnTextInput", Static)!;
+            for (var i = 0; i < 17; i++) textInput.Invoke(null, ['A']);
+            var editingItems = (Array)baseType.GetField("item", Instance)!.GetValue(level)!;
+            var editingText = (string?)editingItems.GetValue(1)!.GetType().GetField("text", Instance)!
+                .GetValue(editingItems.GetValue(1));
+            if (editingText != "  " + new string('A', 16) + "_")
+                throw new InvalidOperationException("Player Name did not enforce the 16-character limit.");
+            level.GetType().GetMethod("Cancel", Instance)!.Invoke(level, null);
+            if (DesktopDisplay.IsGameplayPage)
+                throw new InvalidOperationException("Player Name cancel did not return to Settings.");
+            level.GetType().GetMethod("Click", Instance)!.Invoke(level, ["GAMEPLAY"]);
             level.GetType().GetMethod("Click", Instance)!.Invoke(level, ["1NPUT"]);
             if (!DesktopDisplay.IsTouchPage)
-                throw new InvalidOperationException("Settings T0UCH entry did not open.");
+                throw new InvalidOperationException("Gameplay Input entry did not open.");
             touchOpened = true;
             openedAt = updates;
             return;
@@ -133,8 +170,11 @@ internal sealed class MenuProbe
             if (!touchCaptured || !DesktopDisplay.IsTouchPage)
                 throw new InvalidOperationException("Native Touch settings page was not rendered.");
             level.GetType().GetMethod("Click", Instance)!.Invoke(level, ["BACK"]);
-            if (DesktopDisplay.IsTouchPage)
-                throw new InvalidOperationException("Touch settings page did not return to Settings.");
+            if (DesktopDisplay.IsTouchPage || !DesktopDisplay.IsGameplayPage)
+                throw new InvalidOperationException("Input settings page did not return to Gameplay.");
+            level.GetType().GetMethod("Click", Instance)!.Invoke(level, ["BACK"]);
+            if (DesktopDisplay.IsGameplayPage)
+                throw new InvalidOperationException("Gameplay settings page did not return to Settings.");
             level.GetType().GetMethod("Click", Instance)!.Invoke(level, ["AUD10"]);
             var audioItems = (Array)baseType.GetField("item", Instance)!.GetValue(level)!;
             if (audioItems.Length != 6 ||

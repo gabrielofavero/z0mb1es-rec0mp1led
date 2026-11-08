@@ -1,6 +1,6 @@
 # Desktop saves and offline services
 
-The desktop build runs the supported, user supplied XAP as a full game. It has one local profile called **Local Player** and does not sign in to Xbox Live. The original trial check sees full mode. Phone marketplace and online service features are unavailable.
+The desktop build runs the supported, user supplied XAP as a full game. It has one local profile named **Local Player** by default; this name is supplied by the port's gamer service bridge, not the original phone game. It can be changed under Settings → Gameplay → Player Name and is saved in `player-name.json` beside the desktop save. The local profile does not sign in to Xbox Live. The original trial check sees full mode. Phone marketplace and online service features are unavailable.
 
 The original version 101 save layout remains in use: a version byte, profile kills and 20 achievement flags, six settings flags, and custom image records. The ten original serializers now take `Stream` rather than `IsolatedStorageFileStream`; their method bodies are retained. `StorageMgr.Read` and `StorageMgr.Write` call the authored desktop storage hook. The original trial guard on writes remains.
 

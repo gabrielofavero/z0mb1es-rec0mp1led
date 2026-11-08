@@ -36,6 +36,24 @@ try
     if (Gamer.SignedInGamers.Count != 1 || Gamer.SignedInGamers[PlayerIndex.One].IsSignedInToLive)
         throw new Exception("Local offline profile is unavailable or claims Xbox Live sign-in.");
     var local = Gamer.SignedInGamers[PlayerIndex.One];
+    if (local.Gamertag != "Local Player")
+        throw new Exception("Offline gamer did not start with the port's default name.");
+    var identityDirectory = Path.Combine(Path.GetTempPath(), "z0mb1es-player-name-" + Guid.NewGuid().ToString("N"));
+    try
+    {
+        PlayerIdentity.Configure(identityDirectory);
+        if (!PlayerIdentity.TrySetName("Gabriel") || local.Gamertag != "Gabriel")
+            throw new Exception("Offline gamer did not adopt the edited name.");
+        PlayerIdentity.Configure(identityDirectory);
+        if (local.Gamertag != "Gabriel" || PlayerIdentity.TrySetName(new string('A', 17)) ||
+            PlayerIdentity.TrySetName(" bad ") || local.Gamertag != "Gabriel")
+            throw new Exception("Offline gamer name persistence or length validation failed.");
+    }
+    finally
+    {
+        PlayerIdentity.Configure(Path.Combine(identityDirectory, "empty"));
+        if (Directory.Exists(identityDirectory)) Directory.Delete(identityDirectory, recursive: true);
+    }
     var pending = local.BeginGetAchievements(null!, null!);
     if (!pending.IsCompleted || local.EndGetAchievements(pending).Count != 20)
         throw new Exception("Local achievement list did not complete.");

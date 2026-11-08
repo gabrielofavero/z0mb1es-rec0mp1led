@@ -6,6 +6,7 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using Microsoft.Xna.Framework.GamerServices;
+using Port.Bridge;
 using Port.Hooks;
 
 internal static class RunSession
@@ -83,6 +84,7 @@ internal static class RunSession
             var content = Path.GetFullPath(args[3]);
             VerifyInputs(dll, content);
             DesktopStorage.Configure(saveDirectory);
+            PlayerIdentity.Configure(DesktopStorage.SaveDirectory);
             AssetChoices.Initialize(artStore, artNormal, artViking, artEndless);
             Directory.SetCurrentDirectory(content);
             var assembly = Assembly.LoadFrom(dll);
@@ -421,6 +423,11 @@ internal sealed class RunMonitor : DrawableGameComponent
         {
             CaptureScreen("touch-page", "MENU");
             menuProbe.MarkTouchCaptured();
+        }
+        if (menuProbe?.ShouldCaptureGameplay(Updates) == true)
+        {
+            CaptureScreen("gameplay-page", "MENU");
+            menuProbe.MarkGameplayCaptured();
         }
         if (menuProbe?.ShouldCaptureAsset(Updates) == true)
         {

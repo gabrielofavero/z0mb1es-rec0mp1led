@@ -6,6 +6,7 @@ using System.Text.Json;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
+using Port.Bridge;
 
 namespace Port.Hooks;
 
@@ -49,6 +50,7 @@ public static class DesktopDisplay
     private static Array? settingsItems;
     private static Array? audioItems;
     private static Array? touchItems;
+    private static Array? gameplayItems;
     private static Array? displayItems;
     private static Array? resolutionItems;
     private static Array? customItems;
@@ -57,6 +59,7 @@ public static class DesktopDisplay
     private static bool displayPage;
     private static bool resolutionPage;
     private static bool touchPage;
+    private static bool gameplayPage;
     private static bool audioPage;
     private static bool customPage;
     private static bool assetPage;
@@ -66,6 +69,7 @@ public static class DesktopDisplay
     private static GamePadState previousPad;
     private static string widthText = "600";
     private static string heightText = "360";
+    private static string nameText = PlayerIdentity.DefaultName;
 
     public static bool CapturesInput => captureInput;
     public static Vector2 SceneSize => new(sceneSize.Width, sceneSize.Height);
@@ -75,6 +79,7 @@ public static class DesktopDisplay
     public static bool IsDisplayPage => displayPage;
     public static bool IsResolutionPage => resolutionPage;
     public static bool IsTouchPage => touchPage;
+    public static bool IsGameplayPage => gameplayPage;
     public static bool IsCustomPage => customPage;
     public static bool IsAssetPage => assetPage;
     internal static IntPtr GameWindowHandle => game?.Window.Handle ?? IntPtr.Zero;
@@ -115,13 +120,14 @@ public static class DesktopDisplay
         itemFlagField = itemLocationField = itemTiltField = null;
         menuLevels = null;
         menuOffsetApplied = 0;
-        originalItems = settingsItems = audioItems = touchItems = displayItems = resolutionItems = customItems = assetItems = null;
+        originalItems = settingsItems = audioItems = touchItems = gameplayItems = displayItems = resolutionItems = customItems = assetItems = null;
         previousInfos = null;
-        displayPage = resolutionPage = touchPage = audioPage = customPage = assetPage = captureInput = false;
+        displayPage = resolutionPage = touchPage = gameplayPage = audioPage = customPage = assetPage = captureInput = false;
         editing = -1;
         preferences = Load();
         widthText = preferences.Width.ToString();
         heightText = preferences.Height.ToString();
+        nameText = PlayerIdentity.Name;
     }
 
     public static void ApplyStartup(bool windowed)
@@ -167,7 +173,12 @@ public static class DesktopDisplay
         Array.Copy(oldItems, settingsItems, 5);
         settingsItems.SetValue(Item("GRAPH1CS", 150, -85), 5);
         settingsItems.SetValue(Item("AUD10", 200, 115), 6);
-        settingsItems.SetValue(Item("1NPUT", 250, 15), 7);
+        settingsItems.SetValue(Item("GAMEPLAY", 250, 15), 7);
+        gameplayItems = Array.CreateInstance(itemType, 4);
+        gameplayItems.SetValue(Item("PLAYER NAME", 105, 0, 0.7f), 0);
+        gameplayItems.SetValue(Item("  " + nameText, 145, 0, 0.7f), 1);
+        gameplayItems.SetValue(Item("1NPUT", 195), 2);
+        gameplayItems.SetValue(Item("BACK", 245), 3);
         audioItems = Array.CreateInstance(itemType, 6);
         Array.Copy(oldItems, audioItems, 5);
         audioItems.SetValue(Item("BACK", 250), 5);
@@ -231,7 +242,7 @@ public static class DesktopDisplay
 
     private static void ShowSettingsPage()
     {
-        touchPage = displayPage = resolutionPage = audioPage = customPage = assetPage = false;
+        touchPage = gameplayPage = displayPage = resolutionPage = audioPage = customPage = assetPage = false;
         for (var i = 0; i < 3; i++) PlaceOriginal(i, false, Vector2.Zero);
         PlaceOriginal(3, false, Vector2.Zero);
         PlaceOriginal(4, false, Vector2.Zero);
@@ -241,7 +252,7 @@ public static class DesktopDisplay
 
     private static void ShowTouchPage()
     {
-        displayPage = resolutionPage = audioPage = customPage = assetPage = false;
+        gameplayPage = displayPage = resolutionPage = audioPage = customPage = assetPage = false;
         touchPage = true;
         PlaceOriginal(0, true, new Vector2(LogicalWidth / (2f * MenuScale) - 27.5f, 100));
         PlaceOriginal(1, true, new Vector2(LogicalWidth / (2f * MenuScale) + 27.5f, 150));
@@ -252,9 +263,18 @@ public static class DesktopDisplay
         titleField!.SetValue(settingsMenu, "1nput");
     }
 
+    private static void ShowGameplayPage()
+    {
+        touchPage = displayPage = resolutionPage = audioPage = customPage = assetPage = false;
+        gameplayPage = true;
+        itemsField!.SetValue(settingsMenu, gameplayItems);
+        titleField!.SetValue(settingsMenu, "gameplay");
+        RefreshLabels();
+    }
+
     private static void ShowAudioPage()
     {
-        displayPage = resolutionPage = touchPage = customPage = assetPage = false;
+        displayPage = resolutionPage = touchPage = gameplayPage = customPage = assetPage = false;
         audioPage = true;
         for (var i = 0; i < 3; i++) PlaceOriginal(i, false, Vector2.Zero);
         PlaceOriginal(3, true, new Vector2(LogicalWidth / (2f * MenuScale) - 72.5f, 135));
@@ -265,7 +285,7 @@ public static class DesktopDisplay
 
     private static void ShowDisplayPage()
     {
-        touchPage = resolutionPage = audioPage = customPage = assetPage = false;
+        touchPage = gameplayPage = resolutionPage = audioPage = customPage = assetPage = false;
         displayPage = true;
         titleField!.SetValue(settingsMenu, "graph1cs");
         itemsField!.SetValue(settingsMenu, displayItems);
@@ -274,7 +294,7 @@ public static class DesktopDisplay
 
     private static void ShowResolutionPage()
     {
-        displayPage = touchPage = audioPage = customPage = assetPage = false;
+        displayPage = touchPage = gameplayPage = audioPage = customPage = assetPage = false;
         resolutionPage = true;
         titleField!.SetValue(settingsMenu, "res0lut10n");
         itemsField!.SetValue(settingsMenu, resolutionItems);
@@ -283,7 +303,7 @@ public static class DesktopDisplay
 
     private static void ShowCustomPage()
     {
-        displayPage = resolutionPage = audioPage = assetPage = false;
+        displayPage = resolutionPage = gameplayPage = audioPage = assetPage = false;
         customPage = true;
         widthText = preferences.Width.ToString();
         heightText = preferences.Height.ToString();
@@ -295,7 +315,7 @@ public static class DesktopDisplay
     private static void ShowAssetPage()
     {
         AssetChoices.Refresh();
-        displayPage = resolutionPage = touchPage = audioPage = customPage = false;
+        displayPage = resolutionPage = touchPage = gameplayPage = audioPage = customPage = false;
         assetPage = true;
         titleField!.SetValue(settingsMenu, "assets");
         itemsField!.SetValue(settingsMenu, assetItems);
@@ -305,14 +325,14 @@ public static class DesktopDisplay
     public static bool HandleSettingsClick(object settings, string text)
     {
         if (!ReferenceEquals(settings, settingsMenu)) return false;
-        if (!displayPage && !resolutionPage && !touchPage && !audioPage && !customPage && !assetPage)
+        if (!displayPage && !resolutionPage && !touchPage && !gameplayPage && !audioPage && !customPage && !assetPage)
         {
-            if (text is not ("GRAPH1CS" or "AUD10" or "1NPUT")) return false;
+            if (text is not ("GRAPH1CS" or "AUD10" or "GAMEPLAY")) return false;
             previousInfos = infosField!.GetValue(settings);
             infosField.SetValue(settings, null);
-            if (text == "1NPUT")
+            if (text == "GAMEPLAY")
             {
-                ShowTouchPage();
+                ShowGameplayPage();
                 return true;
             }
             if (text == "AUD10") ShowAudioPage();
@@ -328,7 +348,15 @@ public static class DesktopDisplay
         if (touchPage)
         {
             if (text != "BACK") return false;
-            CloseDisplayPage();
+            ReturnToGameplayPage();
+            return true;
+        }
+        if (gameplayPage)
+        {
+            if (text == "PLAYER NAME" || text.StartsWith("  ", StringComparison.Ordinal)) StartEditingName();
+            else if (text == "1NPUT") ShowTouchPage();
+            else if (text == "BACK") CloseDisplayPage();
+            else return false;
             return true;
         }
         if (assetPage)
@@ -405,7 +433,7 @@ public static class DesktopDisplay
 
     public static bool HandleSettingsCancel(object settings)
     {
-        if (!ReferenceEquals(settings, settingsMenu) || (!displayPage && !resolutionPage && !touchPage && !audioPage && !customPage && !assetPage)) return false;
+        if (!ReferenceEquals(settings, settingsMenu) || (!displayPage && !resolutionPage && !touchPage && !gameplayPage && !audioPage && !customPage && !assetPage)) return false;
         if (customPage)
         {
             ReturnToResolutionPage();
@@ -416,8 +444,20 @@ public static class DesktopDisplay
             ReturnToGraphicsPage();
             return true;
         }
+        if (touchPage)
+        {
+            ReturnToGameplayPage();
+            return true;
+        }
         CloseDisplayPage();
         return true;
+    }
+
+    private static void ReturnToGameplayPage()
+    {
+        captureInput = true;
+        infosField!.SetValue(settingsMenu, null);
+        ShowGameplayPage();
     }
 
     private static void ReturnToResolutionPage()
@@ -438,6 +478,7 @@ public static class DesktopDisplay
 
     private static void CloseDisplayPage()
     {
+        StopEditingName();
         editing = -1;
         captureInput = true;
         ShowSettingsPage();
@@ -455,6 +496,45 @@ public static class DesktopDisplay
         RefreshLabels();
     }
 
+    private static void StartEditingName()
+    {
+        editing = 1;
+        captureInput = true;
+        nameText = "";
+        previousKeyboard = Keyboard.GetState();
+        previousPad = GamePad.GetState(PlayerIndex.One);
+        TextInputEXT.TextInput += OnNameTextInput;
+        var bounds = game!.Window.ClientBounds;
+        TextInputEXT.SetInputRectangle(new Rectangle(bounds.Width / 4, bounds.Height / 3,
+            bounds.Width / 2, 36));
+        TextInputEXT.StartTextInput();
+        SetInfo("ENTER/A TO SAVE, ESC/B TO CANCEL. MAX 16 CHARACTERS.");
+        RefreshLabels();
+    }
+
+    private static void StopEditingName()
+    {
+        if (editing != 1) return;
+        TextInputEXT.TextInput -= OnNameTextInput;
+        TextInputEXT.StopTextInput();
+        nameText = PlayerIdentity.Name;
+        editing = -1;
+        if (settingsMenu is not null) infosField!.SetValue(settingsMenu, null);
+        RefreshLabels();
+    }
+
+    private static void OnNameTextInput(char character)
+    {
+        if (editing != 1) return;
+        if (character == '\b' && nameText.Length > 0) nameText = nameText[..^1];
+        else if (nameText.Length < PlayerIdentity.MaxLength &&
+            (char.IsAsciiLetterOrDigit(character) || character is ' ' or '-' or '_' or '\''))
+        {
+            if (character != ' ' || nameText.Length > 0) nameText += character;
+        }
+        RefreshLabels();
+    }
+
     public static void Update()
     {
         if (!captureInput || game is null || !game.IsActive) return;
@@ -464,7 +544,21 @@ public static class DesktopDisplay
         bool PadPressed(Buttons button) => pad.IsButtonDown(button) && !previousPad.IsButtonDown(button);
         if (editing >= 0)
         {
-            if (Pressed(Keys.Escape) || PadPressed(Buttons.B))
+            if (editing == 1)
+            {
+                if (Pressed(Keys.Escape) || PadPressed(Buttons.B)) StopEditingName();
+                else if (Pressed(Keys.Enter) || PadPressed(Buttons.A))
+                {
+                    var candidate = nameText.Trim();
+                    if (PlayerIdentity.IsValid(candidate))
+                    {
+                        if (PlayerIdentity.TrySetName(candidate)) StopEditingName();
+                        else SetInfo("COULD NOT SAVE PLAYER NAME.");
+                    }
+                    else SetInfo("TYPE A NAME (1-16 CHARACTERS).");
+                }
+            }
+            else if (Pressed(Keys.Escape) || PadPressed(Buttons.B))
             {
                 widthText = preferences.Width.ToString();
                 heightText = preferences.Height.ToString();
@@ -500,7 +594,9 @@ public static class DesktopDisplay
 
     private static void RefreshLabels()
     {
-        if (displayItems is null || resolutionItems is null || customItems is null || assetItems is null || itemTextField is null) return;
+        if (displayItems is null || resolutionItems is null || customItems is null || assetItems is null || gameplayItems is null || itemTextField is null) return;
+        itemTextField.SetValue(gameplayItems.GetValue(1),
+            $"  {nameText}{(editing == 1 ? "_" : "")}");
         var displayLabels = new[]
         {
             $"M0DE: {preferences.Mode.ToUpperInvariant()}",
@@ -775,6 +871,7 @@ public static class DesktopDisplay
         Shift(settingsItems);
         Shift(audioItems);
         Shift(touchItems);
+        Shift(gameplayItems);
         Shift(displayItems);
         Shift(resolutionItems);
         Shift(customItems);

@@ -13,8 +13,8 @@ namespace Port.Prepare;
 public static class GameplayPatcher
 {
     private const string OriginalHash = "7b819cb562826ae4d2592ff741877e76da0e57bfbe48192aabb79319fdb36823";
-    private const string DebugHooksHash = "5e43a8009566ba5f5a909fea9f4b72c29b9f3fb63c425ac280f28477e1f71e2b";
-    private const string ReleaseHooksHash = "ed92630ae8c407860b8332db7654f827068b4b9fc208a2c3de390e811983532a";
+    private const string DebugHooksHash = "37a5e5a2a3a1221e4c0373c2c567d957712c04ea96b3d114801a665932b0490a";
+    private const string ReleaseHooksHash = "5663e442789411ad0d1d2f33463e88a191758aa247f264bd6fc46a1382c290e9";
     private const string OriginalMethodBodyHash = "54407b733f8c2d7cdc67534f66899e99191731e2e0beeed8481bc673ff54f425";
     private const string TouchBodyHash = "5d5aea53560307207b175bab14d39138756165598972d7604491f4cd44d7bfc6";
     private const string StorageWriteHash = "887e2f79ecea6543a5ba56aecd08b4c6c82dcda8b790ee81a3e8e5a568249433";
