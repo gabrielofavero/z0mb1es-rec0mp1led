@@ -89,6 +89,20 @@ internal sealed class MenuProbe
         }
         if (!active || alpha < 0.9f || !captured)
             throw new InvalidOperationException($"Menu probe level {current} did not remain visible.");
+        if (current is 2 or 3)
+        {
+            var rows = (Array)baseType.GetField("item", Instance)!.GetValue(level)!;
+            var menuScale = (float)game.GetType().GetField("MENUSCALE", Static)!.GetValue(null)!;
+            var centeredX = DesktopDisplay.SceneSize.X / (2f * menuScale);
+            var locations = rows.Cast<object>().Select(row =>
+                (Vector2)row.GetType().GetField("loc", Instance)!.GetValue(row)!).ToArray();
+            var minX = locations.Min(position => position.X);
+            var maxX = locations.Max(position => position.X);
+            if (locations.Length != 3 || MathF.Abs((minX + maxX) / 2f - centeredX) > 0.01f ||
+                MathF.Abs(locations[1].X - locations[0].X - 100f) > 0.01f ||
+                MathF.Abs(locations[2].X - locations[1].X - (current == 2 ? 100f : 110f)) > 0.01f)
+                throw new InvalidOperationException($"Menu {current} lost its staggered, centered layout.");
+        }
         if (current == 5 && !touchOpened)
         {
             var settingsItems = (Array)baseType.GetField("item", Instance)!.GetValue(level)!;
@@ -98,12 +112,15 @@ internal sealed class MenuProbe
                 (string?)textField.GetValue(settingsItems.GetValue(6)) != "AUD10" ||
                 (string?)textField.GetValue(settingsItems.GetValue(7)) != "1NPUT")
                 throw new InvalidOperationException("Settings category order differs.");
-            var location = (Vector2)settingsItems.GetValue(5)!.GetType()
-                .GetField("loc", Instance)!.GetValue(settingsItems.GetValue(5))!;
+            var positions = Enumerable.Range(5, 3).Select(index =>
+                (Vector2)settingsItems.GetValue(index)!.GetType().GetField("loc", Instance)!
+                    .GetValue(settingsItems.GetValue(index))!).ToArray();
             var menuScale = (float)game.GetType().GetField("MENUSCALE", Static)!.GetValue(null)!;
-            var centeredX = 250 + (DesktopDisplay.SceneSize.X - DesktopDisplay.LogicalWidth) / (2f * menuScale);
-            if (MathF.Abs(location.X - centeredX) > 0.01f)
-                throw new InvalidOperationException($"Settings items are not centered: {location.X} versus {centeredX}.");
+            var centeredX = DesktopDisplay.SceneSize.X / (2f * menuScale);
+            if (MathF.Abs(positions[0].X - (centeredX - 85f)) > 0.01f ||
+                MathF.Abs(positions[1].X - (centeredX + 115f)) > 0.01f ||
+                MathF.Abs(positions[2].X - (centeredX + 15f)) > 0.01f)
+                throw new InvalidOperationException("Settings categories lost their staggered layout.");
             level.GetType().GetMethod("Click", Instance)!.Invoke(level, ["1NPUT"]);
             if (!DesktopDisplay.IsTouchPage)
                 throw new InvalidOperationException("Settings T0UCH entry did not open.");

@@ -13,8 +13,8 @@ namespace Port.Prepare;
 public static class GameplayPatcher
 {
     private const string OriginalHash = "7b819cb562826ae4d2592ff741877e76da0e57bfbe48192aabb79319fdb36823";
-    private const string DebugHooksHash = "8e860a7ba8d7985b73ef18792928c66a872e40bb6cab5bb6bbdf31d8dd4662b1";
-    private const string ReleaseHooksHash = "bc3eb92b525d7c1e1c635c9ab61a55c52bb75dc019e83dafd389bc2d442f92d4";
+    private const string DebugHooksHash = "3fe659440cef9a20e363855129d40744c027ab30abf811972dc140a8f68ca702";
+    private const string ReleaseHooksHash = "56deea950f61541dff58aac7ac922830e35506c6ed97ae7437852aed1efa0e7e";
     private const string OriginalMethodBodyHash = "54407b733f8c2d7cdc67534f66899e99191731e2e0beeed8481bc673ff54f425";
     private const string TouchBodyHash = "5d5aea53560307207b175bab14d39138756165598972d7604491f4cd44d7bfc6";
     private const string StorageWriteHash = "887e2f79ecea6543a5ba56aecd08b4c6c82dcda8b790ee81a3e8e5a568249433";
@@ -202,6 +202,11 @@ public static class GameplayPatcher
                         GameDrawHash + "/" + SettingsClickHash + "/" + SettingsCancelHash,
                         "draw on a full-resolution scene target through transformed SpriteBatch calls and route native Display page actions to Port.Hooks.DesktopDisplay",
                         "original game coordinates and Settings actions remain intact while imported art retains source detail"),
+                    new PatchRecord("gameplay-call", OriginalHash,
+                        "IMAK3Z0MB1EGAEM.map.MapMan::DrawClassicMapOverlay(SpriteBatch)",
+                        OriginalHash,
+                        "replace both Endless room-mask right-edge constants with the current logical scene width",
+                        "unrevealed rooms remain dark across ultrawide scenes"),
                     new PatchRecord("gameplay-call", OriginalHash,
                         "0x06000103 ZombiesWP7.menu.MenuItem::Draw()",
                         MenuItemDrawHash,
@@ -437,6 +442,23 @@ public static class GameplayPatcher
         end.Operand = Target("EndFrame", 0);
         il.InsertAfter(end, il.Create(OpCodes.Ldarg_0));
 
+        var overlay = module.Types.Single(type => type.FullName == "IMAK3Z0MB1EGAEM.map.MapMan")
+            .Methods.Single(method => method.Name == "DrawClassicMapOverlay" && method.Parameters.Count == 1);
+        var rightEdge = overlay.Body.Instructions.Where(item =>
+            item.OpCode == OpCodes.Ldc_R4 && item.Operand is float value && value == 800f).ToArray();
+        if (rightEdge.Length != 2 ||
+            rightEdge[0].Next is not { } comparison ||
+            comparison.OpCode != OpCodes.Ble_Un_S && comparison.OpCode != OpCodes.Ble_Un ||
+            rightEdge[1].Next?.OpCode != OpCodes.Stfld ||
+            rightEdge[1].Next?.Operand is not FieldReference field ||
+            field.FullName != "System.Single Microsoft.Xna.Framework.Vector2::X")
+            throw new PreparationException("Original Endless mask right edge differs.");
+        foreach (var edge in rightEdge)
+        {
+            edge.OpCode = OpCodes.Call;
+            edge.Operand = Target("EndlessMaskRightEdge", 0);
+        }
+
         var click = module.Types.Single(type => type.FullName == "IMAK3Z0MB1EGAEM.menu.Settings")
             .Methods.Single(method => method.MetadataToken.ToInt32() == 0x060002c4);
         var first = click.Body.Instructions.First();
@@ -474,6 +496,14 @@ public static class GameplayPatcher
             if (draw.Body.Instructions.Count(item => item.Operand is MethodReference method &&
                 method.DeclaringType.FullName == "Port.Hooks.DesktopDisplay" && method.Name == name) != 1)
                 throw new PreparationException($"Display {name} postcondition failed.");
+        var overlay = module.Types.Single(type => type.FullName == "IMAK3Z0MB1EGAEM.map.MapMan")
+            .Methods.Single(method => method.Name == "DrawClassicMapOverlay" && method.Parameters.Count == 1);
+        if (overlay.Body.Instructions.Count(item => item.Operand is MethodReference method &&
+                method.DeclaringType.FullName == "Port.Hooks.DesktopDisplay" &&
+                method.Name == "EndlessMaskRightEdge") != 2 ||
+            overlay.Body.Instructions.Any(item => item.OpCode == OpCodes.Ldc_R4 &&
+                item.Operand is float value && value == 800f))
+            throw new PreparationException("Endless mask right edge postcondition failed.");
         if (click.Body.Instructions.Count(item => item.Operand is MethodReference method &&
                 method.DeclaringType.FullName == "Port.Hooks.DesktopDisplay" && method.Name == "HandleSettingsClick") != 1)
             throw new PreparationException("Settings display entry postcondition failed.");

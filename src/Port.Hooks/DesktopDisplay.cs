@@ -64,6 +64,9 @@ public static class DesktopDisplay
 
     public static bool CapturesInput => captureInput;
     public static Vector2 SceneSize => new(sceneSize.Width, sceneSize.Height);
+    // Endless darkens unrevealed rooms after drawing the map. Its original
+    // right edge was fixed at 800, which leaves a gap on wider desktop scenes.
+    public static float EndlessMaskRightEdge() => sceneSize.Width;
     public static bool IsDisplayPage => displayPage;
     public static bool IsResolutionPage => resolutionPage;
     public static bool IsTouchPage => touchPage;
@@ -118,12 +121,13 @@ public static class DesktopDisplay
 
     public static void AttachSettingsMenu()
     {
-        if (settingsMenu is not null || game is null) return;
+        if (game is null) return;
         var assembly = game.GetType().Assembly;
         var menu = assembly.GetType("IMAK3Z0MB1EGAEM.menu.Menu", true)!;
         if (menu.GetField("menuLevel", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)?
                 .GetValue(null) is not IDictionary levels || levels.Count != 17 ||
             levels[5] is not { } settings) return;
+        if (ReferenceEquals(settingsMenu, settings)) return;
         var baseType = settings.GetType().BaseType!;
         itemsField = baseType.GetField("item", Fields)!;
         titleField = baseType.GetField("title", Fields)!;
@@ -137,15 +141,18 @@ public static class DesktopDisplay
         itemLocationField = itemType.GetField("loc", Fields)!;
         itemTiltField = itemType.GetField("tiltLoc", Fields)!;
         menuLevels = levels;
+        menuOffsetApplied = 0;
         CenterMenuItems();
+        CenterGameMenus();
         var constructor = itemType.GetConstructor([typeof(string), typeof(Vector2), typeof(float)])
             ?? throw new MissingMethodException("MenuItem(string, Vector2, float)");
-        object Item(string text, float y) => constructor.Invoke([text, new Vector2(250 + TextMenuOffset, y), 0.9f]);
+        object Item(string text, float y, float xOffset = 0, float scale = 0.9f) =>
+            constructor.Invoke([text, new Vector2(CenteredMenuX + xOffset, y), scale]);
         settingsItems = Array.CreateInstance(itemType, 8);
         Array.Copy(oldItems, settingsItems, 5);
-        settingsItems.SetValue(Item("GRAPH1CS", 150), 5);
-        settingsItems.SetValue(Item("AUD10", 200), 6);
-        settingsItems.SetValue(Item("1NPUT", 250), 7);
+        settingsItems.SetValue(Item("GRAPH1CS", 150, -85), 5);
+        settingsItems.SetValue(Item("AUD10", 200, 115), 6);
+        settingsItems.SetValue(Item("1NPUT", 250, 15), 7);
         audioItems = Array.CreateInstance(itemType, 6);
         Array.Copy(oldItems, audioItems, 5);
         audioItems.SetValue(Item("BACK", 250), 5);
@@ -154,23 +161,49 @@ public static class DesktopDisplay
         touchItems.SetValue(Item("BACK", 250), 5);
         displayItems = Array.CreateInstance(itemType, 6);
         var displayLabels = new[] { "M0DE", "RES0LUTI0N", "VSYNC", "R3DUCE FLASH1NG", "ASSETS", "BACK" };
+        var displayOffsets = new[] { -60f, 75f, -45f, 50f, -55f, 10f };
         for (var i = 0; i < displayLabels.Length; i++)
-            displayItems.SetValue(constructor.Invoke([displayLabels[i],
-                new Vector2(250 + TextMenuOffset, 95 + i * 34), 0.7f]), i);
+            displayItems.SetValue(Item(displayLabels[i], 95 + i * 34, displayOffsets[i], 0.7f), i);
         resolutionItems = Array.CreateInstance(itemType, 3);
         var resolutionLabels = new[] { "PRES3T", "CUST0M RES0LUTI0N", "BACK" };
+        var resolutionOffsets = new[] { -45f, 40f, 0f };
         for (var i = 0; i < resolutionLabels.Length; i++)
-            resolutionItems.SetValue(Item(resolutionLabels[i], 130 + i * 50), i);
+            resolutionItems.SetValue(Item(resolutionLabels[i], 130 + i * 50, resolutionOffsets[i]), i);
         customItems = Array.CreateInstance(itemType, 4);
         var customLabels = new[] { "W1DTH", "HE1GHT", "APPLY CUST0M", "BACK" };
+        var customOffsets = new[] { -60f, 60f, -45f, 0f };
         for (var i = 0; i < customLabels.Length; i++)
-            customItems.SetValue(Item(customLabels[i], 100 + i * 50), i);
+            customItems.SetValue(Item(customLabels[i], 100 + i * 50, customOffsets[i]), i);
         assetItems = Array.CreateInstance(itemType, 4);
+        var assetOffsets = new[] { -35f, 35f, -25f, 0f };
         for (var i = 0; i < 4; i++)
-            assetItems.SetValue(constructor.Invoke(["BACK", new Vector2(250 + TextMenuOffset, 95 + i * 50), 0.7f]), i);
+            assetItems.SetValue(Item("BACK", 95 + i * 50, assetOffsets[i], 0.7f), i);
         settingsMenu = settings;
+        previousInfos = null;
+        editing = -1;
+        captureInput = false;
         ShowSettingsPage();
         RefreshLabels();
+    }
+
+    private static void CenterGameMenus()
+    {
+        foreach (var key in new[] { 2, 3 })
+        {
+            if (menuLevels![key] is not { } level || itemsField!.GetValue(level) is not Array items ||
+                items.Length != 3)
+                throw new InvalidOperationException($"Original menu {key} layout differs.");
+            var positions = items.Cast<object>().Select(item =>
+                (Vector2)itemLocationField!.GetValue(item)!).ToArray();
+            var minX = positions.Min(position => position.X);
+            var maxX = positions.Max(position => position.X);
+            var shift = new Vector2(CenteredMenuX - (minX + maxX) / 2f, 0);
+            foreach (var item in items)
+            {
+                itemLocationField!.SetValue(item, (Vector2)itemLocationField.GetValue(item)! + shift);
+                itemTiltField!.SetValue(item, (Vector2)itemTiltField.GetValue(item)! + shift);
+            }
+        }
     }
 
     private static void PlaceOriginal(int index, bool visible, Vector2 position)
@@ -195,9 +228,9 @@ public static class DesktopDisplay
     {
         displayPage = resolutionPage = audioPage = customPage = assetPage = false;
         touchPage = true;
-        PlaceOriginal(0, true, new Vector2(250, 100));
-        PlaceOriginal(1, true, new Vector2(250, 150));
-        PlaceOriginal(2, true, new Vector2(250, 200));
+        PlaceOriginal(0, true, new Vector2(LogicalWidth / (2f * MenuScale) - 27.5f, 100));
+        PlaceOriginal(1, true, new Vector2(LogicalWidth / (2f * MenuScale) + 27.5f, 150));
+        PlaceOriginal(2, true, new Vector2(LogicalWidth / (2f * MenuScale) + 7.5f, 200));
         PlaceOriginal(3, false, Vector2.Zero);
         PlaceOriginal(4, false, Vector2.Zero);
         itemsField!.SetValue(settingsMenu, touchItems);
@@ -209,8 +242,8 @@ public static class DesktopDisplay
         displayPage = resolutionPage = touchPage = customPage = assetPage = false;
         audioPage = true;
         for (var i = 0; i < 3; i++) PlaceOriginal(i, false, Vector2.Zero);
-        PlaceOriginal(3, true, new Vector2(250, 135));
-        PlaceOriginal(4, true, new Vector2(250, 190));
+        PlaceOriginal(3, true, new Vector2(LogicalWidth / (2f * MenuScale) - 72.5f, 135));
+        PlaceOriginal(4, true, new Vector2(LogicalWidth / (2f * MenuScale) + 72.5f, 190));
         itemsField!.SetValue(settingsMenu, audioItems);
         titleField!.SetValue(settingsMenu, "aud10");
     }
@@ -615,7 +648,9 @@ public static class DesktopDisplay
     }
 
     private static float MenuOffset => (sceneSize.Width - LogicalWidth) / 2f;
-    private static float TextMenuOffset => MenuOffset / (float)menuScaleField!.GetValue(null)!;
+    private static float MenuScale => (float)menuScaleField!.GetValue(null)!;
+    private static float TextMenuOffset => MenuOffset / MenuScale;
+    private static float CenteredMenuX => sceneSize.Width / (2f * MenuScale);
 
     private static void CenterMenuItems()
     {
