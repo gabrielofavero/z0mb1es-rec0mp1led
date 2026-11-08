@@ -14,7 +14,7 @@ public static class GameplayPatcher
 {
     private const string OriginalHash = "7b819cb562826ae4d2592ff741877e76da0e57bfbe48192aabb79319fdb36823";
     private const string DebugHooksHash = "8e860a7ba8d7985b73ef18792928c66a872e40bb6cab5bb6bbdf31d8dd4662b1";
-    private const string ReleaseHooksHash = "1b5046f3e9cd43f6a6da4052cd783e848c20a2e1519b69047c499b1fbe86462c";
+    private const string ReleaseHooksHash = "bc3eb92b525d7c1e1c635c9ab61a55c52bb75dc019e83dafd389bc2d442f92d4";
     private const string OriginalMethodBodyHash = "54407b733f8c2d7cdc67534f66899e99191731e2e0beeed8481bc673ff54f425";
     private const string TouchBodyHash = "5d5aea53560307207b175bab14d39138756165598972d7604491f4cd44d7bfc6";
     private const string StorageWriteHash = "887e2f79ecea6543a5ba56aecd08b4c6c82dcda8b790ee81a3e8e5a568249433";

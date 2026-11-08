@@ -7,21 +7,19 @@ function Invoke-DevDotnet {
     if ($LASTEXITCODE -ne 0) { throw "dotnet $($Arguments[0]) failed with exit code $LASTEXITCODE." }
 }
 
-function Get-DevBuilds {
-    $runRoot = Join-Path $script:DevRoot 'private/run'
-    if (-not (Test-Path -LiteralPath $runRoot -PathType Container)) { return }
+function Get-DevBuild {
+    $current = Join-Path $script:DevRoot 'private/run/current'
+    if (-not (Test-Path -LiteralPath $current -PathType Container)) { return }
     $required = @('ZombiesWP7.dll', 'patch-manifest.json', 'content-manifest.json')
-    Get-ChildItem -LiteralPath $runRoot -Directory | Where-Object {
-        $directory = $_.FullName
-        @($required | Where-Object {
-            Test-Path -LiteralPath (Join-Path $directory $_) -PathType Leaf
-        }).Count -eq $required.Count -and (
-            ((Test-Path -LiteralPath (Join-Path $directory 'Z0MB1ES.dll') -PathType Leaf) -and
-             (Test-Path -LiteralPath (Join-Path $directory 'Z0MB1ES.runtimeconfig.json') -PathType Leaf)) -or
-            ((Test-Path -LiteralPath (Join-Path $directory 'Port.Launcher.dll') -PathType Leaf) -and
-             (Test-Path -LiteralPath (Join-Path $directory 'Port.Launcher.runtimeconfig.json') -PathType Leaf))
-        )
-    } | Sort-Object LastWriteTimeUtc -Descending
+    if (@($required | Where-Object {
+        -not (Test-Path -LiteralPath (Join-Path $current $_) -PathType Leaf)
+    }).Count -gt 0) { return }
+    if (((Test-Path -LiteralPath (Join-Path $current 'Z0MB1ES.dll') -PathType Leaf) -and
+         (Test-Path -LiteralPath (Join-Path $current 'Z0MB1ES.runtimeconfig.json') -PathType Leaf)) -or
+        ((Test-Path -LiteralPath (Join-Path $current 'Port.Launcher.dll') -PathType Leaf) -and
+         (Test-Path -LiteralPath (Join-Path $current 'Port.Launcher.runtimeconfig.json') -PathType Leaf))) {
+        Get-Item -LiteralPath $current
+    }
 }
 
 function Invoke-DevGame {
@@ -38,14 +36,10 @@ function Invoke-DevGame {
 function build-game {
     [CmdletBinding()]
     param(
-        [string]$Name = ('dev-' + (Get-Date -Format 'yyyyMMdd-HHmmss') + '-' + [guid]::NewGuid().ToString('N').Substring(0, 8)),
         [string]$XapPath = (Join-Path $script:DevRoot 'game/Z0MB1ES (on teh ph0ne) v1.0.0.0.xap'),
         [string]$FfmpegPath = (Join-Path $script:DevRoot 'private/tooling/ffmpeg.exe')
     )
     $ErrorActionPreference = 'Stop'
-    if ($Name -notmatch '^[A-Za-z0-9][A-Za-z0-9_-]*$') {
-        throw 'Build name may contain only letters, numbers, hyphens, and underscores.'
-    }
     $xap = (Resolve-Path -LiteralPath $XapPath).Path
     $ffmpeg = (Resolve-Path -LiteralPath $FfmpegPath).Path
     $expectedFfmpeg = (Get-Content -Raw -LiteralPath (Join-Path $script:DevRoot 'config/content-tools.json') | ConvertFrom-Json).ffmpeg.executableSha256
@@ -53,13 +47,13 @@ function build-game {
         throw 'FFmpeg does not match config/content-tools.json.'
     }
 
-    $work = Join-Path $script:DevRoot "private/build/$Name"
-    $rewritten = Join-Path $script:DevRoot "private/prepared/$Name-base"
-    $hooked = Join-Path $script:DevRoot "private/prepared/$Name"
-    $run = Join-Path $script:DevRoot "private/run/$Name"
-    foreach ($output in @($work, $rewritten, $hooked, $run)) {
-        if (Test-Path -LiteralPath $output) { throw "Build output already exists: $output" }
-    }
+    $buildId = [guid]::NewGuid().ToString('N').Substring(0, 12)
+    $work = Join-Path $script:DevRoot "private/build/tmp-$buildId"
+    $rewritten = Join-Path $script:DevRoot "private/prepared/base-$buildId"
+    $hooked = Join-Path $script:DevRoot "private/prepared/hook-$buildId"
+    $candidate = Join-Path $script:DevRoot "private/run/tmp-$buildId"
+    $backup = Join-Path $script:DevRoot "private/run/previous-$buildId"
+    $run = Join-Path $script:DevRoot 'private/run/current'
 
     Push-Location $script:DevRoot
     try {
@@ -95,13 +89,32 @@ function build-game {
         Invoke-DevDotnet -Arguments @($prepareCli, 'hook', '--xap', $xap, '--dll', $original,
             '--prepared', (Join-Path $rewritten 'ZombiesWP7.dll'), '--hooks', $hooks, '--output', $hooked)
         & (Join-Path $script:DevRoot 'scripts/stage-local-run.ps1') `
-            -PreparedDirectory $hooked -ContentDirectory $content -OutputDirectory $run
-        if (-not (Test-Path -LiteralPath (Join-Path $run 'Z0MB1ES.dll') -PathType Leaf)) {
+            -PreparedDirectory $hooked -ContentDirectory $content -OutputDirectory $candidate
+        if (-not (Test-Path -LiteralPath (Join-Path $candidate 'Z0MB1ES.dll') -PathType Leaf)) {
             throw 'Game staging did not produce a runnable build.'
         }
-        Write-Host "Built $Name. Use run-game-latest to play it."
+        $priorMoved = $false
+        try {
+            if (Test-Path -LiteralPath $run) {
+                [System.IO.Directory]::Move($run, $backup)
+                $priorMoved = $true
+            }
+            [System.IO.Directory]::Move($candidate, $run)
+        } catch {
+            if ($priorMoved -and -not (Test-Path -LiteralPath $run) -and (Test-Path -LiteralPath $backup)) {
+                [System.IO.Directory]::Move($backup, $run)
+            }
+            throw
+        }
+        if ($priorMoved) { Remove-Item -LiteralPath $backup -Recurse -Force }
+        Write-Host 'Built current. Use run-game-latest to play it.'
     } finally {
         Pop-Location
+        foreach ($temporary in @($work, $rewritten, $hooked, $candidate)) {
+            if (Test-Path -LiteralPath $temporary) {
+                Remove-Item -LiteralPath $temporary -Recurse -Force
+            }
+        }
     }
 }
 
@@ -109,41 +122,20 @@ function run-game {
     [CmdletBinding()]
     param([string]$Build, [switch]$List)
     $ErrorActionPreference = 'Stop'
-    $builds = @(Get-DevBuilds)
-    if ($builds.Count -eq 0) { throw 'No staged builds found in private/run/. Use build-game first.' }
-
-    if ($List -or -not $Build) {
-        Write-Host 'Available builds (latest edited first):'
-        for ($i = 0; $i -lt $builds.Count; $i++) {
-            Write-Host ('  {0,2}. {1}  {2}' -f ($i + 1), $builds[$i].LastWriteTime.ToString('yyyy-MM-dd HH:mm'), $builds[$i].Name)
-        }
-        if ($List) { return }
+    if ($Build -and $Build -ne 'current') { throw "Build not found: $Build" }
+    $current = Get-DevBuild
+    if (-not $current) { throw 'No current staged build found in private/run/current/. Use build-game first.' }
+    if ($List) {
+        Write-Host ('  {0}  {1}' -f $current.LastWriteTime.ToString('yyyy-MM-dd HH:mm'), $current.Name)
+        return
     }
-    if ($Build) {
-        $selected = $builds | Where-Object Name -eq $Build | Select-Object -First 1
-        if (-not $selected) { throw "Build not found: $Build" }
-    } else {
-        while ($true) {
-            $choice = Read-Host 'Choose a build number (or Q to quit)'
-            if ($choice -eq 'q') { return }
-            $number = 0
-            if ([int]::TryParse($choice, [ref]$number) -and $number -ge 1 -and $number -le $builds.Count) {
-                $selected = $builds[$number - 1]
-                break
-            }
-            Write-Warning "Enter a number from 1 to $($builds.Count), or Q."
-        }
-    }
-    Invoke-DevGame -Build $selected
+    Invoke-DevGame -Build $current
 }
 
 function run-game-latest {
     [CmdletBinding()]
     param()
-    $ErrorActionPreference = 'Stop'
-    $builds = @(Get-DevBuilds)
-    if ($builds.Count -eq 0) { throw 'No staged builds found in private/run/. Use build-game first.' }
-    Invoke-DevGame -Build $builds[0]
+    run-game
 }
 
 function build-installer {
