@@ -7,6 +7,18 @@ function Invoke-DevDotnet {
     if ($LASTEXITCODE -ne 0) { throw "dotnet $($Arguments[0]) failed with exit code $LASTEXITCODE." }
 }
 
+function Move-DevDirectory([string]$source, [string]$destination) {
+    for ($attempt = 1; $attempt -le 5; $attempt++) {
+        try {
+            [System.IO.Directory]::Move($source, $destination)
+            return
+        } catch {
+            if ($attempt -eq 5) { throw }
+            Start-Sleep -Milliseconds (250 * $attempt)
+        }
+    }
+}
+
 function Get-DevBuild {
     $current = Join-Path $script:DevRoot 'private/run/current'
     if (-not (Test-Path -LiteralPath $current -PathType Container)) { return }
@@ -105,13 +117,13 @@ function build-game {
         $priorMoved = $false
         try {
             if (Test-Path -LiteralPath $run) {
-                [System.IO.Directory]::Move($run, $backup)
+                Move-DevDirectory $run $backup
                 $priorMoved = $true
             }
-            [System.IO.Directory]::Move($candidate, $run)
+            Move-DevDirectory $candidate $run
         } catch {
             if ($priorMoved -and -not (Test-Path -LiteralPath $run) -and (Test-Path -LiteralPath $backup)) {
-                [System.IO.Directory]::Move($backup, $run)
+                Move-DevDirectory $backup $run
             }
             throw
         }

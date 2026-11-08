@@ -18,6 +18,8 @@ internal sealed class MenuProbe
     private bool captured;
     private bool touchOpened;
     private bool touchCaptured;
+    private bool touchpadOpened;
+    private bool touchpadCaptured;
     private bool gameplayOpened;
     private bool gameplayCaptured;
     private bool displayOpened;
@@ -37,6 +39,9 @@ internal sealed class MenuProbe
     public bool ShouldCaptureTouch(int updates) => current == 5 && touchOpened &&
         !touchCaptured && updates - openedAt >= 2;
     public void MarkTouchCaptured() => touchCaptured = true;
+    public bool ShouldCaptureTouchpad(int updates) => current == 5 && touchpadOpened &&
+        !touchpadCaptured && updates - openedAt >= 2;
+    public void MarkTouchpadCaptured() => touchpadCaptured = true;
     public bool ShouldCaptureGameplay(int updates) => current == 5 && gameplayOpened &&
         !gameplayCaptured && updates - openedAt >= 2;
     public void MarkGameplayCaptured() => gameplayCaptured = true;
@@ -186,8 +191,36 @@ internal sealed class MenuProbe
         }
         if (current == 5 && !displayOpened)
         {
-            if (!touchCaptured || !DesktopDisplay.IsTouchPage)
-                throw new InvalidOperationException("Native Touch settings page was not rendered.");
+            if (!touchpadOpened)
+            {
+                if (!touchCaptured || !DesktopDisplay.IsTouchPage)
+                    throw new InvalidOperationException("Input settings page was not rendered.");
+                level.GetType().GetMethod("Click", Instance)!.Invoke(level, ["T0UCHPADS"]);
+                if (!DesktopDisplay.IsTouchpadPage)
+                    throw new InvalidOperationException("Touchpads category did not open.");
+                touchpadOpened = true;
+                openedAt = updates;
+                return;
+            }
+            if (!touchpadCaptured || !DesktopDisplay.IsTouchpadPage)
+                throw new InvalidOperationException("Touchpads settings page was not rendered.");
+            var touchpadItems = (Array)baseType.GetField("item", Instance)!.GetValue(level)!;
+            var touchpadText = touchpadItems.GetValue(0)!.GetType().GetField("text", Instance)!;
+            if (touchpadItems.Length != 4 ||
+                (string?)touchpadText.GetValue(touchpadItems.GetValue(0)) != "RELATIVE CONTR0LS" ||
+                (string?)touchpadText.GetValue(touchpadItems.GetValue(1)) != "SH0W T0UCHPADS")
+                throw new InvalidOperationException("Touchpad settings rows differ.");
+            var initialSize = (string)touchpadText.GetValue(touchpadItems.GetValue(2))!;
+            for (var i = 0; i < 3; i++)
+            {
+                var currentSize = (string)touchpadText.GetValue(touchpadItems.GetValue(2))!;
+                level.GetType().GetMethod("Click", Instance)!.Invoke(level, [currentSize]);
+            }
+            if ((string)touchpadText.GetValue(touchpadItems.GetValue(2))! != initialSize)
+                throw new InvalidOperationException("Touchpad size did not complete its three-choice cycle.");
+            level.GetType().GetMethod("Click", Instance)!.Invoke(level, ["BACK"]);
+            if (!DesktopDisplay.IsTouchPage || DesktopDisplay.IsTouchpadPage)
+                throw new InvalidOperationException("Touchpad settings did not return to Input.");
             level.GetType().GetMethod("Click", Instance)!.Invoke(level, ["BACK"]);
             if (DesktopDisplay.IsTouchPage || !DesktopDisplay.IsGameplayPage)
                 throw new InvalidOperationException("Input settings page did not return to Gameplay.");

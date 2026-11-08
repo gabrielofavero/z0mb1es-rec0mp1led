@@ -235,7 +235,7 @@ public static class DesktopInput
         previousWheel = mouse.ScrollWheelValue;
         var pointer = DesktopDisplay.MapPointer(mouse.X, mouse.Y, game.Window.ClientBounds);
         var inside = active && pointer is not null;
-        UpdateCursorSource(native.Count > 0, mouse, inside && mode != 0);
+        UpdateCursorSource(native.Count > 0, mouse, keyboard, wheelDelta, inside && mode != 0);
         var backClick = inside && pointer is Vector2 backPosition && BackButtonVisible() &&
             BackButtonBounds(size).Contains(new Point((int)backPosition.X, (int)backPosition.Y));
         var pauseHotspot = pointer is Vector2 point && point.X > size.X - 70 &&
@@ -372,14 +372,21 @@ public static class DesktopInput
     public static bool CursorVisible => game?.IsActive == true && ReadMode() != 0 &&
         cursorSource == CursorSource.Mouse;
 
-    private static void UpdateCursorSource(bool touchActive, MouseState mouse, bool inside)
+    public static bool ShouldShowTouchPause() => cursorSource == CursorSource.Touch;
+
+    private static void UpdateCursorSource(bool touchActive, MouseState mouse,
+        KeyboardState keyboard, int wheelDelta, bool inside)
     {
         var moved = mouse.X != previousMousePosition.X || mouse.Y != previousMousePosition.Y;
         previousMousePosition = new Point(mouse.X, mouse.Y);
         if (touchActive)
             cursorSource = CursorSource.Touch;
-        else if (inside && moved)
+        else if (inside && (moved || wheelDelta != 0 ||
+                 mouse.LeftButton == ButtonState.Pressed || mouse.RightButton == ButtonState.Pressed ||
+                 mouse.MiddleButton == ButtonState.Pressed))
             cursorSource = CursorSource.Mouse;
+        else if (keyboard.GetPressedKeys().Length > 0)
+            cursorSource = CursorSource.Keyboard;
         else if (ControllerActive())
             cursorSource = CursorSource.Controller;
     }
@@ -405,7 +412,7 @@ public static class DesktopInput
         return false;
     }
 
-    private enum CursorSource { None, Mouse, Controller, Touch }
+    private enum CursorSource { None, Mouse, Keyboard, Controller, Touch }
 
     public static bool BackButtonVisible()
     {

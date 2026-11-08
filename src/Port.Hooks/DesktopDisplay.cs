@@ -50,6 +50,7 @@ public static class DesktopDisplay
     private static Array? settingsItems;
     private static Array? audioItems;
     private static Array? touchItems;
+    private static Array? touchpadItems;
     private static Array? gameplayItems;
     private static Array? displayItems;
     private static Array? resolutionItems;
@@ -59,6 +60,7 @@ public static class DesktopDisplay
     private static bool displayPage;
     private static bool resolutionPage;
     private static bool touchPage;
+    private static bool touchpadPage;
     private static bool gameplayPage;
     private static bool audioPage;
     private static bool customPage;
@@ -79,6 +81,7 @@ public static class DesktopDisplay
     public static bool IsDisplayPage => displayPage;
     public static bool IsResolutionPage => resolutionPage;
     public static bool IsTouchPage => touchPage;
+    public static bool IsTouchpadPage => touchpadPage;
     public static bool IsGameplayPage => gameplayPage;
     public static bool IsStaticPlayerNameLabel(object item) =>
         gameplayPage && gameplayItems is not null && ReferenceEquals(gameplayItems.GetValue(0), item);
@@ -122,9 +125,9 @@ public static class DesktopDisplay
         itemFlagField = itemLocationField = itemTiltField = null;
         menuLevels = null;
         menuOffsetApplied = 0;
-        originalItems = settingsItems = audioItems = touchItems = gameplayItems = displayItems = resolutionItems = customItems = assetItems = null;
+        originalItems = settingsItems = audioItems = touchItems = touchpadItems = gameplayItems = displayItems = resolutionItems = customItems = assetItems = null;
         previousInfos = null;
-        displayPage = resolutionPage = touchPage = gameplayPage = audioPage = customPage = assetPage = captureInput = false;
+        displayPage = resolutionPage = touchPage = touchpadPage = gameplayPage = audioPage = customPage = assetPage = captureInput = false;
         editing = -1;
         preferences = Load();
         widthText = preferences.Width.ToString();
@@ -163,6 +166,10 @@ public static class DesktopDisplay
         itemFlagField = itemType.GetField("flag", Fields)!;
         itemLocationField = itemType.GetField("loc", Fields)!;
         itemTiltField = itemType.GetField("tiltLoc", Fields)!;
+        var layerField = itemType.GetField("layer", Fields)!;
+        layerField.SetValue(oldItems.GetValue(0), 4.5f);
+        layerField.SetValue(oldItems.GetValue(1), 3.5f);
+        layerField.SetValue(oldItems.GetValue(2), 3.5f);
         menuLevels = levels;
         menuOffsetApplied = 0;
         CenterMenuItems();
@@ -184,9 +191,15 @@ public static class DesktopDisplay
         audioItems = Array.CreateInstance(itemType, 6);
         Array.Copy(oldItems, audioItems, 5);
         audioItems.SetValue(Item("BACK", 250), 5);
-        touchItems = Array.CreateInstance(itemType, 6);
-        Array.Copy(oldItems, touchItems, 5);
-        touchItems.SetValue(Item("BACK", 250), 5);
+        touchItems = Array.CreateInstance(itemType, 3);
+        touchItems.SetValue(oldItems.GetValue(0), 0);
+        touchItems.SetValue(Item("T0UCHPADS", 180, -20), 1);
+        touchItems.SetValue(Item("BACK", 240), 2);
+        touchpadItems = Array.CreateInstance(itemType, 4);
+        touchpadItems.SetValue(oldItems.GetValue(1), 0);
+        touchpadItems.SetValue(oldItems.GetValue(2), 1);
+        touchpadItems.SetValue(Item("TOUCHPAD SIZE: ORIGINAL", 190, -65, 0.7f), 2);
+        touchpadItems.SetValue(Item("BACK", 235), 3);
         displayItems = Array.CreateInstance(itemType, 6);
         var displayLabels = new[] { "M0DE", "RES0LUTI0N", "VSYNC", "R3DUCE FLASH1NG", "ASSETS", "BACK" };
         var displayOffsets = new[] { -60f, 75f, -45f, 50f, -55f, 10f };
@@ -244,7 +257,7 @@ public static class DesktopDisplay
 
     private static void ShowSettingsPage()
     {
-        touchPage = gameplayPage = displayPage = resolutionPage = audioPage = customPage = assetPage = false;
+        touchPage = touchpadPage = gameplayPage = displayPage = resolutionPage = audioPage = customPage = assetPage = false;
         for (var i = 0; i < 3; i++) PlaceOriginal(i, false, Vector2.Zero);
         PlaceOriginal(3, false, Vector2.Zero);
         PlaceOriginal(4, false, Vector2.Zero);
@@ -254,20 +267,32 @@ public static class DesktopDisplay
 
     private static void ShowTouchPage()
     {
-        gameplayPage = displayPage = resolutionPage = audioPage = customPage = assetPage = false;
+        touchpadPage = gameplayPage = displayPage = resolutionPage = audioPage = customPage = assetPage = false;
         touchPage = true;
-        PlaceOriginal(0, true, new Vector2(LogicalWidth / (2f * MenuScale) - 27.5f, 100));
-        PlaceOriginal(1, true, new Vector2(LogicalWidth / (2f * MenuScale) + 27.5f, 150));
-        PlaceOriginal(2, true, new Vector2(LogicalWidth / (2f * MenuScale) + 7.5f, 200));
+        PlaceOriginal(0, true, new Vector2(LogicalWidth / (2f * MenuScale) - 27.5f, 120));
+        PlaceOriginal(1, false, Vector2.Zero);
+        PlaceOriginal(2, false, Vector2.Zero);
         PlaceOriginal(3, false, Vector2.Zero);
         PlaceOriginal(4, false, Vector2.Zero);
         itemsField!.SetValue(settingsMenu, touchItems);
         titleField!.SetValue(settingsMenu, "1nput");
     }
 
+    private static void ShowTouchpadPage()
+    {
+        touchPage = false;
+        touchpadPage = true;
+        PlaceOriginal(0, false, Vector2.Zero);
+        PlaceOriginal(1, true, new Vector2(LogicalWidth / (2f * MenuScale) + 27.5f, 100));
+        PlaceOriginal(2, true, new Vector2(LogicalWidth / (2f * MenuScale) + 7.5f, 145));
+        itemsField!.SetValue(settingsMenu, touchpadItems);
+        titleField!.SetValue(settingsMenu, "t0uchpads");
+        RefreshLabels();
+    }
+
     private static void ShowGameplayPage()
     {
-        touchPage = displayPage = resolutionPage = audioPage = customPage = assetPage = false;
+        touchPage = touchpadPage = displayPage = resolutionPage = audioPage = customPage = assetPage = false;
         gameplayPage = true;
         itemsField!.SetValue(settingsMenu, gameplayItems);
         titleField!.SetValue(settingsMenu, "gameplay");
@@ -276,7 +301,7 @@ public static class DesktopDisplay
 
     private static void ShowAudioPage()
     {
-        displayPage = resolutionPage = touchPage = gameplayPage = customPage = assetPage = false;
+        displayPage = resolutionPage = touchPage = touchpadPage = gameplayPage = customPage = assetPage = false;
         audioPage = true;
         for (var i = 0; i < 3; i++) PlaceOriginal(i, false, Vector2.Zero);
         PlaceOriginal(3, true, new Vector2(LogicalWidth / (2f * MenuScale) - 72.5f, 135));
@@ -287,7 +312,7 @@ public static class DesktopDisplay
 
     private static void ShowDisplayPage()
     {
-        touchPage = gameplayPage = resolutionPage = audioPage = customPage = assetPage = false;
+        touchPage = touchpadPage = gameplayPage = resolutionPage = audioPage = customPage = assetPage = false;
         displayPage = true;
         titleField!.SetValue(settingsMenu, "graph1cs");
         itemsField!.SetValue(settingsMenu, displayItems);
@@ -296,7 +321,7 @@ public static class DesktopDisplay
 
     private static void ShowResolutionPage()
     {
-        displayPage = touchPage = gameplayPage = audioPage = customPage = assetPage = false;
+        displayPage = touchPage = touchpadPage = gameplayPage = audioPage = customPage = assetPage = false;
         resolutionPage = true;
         titleField!.SetValue(settingsMenu, "res0lut10n");
         itemsField!.SetValue(settingsMenu, resolutionItems);
@@ -317,7 +342,7 @@ public static class DesktopDisplay
     private static void ShowAssetPage()
     {
         AssetChoices.Refresh();
-        displayPage = resolutionPage = touchPage = gameplayPage = audioPage = customPage = false;
+        displayPage = resolutionPage = touchPage = touchpadPage = gameplayPage = audioPage = customPage = false;
         assetPage = true;
         titleField!.SetValue(settingsMenu, "assets");
         itemsField!.SetValue(settingsMenu, assetItems);
@@ -327,7 +352,7 @@ public static class DesktopDisplay
     public static bool HandleSettingsClick(object settings, string text)
     {
         if (!ReferenceEquals(settings, settingsMenu)) return false;
-        if (!displayPage && !resolutionPage && !touchPage && !gameplayPage && !audioPage && !customPage && !assetPage)
+        if (!displayPage && !resolutionPage && !touchPage && !touchpadPage && !gameplayPage && !audioPage && !customPage && !assetPage)
         {
             if (text is not ("GRAPH1CS" or "AUD10" or "GAMEPLAY")) return false;
             previousInfos = infosField!.GetValue(settings);
@@ -349,8 +374,23 @@ public static class DesktopDisplay
         }
         if (touchPage)
         {
-            if (text != "BACK") return false;
-            ReturnToGameplayPage();
+            if (text == "T0UCHPADS") ShowTouchpadPage();
+            else if (text == "BACK") ReturnToGameplayPage();
+            else return false;
+            return true;
+        }
+        if (touchpadPage)
+        {
+            if (text.StartsWith("TOUCHPAD SIZE:", StringComparison.Ordinal))
+            {
+                var sizes = new[] { "Original", "Small", "Smallest" };
+                var index = Array.IndexOf(sizes, preferences.TouchpadSize);
+                preferences = preferences with { TouchpadSize = sizes[(index + 1) % sizes.Length] };
+                Save();
+                RefreshLabels();
+            }
+            else if (text == "BACK") ReturnToTouchPage();
+            else return false;
             return true;
         }
         if (gameplayPage)
@@ -435,7 +475,7 @@ public static class DesktopDisplay
 
     public static bool HandleSettingsCancel(object settings)
     {
-        if (!ReferenceEquals(settings, settingsMenu) || (!displayPage && !resolutionPage && !touchPage && !gameplayPage && !audioPage && !customPage && !assetPage)) return false;
+        if (!ReferenceEquals(settings, settingsMenu) || (!displayPage && !resolutionPage && !touchPage && !touchpadPage && !gameplayPage && !audioPage && !customPage && !assetPage)) return false;
         if (customPage)
         {
             ReturnToResolutionPage();
@@ -451,6 +491,11 @@ public static class DesktopDisplay
             ReturnToGameplayPage();
             return true;
         }
+        if (touchpadPage)
+        {
+            ReturnToTouchPage();
+            return true;
+        }
         CloseDisplayPage();
         return true;
     }
@@ -460,6 +505,13 @@ public static class DesktopDisplay
         captureInput = true;
         infosField!.SetValue(settingsMenu, null);
         ShowGameplayPage();
+    }
+
+    private static void ReturnToTouchPage()
+    {
+        captureInput = true;
+        infosField!.SetValue(settingsMenu, null);
+        ShowTouchPage();
     }
 
     private static void ReturnToResolutionPage()
@@ -596,7 +648,9 @@ public static class DesktopDisplay
 
     private static void RefreshLabels()
     {
-        if (displayItems is null || resolutionItems is null || customItems is null || assetItems is null || gameplayItems is null || itemTextField is null) return;
+        if (displayItems is null || resolutionItems is null || customItems is null || assetItems is null || gameplayItems is null || touchpadItems is null || itemTextField is null) return;
+        itemTextField.SetValue(touchpadItems.GetValue(2),
+            $"TOUCHPAD SIZE: {preferences.TouchpadSize.ToUpperInvariant()}");
         itemTextField.SetValue(gameplayItems.GetValue(1),
             $"  {nameText}{(editing == 1 ? "_" : "")}");
         var displayLabels = new[]
@@ -879,6 +933,7 @@ public static class DesktopDisplay
         Shift(settingsItems);
         Shift(audioItems);
         Shift(touchItems);
+        Shift(touchpadItems);
         Shift(gameplayItems);
         Shift(displayItems);
         Shift(resolutionItems);
@@ -946,7 +1001,8 @@ public static class DesktopDisplay
             if (!File.Exists(path)) return preferences;
             var loaded = JsonSerializer.Deserialize<DisplayPreferences>(File.ReadAllText(path));
             return loaded is not null && Valid(loaded.Width, loaded.Height) &&
-                loaded.Mode is "Windowed" or "Borderless" or "Fullscreen" ? loaded : preferences;
+                loaded.Mode is "Windowed" or "Borderless" or "Fullscreen" &&
+                loaded.TouchpadSize is "Original" or "Small" or "Smallest" ? loaded : preferences;
         }
         catch (Exception exception) when (exception is IOException or JsonException or UnauthorizedAccessException)
         {
@@ -975,7 +1031,15 @@ public static class DesktopDisplay
     {
         public bool VSync { get; init; } = true;
         public bool ReduceFlashing { get; init; } = false;
+        public string TouchpadSize { get; init; } = "Original";
     }
+
+    public static float ScaleTouchpad(float original) => original * (preferences.TouchpadSize switch
+    {
+        "Small" => 0.75f,
+        "Smallest" => 0.5f,
+        _ => 1f
+    });
 
     public static bool ReduceFlashing => preferences.ReduceFlashing;
 

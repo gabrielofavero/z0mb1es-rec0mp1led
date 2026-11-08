@@ -461,6 +461,11 @@ internal sealed class RunMonitor : DrawableGameComponent
             CaptureScreen("touch-page", "MENU");
             menuProbe.MarkTouchCaptured();
         }
+        if (menuProbe?.ShouldCaptureTouchpad(Updates) == true)
+        {
+            CaptureScreen("touchpad-page", "MENU");
+            menuProbe.MarkTouchpadCaptured();
+        }
         if (menuProbe?.ShouldCaptureGameplay(Updates) == true)
         {
             CaptureScreen("gameplay-page", "MENU");

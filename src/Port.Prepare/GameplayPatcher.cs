@@ -17,6 +17,7 @@ public static class GameplayPatcher
     private const string ReleaseHooksHash = "3f1ea01ade0989545a8bf1335ea7c3475bc3b024823545eef267306a035e3ee4";
     private const string CurrentDebugHooksHash = "bb1b1d27e24a45c777536dd517ad0ff0293a5a6d497779509aacd4f408b60ddc";
     private const string CurrentReleaseHooksHash = "c1381d8520fc42ec89c41a5b45ec05caed93185cf18a9f23219d45bdb31c11a6";
+    private const string LatestReleaseHooksHash = "bc9f9041175ca757e1285b6cd1f0244ba62f1aadc893ab5396f4a2508034e723";
     private const string OriginalMethodBodyHash = "54407b733f8c2d7cdc67534f66899e99191731e2e0beeed8481bc673ff54f425";
     private const string TouchBodyHash = "5d5aea53560307207b175bab14d39138756165598972d7604491f4cd44d7bfc6";
     private const string StorageWriteHash = "887e2f79ecea6543a5ba56aecd08b4c6c82dcda8b790ee81a3e8e5a568249433";
@@ -71,7 +72,7 @@ public static class GameplayPatcher
             prior.Patches.Any(patch => patch.Kind == "gameplay-call"))
             throw new PreparationException("Prepared DLL does not match its original guarded rewrite.");
         var hooksHash = Hash(hooksDll);
-        if (hooksHash is not (DebugHooksHash or ReleaseHooksHash or CurrentDebugHooksHash or CurrentReleaseHooksHash) ||
+        if (hooksHash is not (DebugHooksHash or ReleaseHooksHash or CurrentDebugHooksHash or CurrentReleaseHooksHash or LatestReleaseHooksHash) ||
             System.Reflection.AssemblyName.GetAssemblyName(hooksDll).Name != "Port.Hooks")
             throw new PreparationException("Hook target assembly identity differs.");
 
@@ -119,6 +120,7 @@ public static class GameplayPatcher
                 BrightenLockedAchievements(module);
                 SpaceAchievementList(module);
                 DisableTouchPadsByDefault(module);
+                PatchTouchOverlays(module, hooks);
                 PatchDisplay(module, hooks);
                 PatchSpriteBatches(module, hooks);
                 PatchReducedFlashing(module, hooks);
@@ -165,6 +167,7 @@ public static class GameplayPatcher
                 VerifyLockedAchievements(check);
                 VerifyAchievementListSpacing(check);
                 VerifyTouchPadDefault(check);
+                VerifyTouchOverlays(check);
                 VerifyDisplay(check);
                 VerifySpriteBatches(check);
                 VerifyReducedFlashing(check);
@@ -544,6 +547,67 @@ public static class GameplayPatcher
             .Methods.Single(method => method.MetadataToken.ToInt32() == 0x06000251);
         if (ctor.Body.Instructions.Single(item => item.Offset == 0x0001).OpCode != OpCodes.Ldc_I4_0)
             throw new PreparationException("Touch pad default postcondition failed.");
+    }
+
+    private static void PatchTouchOverlays(ModuleDefinition module, ModuleDefinition hooks)
+    {
+        var touch = module.Types.Single(type => type.FullName == "ZombiesWP7.TouchMgr");
+        var draw = touch.Methods.Single(method => method.MetadataToken.ToInt32() == 0x06000079);
+        var pad = touch.Methods.Single(method => method.MetadataToken.ToInt32() == 0x06000078);
+        var inputHook = hooks.Types.Single(type => type.FullName == "Port.Hooks.DesktopInput");
+        var displayHook = hooks.Types.Single(type => type.FullName == "Port.Hooks.DesktopDisplay");
+        var showPause = module.ImportReference(inputHook.Methods.Single(method => method.Name == "ShouldShowTouchPause"));
+        var scalePad = module.ImportReference(displayHook.Methods.Single(method => method.Name == "ScaleTouchpad"));
+        var instructions = draw.Body.Instructions;
+        Mono.Cecil.Cil.Instruction At(int offset) => instructions.Single(item => item.Offset == offset);
+        if (At(0x000a).Operand is not FieldReference showPads || showPads.Name != "showTouchPads" ||
+            At(0x000f).OpCode != OpCodes.Brtrue_S || At(0x0011).OpCode != OpCodes.Ret ||
+            At(0x0021).OpCode != OpCodes.Ldarg_0 || At(0x0060).Operand is not MethodReference pauseText ||
+            pauseText.Name != "DrawString" || At(0x0065).OpCode != OpCodes.Ldsfld ||
+            At(0x0065).Operand is not FieldReference player || player.Name != "player" ||
+            At(0x006a).Operand is not FieldReference settings || settings.Name != "settings")
+            throw new PreparationException("Touch overlay draw anchors differ from their guard.");
+
+        // Keep the original touchpad preference, but let the pause glyph draw
+        // independently whenever direct touch was the last input source.
+        At(0x0011).OpCode = OpCodes.Nop;
+        var il = draw.Body.GetILProcessor();
+        var padGuard = At(0x0065);
+        var firstGuard = il.Create(OpCodes.Ldsfld, player);
+        il.InsertBefore(At(0x0021), il.Create(OpCodes.Call, showPause));
+        il.InsertBefore(At(0x0021), il.Create(OpCodes.Brfalse, firstGuard));
+        il.InsertBefore(padGuard, firstGuard);
+        il.InsertBefore(padGuard, il.Create(OpCodes.Ldfld, settings));
+        il.InsertBefore(padGuard, il.Create(OpCodes.Ldfld, showPads));
+        il.InsertBefore(padGuard, il.Create(OpCodes.Brtrue, padGuard));
+        il.InsertBefore(padGuard, il.Create(OpCodes.Ret));
+
+        foreach (var (method, offset, value) in new[]
+        {
+            (pad, 0x0088, 2f), (pad, 0x00ac, 5f), (draw, 0x0116, 0.75f)
+        })
+        {
+            var constant = method.Body.Instructions.Single(item => item.Offset == offset);
+            if (constant.OpCode != OpCodes.Ldc_R4 || constant.Operand is not float found || found != value)
+                throw new PreparationException($"Touchpad scale anchor differs at IL_{offset:x4}.");
+            method.Body.GetILProcessor().InsertAfter(constant,
+                method.Body.GetILProcessor().Create(OpCodes.Call, scalePad));
+        }
+    }
+
+    private static void VerifyTouchOverlays(ModuleDefinition module)
+    {
+        var touch = module.Types.Single(type => type.FullName == "ZombiesWP7.TouchMgr");
+        var draw = touch.Methods.Single(method => method.Name == "DrawThumbpads");
+        var pad = touch.Methods.Single(method => method.Name == "DrawThumbpad");
+        if (draw.Body.Instructions.Single(item => item.Offset == 0x0011).OpCode != OpCodes.Nop ||
+            draw.Body.Instructions.Count(item => item.Operand is MethodReference target &&
+                target.FullName == "System.Boolean Port.Hooks.DesktopInput::ShouldShowTouchPause()") != 1 ||
+            draw.Body.Instructions.Count(item => item.Operand is MethodReference target &&
+                target.Name == "ScaleTouchpad" && target.DeclaringType.FullName == "Port.Hooks.DesktopDisplay") != 1 ||
+            pad.Body.Instructions.Count(item => item.Operand is MethodReference target &&
+                target.Name == "ScaleTouchpad" && target.DeclaringType.FullName == "Port.Hooks.DesktopDisplay") != 2)
+            throw new PreparationException("Touch overlay postcondition failed.");
     }
 
     private static void PatchDisplay(ModuleDefinition module, ModuleDefinition hooks)

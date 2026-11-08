@@ -29,6 +29,17 @@ foreach ($required in @(
 $parent = [System.IO.Path]::GetDirectoryName($output)
 [System.IO.Directory]::CreateDirectory($parent) | Out-Null
 $stage = Join-Path $parent ('.' + [System.IO.Path]::GetFileName($output) + '.stage-' + [guid]::NewGuid().ToString('N'))
+function Move-StageDirectory([string]$source, [string]$destination) {
+    for ($attempt = 1; $attempt -le 5; $attempt++) {
+        try {
+            [System.IO.Directory]::Move($source, $destination)
+            return
+        } catch {
+            if ($attempt -eq 5) { throw }
+            Start-Sleep -Milliseconds (250 * $attempt)
+        }
+    }
+}
 try {
     [System.IO.Directory]::CreateDirectory($stage) | Out-Null
     foreach ($file in Get-ChildItem -LiteralPath $runtime -File) {
@@ -51,7 +62,7 @@ try {
     $d3d12SourceHash = (Get-FileHash -LiteralPath (Join-Path $runtime 'D3D12/D3D12Core.dll') -Algorithm SHA256).Hash
     $d3d12StageHash = (Get-FileHash -LiteralPath (Join-Path $stage 'D3D12/D3D12Core.dll') -Algorithm SHA256).Hash
     if ($d3d12SourceHash -ne $d3d12StageHash) { throw 'Stage verification failed: D3D12/D3D12Core.dll' }
-    [System.IO.Directory]::Move($stage, $output)
+    Move-StageDirectory $stage $output
     Write-Output "RUN_STAGE $output"
 } finally {
     if (Test-Path -LiteralPath $stage) { Remove-Item -LiteralPath $stage -Recurse -Force }
