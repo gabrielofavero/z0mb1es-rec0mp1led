@@ -20,9 +20,7 @@ public static class DesktopInput
     private static bool suppressLeftClick;
     private static int previousWheel;
     private static Point previousMousePosition;
-    private static long lastMouseMovement;
     private static CursorSource cursorSource;
-    private const double CursorIdleSeconds = 3;
     private static object? focusedLevel;
     private static object? focusedItems;
     private static int focusedIndex;
@@ -80,7 +78,6 @@ public static class DesktopInput
         var initialMouse = Mouse.GetState();
         previousWheel = initialMouse.ScrollWheelValue;
         previousMousePosition = new Point(initialMouse.X, initialMouse.Y);
-        lastMouseMovement = 0;
         cursorSource = CursorSource.None;
         focusedLevel = null;
         focusedItems = null;
@@ -288,7 +285,6 @@ public static class DesktopInput
         else if ((focusedIndex < 0 && items.Count > 0) || focusedIndex >= items.Count)
             focusedIndex = InitialFocus(items);
         var direction = active ? MenuNavigation.Direction(keyboard, pad) : Vector2.Zero;
-        if (direction != Vector2.Zero) cursorSource = CursorSource.Controller;
         var directionCode = direction.X < 0 ? -1 : direction.X > 0 ? 1 :
             direction.Y < 0 ? -2 : direction.Y > 0 ? 2 : 0;
         var now = Stopwatch.GetTimestamp();
@@ -374,8 +370,7 @@ public static class DesktopInput
     public static bool IsFocusedMenuItem(object item) => focusVisible && ReferenceEquals(item, focusedItem);
 
     public static bool CursorVisible => game?.IsActive == true && ReadMode() != 0 &&
-        cursorSource == CursorSource.Mouse && lastMouseMovement != 0 &&
-        Stopwatch.GetTimestamp() - lastMouseMovement < Stopwatch.Frequency * CursorIdleSeconds;
+        cursorSource == CursorSource.Mouse;
 
     private static void UpdateCursorSource(bool touchActive, MouseState mouse, bool inside)
     {
@@ -384,10 +379,7 @@ public static class DesktopInput
         if (touchActive)
             cursorSource = CursorSource.Touch;
         else if (inside && moved)
-        {
             cursorSource = CursorSource.Mouse;
-            lastMouseMovement = Stopwatch.GetTimestamp();
-        }
         else if (ControllerActive())
             cursorSource = CursorSource.Controller;
     }

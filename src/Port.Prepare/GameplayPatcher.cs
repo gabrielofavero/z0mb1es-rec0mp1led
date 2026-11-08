@@ -15,6 +15,8 @@ public static class GameplayPatcher
     private const string OriginalHash = "7b819cb562826ae4d2592ff741877e76da0e57bfbe48192aabb79319fdb36823";
     private const string DebugHooksHash = "a3d593da7e7e00dba15e4b7e95053084bbcaa04ff69493b31f3ad8b150cd4afb";
     private const string ReleaseHooksHash = "3f1ea01ade0989545a8bf1335ea7c3475bc3b024823545eef267306a035e3ee4";
+    private const string CurrentDebugHooksHash = "bb1b1d27e24a45c777536dd517ad0ff0293a5a6d497779509aacd4f408b60ddc";
+    private const string CurrentReleaseHooksHash = "c1381d8520fc42ec89c41a5b45ec05caed93185cf18a9f23219d45bdb31c11a6";
     private const string OriginalMethodBodyHash = "54407b733f8c2d7cdc67534f66899e99191731e2e0beeed8481bc673ff54f425";
     private const string TouchBodyHash = "5d5aea53560307207b175bab14d39138756165598972d7604491f4cd44d7bfc6";
     private const string StorageWriteHash = "887e2f79ecea6543a5ba56aecd08b4c6c82dcda8b790ee81a3e8e5a568249433";
@@ -69,7 +71,7 @@ public static class GameplayPatcher
             prior.Patches.Any(patch => patch.Kind == "gameplay-call"))
             throw new PreparationException("Prepared DLL does not match its original guarded rewrite.");
         var hooksHash = Hash(hooksDll);
-        if (hooksHash is not (DebugHooksHash or ReleaseHooksHash) ||
+        if (hooksHash is not (DebugHooksHash or ReleaseHooksHash or CurrentDebugHooksHash or CurrentReleaseHooksHash) ||
             System.Reflection.AssemblyName.GetAssemblyName(hooksDll).Name != "Port.Hooks")
             throw new PreparationException("Hook target assembly identity differs.");
 

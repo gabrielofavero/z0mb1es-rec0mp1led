@@ -22,7 +22,9 @@ public static class IlRewriter
     private const string FnaHash = "952ecb3d8a869ad1343bd5b761b8a1d19c3af21e9c3cd2fab3dbc75d6893a89d";
     private const string AbiReportHash = "2edec771cbbf30e59541ed851e1865463fc26c26a5c79bb54bbc69228301bd44";
     private const string BridgeAbiReportHash = "27dedb6dc2aa1f2b8a32a4f4f82969400091466554253c67f861b8ff9c7dedc6";
+    private const string CurrentBridgeAbiReportHash = "d66bb2521301141ccc056d9b79a138cd8ad3457d468d80a64a17105fc1f608a0";
     private const string BridgeHash = "d7b11e67fcc1c6794f214c4d37b6a6bbc566661a20d8b12414cad3f3a462d5c2";
+    private const string CurrentBridgeHash = "c2c478c167eb24178e1808f3940156eb588e1dee92b575b81a4786d85dd51ba0";
     private static readonly string[] LegacyAssemblies =
     [
         "Microsoft.Xna.Framework", "Microsoft.Xna.Framework.Game", "Microsoft.Xna.Framework.Graphics",
@@ -36,7 +38,7 @@ public static class IlRewriter
         using var document = JsonDocument.Parse(File.ReadAllBytes(reportPath));
         var root = document.RootElement;
         var reportHash = Hash(reportPath);
-        if (reportHash is not (AbiReportHash or BridgeAbiReportHash) ||
+        if (reportHash is not (AbiReportHash or BridgeAbiReportHash or CurrentBridgeAbiReportHash) ||
             root.GetProperty("schemaVersion").GetInt32() != 1 ||
             root.GetProperty("input").GetProperty("dllSha256").GetString() != OriginalDllHash ||
             root.GetProperty("input").GetProperty("fnaSha256").GetString() != FnaHash ||
@@ -45,9 +47,9 @@ public static class IlRewriter
             Hash(fnaPath) != FnaHash)
             throw new PreparationException("ABI report or FNA does not match the pinned input.");
         var bridgeHash = Hash(bridgePath);
-        if (bridgeHash != BridgeHash)
-            throw new PreparationException($"Bridge DLL differs from the pinned supported bridge: {bridgeHash}; expected {BridgeHash}.");
-        if (reportHash == BridgeAbiReportHash &&
+        if (bridgeHash is not (BridgeHash or CurrentBridgeHash))
+            throw new PreparationException($"Bridge DLL differs from the pinned supported bridge: {bridgeHash}.");
+        if (reportHash is BridgeAbiReportHash or CurrentBridgeAbiReportHash &&
             root.GetProperty("input").GetProperty("bridgeSha256").GetString() != bridgeHash)
             throw new PreparationException("Bridge DLL differs from the verified ABI report.");
 
