@@ -107,7 +107,7 @@ function build-game {
             throw
         }
         if ($priorMoved) { Remove-Item -LiteralPath $backup -Recurse -Force }
-        Write-Host 'Built current. Use run-game-latest to play it.'
+        Write-Host 'Built current. Use run-game to play it.'
     } finally {
         Pop-Location
         foreach ($temporary in @($work, $rewritten, $hooked, $candidate)) {
@@ -130,12 +130,6 @@ function run-game {
         return
     }
     Invoke-DevGame -Build $current
-}
-
-function run-game-latest {
-    [CmdletBinding()]
-    param()
-    run-game
 }
 
 function build-installer {
