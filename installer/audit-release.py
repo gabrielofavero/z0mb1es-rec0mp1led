@@ -20,7 +20,7 @@ ROOT = Path(__file__).resolve().parent.parent
 TEXT_SUFFIXES = {".cs", ".csproj", ".json", ".md", ".props", ".ps1", ".py", ".iss", ".svg", ".xml", ".yml", ".yaml"}
 GAME_SUFFIXES = {".xap", ".xnb", ".wma"}
 RUNTIME_FILES = {
-    "Port.Launcher.exe", "Port.Bridge.dll", "Port.Hooks.dll", "FNA.dll",
+    "Z0MB1ES.exe", "Port.Bridge.dll", "Port.Hooks.dll", "FNA.dll",
     "FNA.dll.config", "SDL3.dll", "FNA3D.dll", "FAudio.dll",
     "libtheorafile.dll", "D3D12/D3D12Core.dll", "notices/LICENSE",
     "notices/lzxdecoder.LICENSE", "notices/monoxna.LICENSE",
@@ -254,7 +254,7 @@ def negative_controls() -> None:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--payload", type=Path, default=ROOT / "installer/out/payload")
-    parser.add_argument("--setup", type=Path, default=ROOT / "installer/out/ZombiesPort-Setup.exe")
+    parser.add_argument("--setup", type=Path, default=ROOT / "installer/out/Z0MB1ES-0.1.0.exe")
     parser.add_argument("--xap", type=Path, help="local supported XAP for exact-byte checks")
     args = parser.parse_args()
     negative_controls()

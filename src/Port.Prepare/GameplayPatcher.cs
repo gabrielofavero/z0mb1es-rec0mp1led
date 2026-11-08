@@ -13,8 +13,8 @@ namespace Port.Prepare;
 public static class GameplayPatcher
 {
     private const string OriginalHash = "7b819cb562826ae4d2592ff741877e76da0e57bfbe48192aabb79319fdb36823";
-    private const string DebugHooksHash = "4efe4aad8a5cd635edb2b9092c41e3b1bdb65882cb594d8e257f221c262b0762";
-    private const string ReleaseHooksHash = "d012114bb1bf3e43412791ed001778d6f468eab75fa6248cce9b1cc3166ea11b";
+    private const string DebugHooksHash = "8e860a7ba8d7985b73ef18792928c66a872e40bb6cab5bb6bbdf31d8dd4662b1";
+    private const string ReleaseHooksHash = "1b5046f3e9cd43f6a6da4052cd783e848c20a2e1519b69047c499b1fbe86462c";
     private const string OriginalMethodBodyHash = "54407b733f8c2d7cdc67534f66899e99191731e2e0beeed8481bc673ff54f425";
     private const string TouchBodyHash = "5d5aea53560307207b175bab14d39138756165598972d7604491f4cd44d7bfc6";
     private const string StorageWriteHash = "887e2f79ecea6543a5ba56aecd08b4c6c82dcda8b790ee81a3e8e5a568249433";
@@ -114,6 +114,7 @@ public static class GameplayPatcher
                 BrightenLockedAchievements(module);
                 DisableTouchPadsByDefault(module);
                 PatchDisplay(module, hooks);
+                PatchSpriteBatches(module, hooks);
                 PatchReducedFlashing(module, hooks);
                 PatchMenuVisuals(module, hooks);
                 PatchPictures(module, hooks);
@@ -155,6 +156,7 @@ public static class GameplayPatcher
                 VerifyLockedAchievements(check);
                 VerifyTouchPadDefault(check);
                 VerifyDisplay(check);
+                VerifySpriteBatches(check);
                 VerifyReducedFlashing(check);
                 VerifyMenuVisuals(check);
                 VerifyPictures(check);
@@ -167,7 +169,7 @@ public static class GameplayPatcher
                 "one call target is Port.Hooks; original method control flow is preserved");
             var manifest = prior with
             {
-                ToolVersion = "0.12.0",
+                ToolVersion = "0.13.0",
                 PreparedSha256 = outputHash,
                 Plan = "pinned ABI rewrite plus guarded desktop media, input, storage and offline leaderboards",
                 Patches = [.. prior.Patches, patch,
@@ -198,13 +200,13 @@ public static class GameplayPatcher
                     new PatchRecord("gameplay-call", OriginalHash,
                         "0x060000cf ZombiesWP7.Game1::Draw(); 0x060002c4/2c5 IMAK3Z0MB1EGAEM.menu.Settings::Click/Cancel",
                         GameDrawHash + "/" + SettingsClickHash + "/" + SettingsCancelHash,
-                        "draw through a 600x360 logical target and route native Display page actions to Port.Hooks.DesktopDisplay",
-                        "original game coordinates and Settings actions remain intact"),
+                        "draw on a full-resolution scene target through transformed SpriteBatch calls and route native Display page actions to Port.Hooks.DesktopDisplay",
+                        "original game coordinates and Settings actions remain intact while imported art retains source detail"),
                     new PatchRecord("gameplay-call", OriginalHash,
-                        "0x06000085 Viking_x86.main.MainMenu::Draw(); 0x06000103 ZombiesWP7.menu.MenuItem::Draw()",
+                        "0x06000103 ZombiesWP7.menu.MenuItem::Draw()",
                         MenuItemDrawHash,
-                        "draw the animated title and tint focused menu items through Port.Hooks.MenuVisuals",
-                        "reduced flashing uses steady title and focus colors"),
+                        "tint focused menu items through Port.Hooks.MenuVisuals",
+                        "reduced flashing uses steady focus colors"),
                     new PatchRecord("gameplay-call", OriginalHash,
                         "Viking_x86.vikinggame.world.WorldTools::DrawLightRow(SpriteBatch,int,Vector2)",
                         OriginalHash,
@@ -480,21 +482,46 @@ public static class GameplayPatcher
             throw new PreparationException("Settings display cancel postcondition failed.");
     }
 
+    private static void PatchSpriteBatches(ModuleDefinition module, ModuleDefinition hooks)
+    {
+        var display = hooks.Types.Single(type => type.FullName == "Port.Hooks.DesktopDisplay");
+        var patched = 0;
+        foreach (var method in AllTypes(module.Types).SelectMany(type => type.Methods).Where(method => method.HasBody))
+        foreach (var instruction in method.Body.Instructions)
+        {
+            if (instruction.OpCode != OpCodes.Callvirt || instruction.Operand is not MethodReference call ||
+                call.DeclaringType.FullName != "Microsoft.Xna.Framework.Graphics.SpriteBatch" ||
+                call.Name != "Begin") continue;
+            var target = display.Methods.SingleOrDefault(candidate => candidate.Name == "Begin" &&
+                candidate.IsStatic && candidate.Parameters.Count == call.Parameters.Count + 1 &&
+                candidate.Parameters[0].ParameterType.FullName == call.DeclaringType.FullName &&
+                candidate.Parameters.Skip(1).Select(parameter => parameter.ParameterType.FullName)
+                    .SequenceEqual(call.Parameters.Select(parameter => parameter.ParameterType.FullName)));
+            if (target is null)
+                throw new PreparationException($"Unsupported SpriteBatch.Begin signature: {call.FullName}");
+            instruction.OpCode = OpCodes.Call;
+            instruction.Operand = module.ImportReference(target);
+            patched++;
+        }
+        if (patched == 0) throw new PreparationException("No game SpriteBatch.Begin calls were patched.");
+    }
+
+    private static void VerifySpriteBatches(ModuleDefinition module)
+    {
+        var calls = AllTypes(module.Types).SelectMany(type => type.Methods)
+            .Where(method => method.HasBody).SelectMany(method => method.Body.Instructions)
+            .Select(instruction => instruction.Operand).OfType<MethodReference>().ToArray();
+        if (calls.Any(call => call.DeclaringType.FullName == "Microsoft.Xna.Framework.Graphics.SpriteBatch" &&
+                call.Name == "Begin") ||
+            !calls.Any(call => call.DeclaringType.FullName == "Port.Hooks.DesktopDisplay" && call.Name == "Begin"))
+            throw new PreparationException("SpriteBatch scene transform postcondition failed.");
+    }
+
     private static void PatchMenuVisuals(ModuleDefinition module, ModuleDefinition hooks)
     {
         var visuals = hooks.Types.Single(type => type.FullName == "Port.Hooks.MenuVisuals");
         MethodReference Target(string name) => module.ImportReference(visuals.Methods.Single(method =>
             method.Name == name && method.IsStatic));
-        var title = module.Types.Single(type => type.FullName == "Viking_x86.main.MainMenu")
-            .Methods.Single(method => method.MetadataToken.ToInt32() == 0x06000085);
-        var sceneDraw = title.Body.Instructions.SingleOrDefault(item => item.Offset == 0x0037);
-        if (sceneDraw?.Operand is not MethodReference sceneTarget ||
-            sceneTarget.FullName != "System.Void SceneEdit.scene.SceneMgr::Draw(Microsoft.Xna.Framework.Graphics.SpriteBatch)")
-            throw new PreparationException("Main menu title draw anchor differs.");
-        var il = title.Body.GetILProcessor();
-        il.InsertAfter(sceneDraw, il.Create(OpCodes.Ldarg_1));
-        il.InsertAfter(sceneDraw.Next, il.Create(OpCodes.Call, Target("DrawTitle")));
-
         var itemDraw = module.Types.Single(type => type.FullName == "ZombiesWP7.menu.MenuItem")
             .Methods.Single(method => method.MetadataToken.ToInt32() == 0x06000103);
         foreach (var offset in new[] { 0x00c7, 0x0173 })
@@ -504,7 +531,7 @@ public static class GameplayPatcher
                 constructor.FullName != "System.Void Microsoft.Xna.Framework.Color::.ctor(System.Single,System.Single,System.Single,System.Single)" ||
                 color.Next?.OpCode != OpCodes.Ldc_I4_2)
                 throw new PreparationException($"Menu item focus color anchor differs at IL_{offset:x4}.");
-            il = itemDraw.Body.GetILProcessor();
+            var il = itemDraw.Body.GetILProcessor();
             il.InsertAfter(color, il.Create(OpCodes.Ldarg_0));
             il.InsertAfter(color.Next, il.Create(OpCodes.Call, Target("Highlight")));
         }
@@ -537,7 +564,6 @@ public static class GameplayPatcher
     {
         foreach (var (typeName, name, hook, count) in new[]
         {
-            ("Viking_x86.main.MainMenu", "Draw", "DrawTitle", 1),
             ("ZombiesWP7.menu.MenuItem", "Draw", "Highlight", 2)
         })
         {

@@ -6,6 +6,12 @@ This folder will hold repeatable build, clean-install acceptance, and distributa
 
 `stage-local-run.ps1` copies the authored runtime, a verified locally prepared DLL, and locally prepared content into a new ignored `private/run/` directory. FNA resolves `TitleContainer` files beside the launcher, so this stage mirrors the eventual install layout.
 
-Run `./dev.ps1` from the repository root to choose and launch any staged build in `private/run/`. The menu discovers builds each time it runs. Use `./dev.ps1 -List` to see available builds or `./dev.ps1 -Build <name>` to launch one directly.
+Dot-source the developer commands from the repository root with `. .\dev.ps1`:
+
+- `build-game` compiles the solution, prepares the supported local XAP, and creates a new staged build under ignored `private/run/`. It accepts optional `-Name`, `-XapPath`, and `-FfmpegPath` parameters.
+- `run-game` lists staged builds newest first and prompts for one. Use `run-game -List` to list without launching, or `run-game -Build <name>` to launch a named build.
+- `run-game-latest` launches the newest staged build.
+- `build-installer` invokes the existing installer build with the pinned converter at `private/tooling/ffmpeg.exe` and the local runtime-pack cache. It accepts the installer script's optional path and source parameters.
+- `run-installer` opens `installer/out/Z0MB1ES-0.1.0.exe` after it has been built. Pass `-InstallerPath <path>` to open a different setup executable.
 
 `build-installer-art.py` renders the authored square icon and cover SVGs into committed executable icons and Inno Setup wizard images. It uses local Edge or Chrome plus Pillow and NumPy only on the developer machine; see [artwork](../assets/README.md).

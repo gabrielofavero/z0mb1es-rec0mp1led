@@ -57,6 +57,6 @@ if (args.Length == 2 && args[0] == "--check-load")
     }
 }
 
-Console.Error.WriteLine("Usage: Port.Launcher --check-load <private/prepared/run/ZombiesWP7.dll>");
-Console.Error.WriteLine("   or: Port.Launcher --run <prepared.dll> --content <private/content-prepared/run> [--frames N] [--windowed] [--save-dir <directory>] [--probe-services] [--probe-mode normal|endless|viking] [--probe-menus]");
+Console.Error.WriteLine("Usage: Z0MB1ES --check-load <private/prepared/run/ZombiesWP7.dll>");
+Console.Error.WriteLine("   or: Z0MB1ES --run <prepared.dll> --content <private/content-prepared/run> [--frames N] [--windowed] [--save-dir <directory>] [--probe-services] [--probe-mode normal|endless|viking] [--probe-menus]");
 return 2;

@@ -45,10 +45,12 @@ public static class DesktopDisplay
     private static Array? audioItems;
     private static Array? touchItems;
     private static Array? displayItems;
+    private static Array? resolutionItems;
     private static Array? customItems;
     private static Array? assetItems;
     private static object? previousInfos;
     private static bool displayPage;
+    private static bool resolutionPage;
     private static bool touchPage;
     private static bool audioPage;
     private static bool customPage;
@@ -63,6 +65,7 @@ public static class DesktopDisplay
     public static bool CapturesInput => captureInput;
     public static Vector2 SceneSize => new(sceneSize.Width, sceneSize.Height);
     public static bool IsDisplayPage => displayPage;
+    public static bool IsResolutionPage => resolutionPage;
     public static bool IsTouchPage => touchPage;
     public static bool IsCustomPage => customPage;
     public static bool IsAssetPage => assetPage;
@@ -94,9 +97,9 @@ public static class DesktopDisplay
         itemFlagField = itemLocationField = itemTiltField = null;
         menuLevels = null;
         menuOffsetApplied = 0;
-        originalItems = settingsItems = audioItems = touchItems = displayItems = customItems = assetItems = null;
+        originalItems = settingsItems = audioItems = touchItems = displayItems = resolutionItems = customItems = assetItems = null;
         previousInfos = null;
-        displayPage = touchPage = audioPage = customPage = assetPage = captureInput = false;
+        displayPage = resolutionPage = touchPage = audioPage = customPage = assetPage = captureInput = false;
         editing = -1;
         preferences = Load();
         widthText = preferences.Width.ToString();
@@ -138,12 +141,11 @@ public static class DesktopDisplay
         var constructor = itemType.GetConstructor([typeof(string), typeof(Vector2), typeof(float)])
             ?? throw new MissingMethodException("MenuItem(string, Vector2, float)");
         object Item(string text, float y) => constructor.Invoke([text, new Vector2(250 + TextMenuOffset, y), 0.9f]);
-        settingsItems = Array.CreateInstance(itemType, 9);
+        settingsItems = Array.CreateInstance(itemType, 8);
         Array.Copy(oldItems, settingsItems, 5);
-        settingsItems.SetValue(Item("GRAPH1CS", 125), 5);
-        settingsItems.SetValue(Item("AUD10", 175), 6);
-        settingsItems.SetValue(Item("1NPUT", 225), 7);
-        settingsItems.SetValue(Item("ASSETS", 275), 8);
+        settingsItems.SetValue(Item("GRAPH1CS", 150), 5);
+        settingsItems.SetValue(Item("AUD10", 200), 6);
+        settingsItems.SetValue(Item("1NPUT", 250), 7);
         audioItems = Array.CreateInstance(itemType, 6);
         Array.Copy(oldItems, audioItems, 5);
         audioItems.SetValue(Item("BACK", 250), 5);
@@ -151,10 +153,14 @@ public static class DesktopDisplay
         Array.Copy(oldItems, touchItems, 5);
         touchItems.SetValue(Item("BACK", 250), 5);
         displayItems = Array.CreateInstance(itemType, 6);
-        var displayLabels = new[] { "M0DE", "PRES3T", "VSYNC", "CUST0M RES0LUTI0N", "R3DUCE FLASH1NG", "BACK" };
+        var displayLabels = new[] { "M0DE", "RES0LUTI0N", "VSYNC", "R3DUCE FLASH1NG", "ASSETS", "BACK" };
         for (var i = 0; i < displayLabels.Length; i++)
             displayItems.SetValue(constructor.Invoke([displayLabels[i],
                 new Vector2(250 + TextMenuOffset, 95 + i * 34), 0.7f]), i);
+        resolutionItems = Array.CreateInstance(itemType, 3);
+        var resolutionLabels = new[] { "PRES3T", "CUST0M RES0LUTI0N", "BACK" };
+        for (var i = 0; i < resolutionLabels.Length; i++)
+            resolutionItems.SetValue(Item(resolutionLabels[i], 130 + i * 50), i);
         customItems = Array.CreateInstance(itemType, 4);
         var customLabels = new[] { "W1DTH", "HE1GHT", "APPLY CUST0M", "BACK" };
         for (var i = 0; i < customLabels.Length; i++)
@@ -177,7 +183,7 @@ public static class DesktopDisplay
 
     private static void ShowSettingsPage()
     {
-        touchPage = displayPage = audioPage = customPage = assetPage = false;
+        touchPage = displayPage = resolutionPage = audioPage = customPage = assetPage = false;
         for (var i = 0; i < 3; i++) PlaceOriginal(i, false, Vector2.Zero);
         PlaceOriginal(3, false, Vector2.Zero);
         PlaceOriginal(4, false, Vector2.Zero);
@@ -187,7 +193,7 @@ public static class DesktopDisplay
 
     private static void ShowTouchPage()
     {
-        displayPage = audioPage = customPage = assetPage = false;
+        displayPage = resolutionPage = audioPage = customPage = assetPage = false;
         touchPage = true;
         PlaceOriginal(0, true, new Vector2(250, 100));
         PlaceOriginal(1, true, new Vector2(250, 150));
@@ -200,7 +206,7 @@ public static class DesktopDisplay
 
     private static void ShowAudioPage()
     {
-        displayPage = touchPage = customPage = assetPage = false;
+        displayPage = resolutionPage = touchPage = customPage = assetPage = false;
         audioPage = true;
         for (var i = 0; i < 3; i++) PlaceOriginal(i, false, Vector2.Zero);
         PlaceOriginal(3, true, new Vector2(250, 135));
@@ -211,16 +217,25 @@ public static class DesktopDisplay
 
     private static void ShowDisplayPage()
     {
-        touchPage = audioPage = customPage = assetPage = false;
+        touchPage = resolutionPage = audioPage = customPage = assetPage = false;
         displayPage = true;
-        titleField!.SetValue(settingsMenu, "d1splay");
+        titleField!.SetValue(settingsMenu, "graph1cs");
         itemsField!.SetValue(settingsMenu, displayItems);
+        RefreshLabels();
+    }
+
+    private static void ShowResolutionPage()
+    {
+        displayPage = touchPage = audioPage = customPage = assetPage = false;
+        resolutionPage = true;
+        titleField!.SetValue(settingsMenu, "res0lut10n");
+        itemsField!.SetValue(settingsMenu, resolutionItems);
         RefreshLabels();
     }
 
     private static void ShowCustomPage()
     {
-        displayPage = audioPage = assetPage = false;
+        displayPage = resolutionPage = audioPage = assetPage = false;
         customPage = true;
         widthText = preferences.Width.ToString();
         heightText = preferences.Height.ToString();
@@ -232,7 +247,7 @@ public static class DesktopDisplay
     private static void ShowAssetPage()
     {
         AssetChoices.Refresh();
-        displayPage = touchPage = audioPage = customPage = false;
+        displayPage = resolutionPage = touchPage = audioPage = customPage = false;
         assetPage = true;
         titleField!.SetValue(settingsMenu, "assets");
         itemsField!.SetValue(settingsMenu, assetItems);
@@ -242,19 +257,14 @@ public static class DesktopDisplay
     public static bool HandleSettingsClick(object settings, string text)
     {
         if (!ReferenceEquals(settings, settingsMenu)) return false;
-        if (!displayPage && !touchPage && !audioPage && !customPage && !assetPage)
+        if (!displayPage && !resolutionPage && !touchPage && !audioPage && !customPage && !assetPage)
         {
-            if (text is not ("GRAPH1CS" or "AUD10" or "1NPUT" or "ASSETS")) return false;
+            if (text is not ("GRAPH1CS" or "AUD10" or "1NPUT")) return false;
             previousInfos = infosField!.GetValue(settings);
             infosField.SetValue(settings, null);
             if (text == "1NPUT")
             {
                 ShowTouchPage();
-                return true;
-            }
-            if (text == "ASSETS")
-            {
-                ShowAssetPage();
                 return true;
             }
             if (text == "AUD10") ShowAudioPage();
@@ -275,7 +285,7 @@ public static class DesktopDisplay
         }
         if (assetPage)
         {
-            if (text == "BACK") CloseDisplayPage();
+            if (text == "BACK") ReturnToGraphicsPage();
             else
             {
                 var mode = text.StartsWith("I MAED:", StringComparison.Ordinal) ? "normal" :
@@ -298,7 +308,28 @@ public static class DesktopDisplay
                     Valid(width, height)) Apply(preferences with { Width = width, Height = height }, save: true);
                 else SetInfo("Resolution must be 600-3840 x 360-2160.");
             }
-            else if (text == "BACK") ReturnToDisplayPage();
+            else if (text == "BACK") ReturnToResolutionPage();
+            else return false;
+            RefreshLabels();
+            return true;
+        }
+        if (resolutionPage)
+        {
+            if (text.StartsWith("PRES3T:", StringComparison.Ordinal))
+            {
+                var available = AvailablePresets(desktopSize.Width, desktopSize.Height);
+                var index = Array.FindIndex(available, preset =>
+                    preset.Width == preferences.Width && preset.Height == preferences.Height);
+                if (available.Length > 0)
+                {
+                    var preset = available[index < 0 ? 0 : (index + 1) % available.Length];
+                    Apply(preferences with { Width = preset.Width, Height = preset.Height }, save: true);
+                    widthText = preferences.Width.ToString();
+                    heightText = preferences.Height.ToString();
+                }
+            }
+            else if (text == "CUST0M RES0LUTI0N") ShowCustomPage();
+            else if (text == "BACK") ReturnToGraphicsPage();
             else return false;
             RefreshLabels();
             return true;
@@ -309,22 +340,10 @@ public static class DesktopDisplay
             var index = Array.IndexOf(modes, preferences.Mode);
             Apply(preferences with { Mode = modes[(index + 1) % modes.Length] }, save: true);
         }
-        else if (text.StartsWith("PRES3T:", StringComparison.Ordinal))
-        {
-            var available = AvailablePresets(desktopSize.Width, desktopSize.Height);
-            var index = Array.FindIndex(available, preset =>
-                preset.Width == preferences.Width && preset.Height == preferences.Height);
-            if (available.Length > 0)
-            {
-                var preset = available[index < 0 ? 0 : (index + 1) % available.Length];
-                Apply(preferences with { Width = preset.Width, Height = preset.Height }, save: true);
-                widthText = preferences.Width.ToString();
-                heightText = preferences.Height.ToString();
-            }
-        }
+        else if (text == "RES0LUTI0N") ShowResolutionPage();
         else if (text.StartsWith("VSYNC:", StringComparison.Ordinal))
             Apply(preferences with { VSync = !preferences.VSync }, save: true);
-        else if (text == "CUST0M RES0LUTI0N") ShowCustomPage();
+        else if (text == "ASSETS") ShowAssetPage();
         else if (text.StartsWith("R3DUCE FLASH1NG:", StringComparison.Ordinal))
         {
             preferences = preferences with { ReduceFlashing = !preferences.ReduceFlashing };
@@ -338,17 +357,30 @@ public static class DesktopDisplay
 
     public static bool HandleSettingsCancel(object settings)
     {
-        if (!ReferenceEquals(settings, settingsMenu) || (!displayPage && !touchPage && !audioPage && !customPage && !assetPage)) return false;
+        if (!ReferenceEquals(settings, settingsMenu) || (!displayPage && !resolutionPage && !touchPage && !audioPage && !customPage && !assetPage)) return false;
         if (customPage)
         {
-            ReturnToDisplayPage();
+            ReturnToResolutionPage();
+            return true;
+        }
+        if (resolutionPage || assetPage)
+        {
+            ReturnToGraphicsPage();
             return true;
         }
         CloseDisplayPage();
         return true;
     }
 
-    private static void ReturnToDisplayPage()
+    private static void ReturnToResolutionPage()
+    {
+        editing = -1;
+        captureInput = true;
+        infosField!.SetValue(settingsMenu, null);
+        ShowResolutionPage();
+    }
+
+    private static void ReturnToGraphicsPage()
     {
         editing = -1;
         captureInput = true;
@@ -420,19 +452,26 @@ public static class DesktopDisplay
 
     private static void RefreshLabels()
     {
-        if (displayItems is null || customItems is null || assetItems is null || itemTextField is null) return;
+        if (displayItems is null || resolutionItems is null || customItems is null || assetItems is null || itemTextField is null) return;
         var displayLabels = new[]
         {
             $"M0DE: {preferences.Mode.ToUpperInvariant()}",
-            AvailablePresets(desktopSize.Width, desktopSize.Height).Any(preset =>
-                preset.Width == preferences.Width && preset.Height == preferences.Height)
-                ? $"PRES3T: {preferences.Width} X {preferences.Height}" : "PRES3T: CUST0M",
+            "RES0LUTI0N",
             $"VSYNC: {(preferences.VSync ? "ON" : "OFF")}",
-            "CUST0M RES0LUTI0N",
-            $"R3DUCE FLASH1NG: {(preferences.ReduceFlashing ? "ON" : "OFF")}", "BACK"
+            $"R3DUCE FLASH1NG: {(preferences.ReduceFlashing ? "ON" : "OFF")}",
+            "ASSETS", "BACK"
         };
         for (var i = 0; i < displayLabels.Length; i++)
             itemTextField.SetValue(displayItems.GetValue(i), displayLabels[i]);
+        var resolutionLabels = new[]
+        {
+            AvailablePresets(desktopSize.Width, desktopSize.Height).Any(preset =>
+                preset.Width == preferences.Width && preset.Height == preferences.Height)
+                ? $"PRES3T: {preferences.Width} X {preferences.Height}" : "PRES3T: CUST0M",
+            "CUST0M RES0LUTI0N", "BACK"
+        };
+        for (var i = 0; i < resolutionLabels.Length; i++)
+            itemTextField.SetValue(resolutionItems.GetValue(i), resolutionLabels[i]);
         var customLabels = new[]
         {
             $"W1DTH: {widthText}{(editing == 2 ? "_" : "")}",
@@ -472,10 +511,12 @@ public static class DesktopDisplay
         var device = game.GraphicsDevice;
         SyncSceneSize();
         if (scene is null || scene.IsDisposed ||
-            scene.Width != sceneSize.Width || scene.Height != sceneSize.Height)
+            scene.Width != device.PresentationParameters.BackBufferWidth ||
+            scene.Height != device.PresentationParameters.BackBufferHeight)
         {
             scene?.Dispose();
-            scene = new RenderTarget2D(device, sceneSize.Width, sceneSize.Height, false,
+            scene = new RenderTarget2D(device, device.PresentationParameters.BackBufferWidth,
+                device.PresentationParameters.BackBufferHeight, false,
                 SurfaceFormat.Color, DepthFormat.None);
         }
         device.SetRenderTarget(scene);
@@ -491,12 +532,39 @@ public static class DesktopDisplay
         batch ??= new SpriteBatch(device);
         batch.Begin(SpriteSortMode.Deferred, BlendState.Opaque, SamplerState.LinearClamp,
             DepthStencilState.None, RasterizerState.CullNone);
-        var presentation = Presentation(device.PresentationParameters.BackBufferWidth,
-            device.PresentationParameters.BackBufferHeight, sceneSize);
-        batch.Draw(scene, presentation.Offset, null, Color.White, 0, Vector2.Zero,
-            presentation.Scale, SpriteEffects.None, 0);
+        batch.Draw(scene, Vector2.Zero, Color.White);
         batch.End();
     }
+
+    // The game still works in phone coordinates. Transform its batches while the
+    // full-resolution scene is bound, leaving text baking and other targets alone.
+    private static Matrix SceneTransform(SpriteBatch sprite)
+    {
+        if (scene is null || scene.IsDisposed ||
+            !sprite.GraphicsDevice.GetRenderTargets().Any(target => ReferenceEquals(target.RenderTarget, scene)))
+            return Matrix.Identity;
+        var placement = Presentation(scene.Width, scene.Height, sceneSize);
+        return Matrix.CreateScale(placement.Scale, placement.Scale, 1f) *
+            Matrix.CreateTranslation(placement.Offset.X, placement.Offset.Y, 0f);
+    }
+
+    public static void Begin(SpriteBatch sprite) =>
+        sprite.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, null, null, null, null, SceneTransform(sprite));
+
+    public static void Begin(SpriteBatch sprite, SpriteSortMode sort, BlendState blend) =>
+        sprite.Begin(sort, blend, null, null, null, null, SceneTransform(sprite));
+
+    public static void Begin(SpriteBatch sprite, SpriteSortMode sort, BlendState blend,
+        SamplerState sampler, DepthStencilState depth, RasterizerState raster) =>
+        sprite.Begin(sort, blend, sampler, depth, raster, null, SceneTransform(sprite));
+
+    public static void Begin(SpriteBatch sprite, SpriteSortMode sort, BlendState blend,
+        SamplerState sampler, DepthStencilState depth, RasterizerState raster, Effect effect) =>
+        sprite.Begin(sort, blend, sampler, depth, raster, effect, SceneTransform(sprite));
+
+    public static void Begin(SpriteBatch sprite, SpriteSortMode sort, BlendState blend,
+        SamplerState sampler, DepthStencilState depth, RasterizerState raster, Effect effect, Matrix transform) =>
+        sprite.Begin(sort, blend, sampler, depth, raster, effect, transform * SceneTransform(sprite));
 
     // Keep at least the phone's original 600x360 view. The other axis grows to
     // match the backbuffer, so the camera shows more world instead of adding bars.
@@ -583,6 +651,7 @@ public static class DesktopDisplay
         Shift(audioItems);
         Shift(touchItems);
         Shift(displayItems);
+        Shift(resolutionItems);
         Shift(customItems);
         Shift(assetItems);
         menuOffsetApplied = MenuOffset;

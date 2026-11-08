@@ -1,5 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup><OutputType>Exe</OutputType><AssemblyName>Port.Launcher</AssemblyName></PropertyGroup>
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <OutputType Condition="'$(Configuration)' == 'Release'">WinExe</OutputType>
+    <AssemblyName>Z0MB1ES</AssemblyName>
+    <Version>0.1.0</Version>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+    <ApplicationIcon>../../assets/icon/icon.ico</ApplicationIcon>
+  </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../Port.Bridge/Port.Bridge.csproj" />
     <ProjectReference Include="../Port.Hooks/Port.Hooks.csproj" />

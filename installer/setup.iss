@@ -3,16 +3,17 @@
 
 [Setup]
 AppId={{F393AB61-549B-416A-B34E-E1AB2E96AF07}
-AppName=Z0MB1ES Recompiled
+AppName=Z0MB1ES (on teh ph0ne)
 AppVersion=0.1.0
 DefaultDirName={code:DefaultInstallDir}
-DefaultGroupName=Z0MB1ES Recompiled
+DefaultGroupName=Z0MB1ES (on teh ph0ne)
 PrivilegesRequired=lowest
 OutputDir=out
-OutputBaseFilename=ZombiesPort-Setup
+OutputBaseFilename=Z0MB1ES-0.1.0
 Compression=lzma2/fast
 SolidCompression=no
 WizardStyle=modern
+DisableWelcomePage=no
 SetupIconFile={#RepoRoot}\assets\icon\icon.ico
 UninstallDisplayIcon={app}\icon-gray.ico
 WizardSmallImageFile={#RepoRoot}\assets\installer\wizard-top.png
@@ -21,6 +22,13 @@ DisableProgramGroupPage=yes
 UsePreviousAppDir=yes
 AllowNoIcons=yes
 
+[Messages]
+WelcomeLabel1=Welcome to Z0MB1ES (on teh ph0ne) setup
+WelcomeLabel2=This fan-made port brings the Windows Phone game to your PC with keyboard, mouse, and controller support.%n%nYou will need your own copy of the game's XAP. Setup prepares it locally.
+WizardSelectTasks=Shortcuts
+SelectTasksDesc=Choose shortcuts
+SelectTasksLabel2=Select the shortcuts to create:
+
 [Files]
 Source: "{#RepoRoot}\assets\icon\icon-gray.ico"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#Payload}\helper\Port.SetupHelper.exe"; Flags: dontcopy
@@ -28,11 +36,16 @@ Source: "{#Payload}\runtime\*"; DestDir: "{tmp}\port-payload\runtime"; Flags: re
 Source: "{#Payload}\tools\*"; DestDir: "{tmp}\port-payload\tools"; Flags: recursesubdirs createallsubdirs dontcopy
 Source: "{#Payload}\config\*"; DestDir: "{tmp}\port-payload\config"; Flags: recursesubdirs createallsubdirs dontcopy
 
+[Tasks]
+Name: "startmenu"; Description: "Start Menu shortcut"; Flags: checkedonce
+Name: "desktop"; Description: "Desktop shortcut"; Flags: unchecked
+
 [Icons]
-Name: "{autoprograms}\Z0MB1ES Recompiled"; Filename: "{app}\current\Port.Launcher.exe"; Parameters: "--run ""{app}\current\ZombiesWP7.dll"" --content ""{app}\current"""; WorkingDir: "{app}\current"
+Name: "{autoprograms}\Z0MB1ES (on teh ph0ne)"; Filename: "{app}\current\Z0MB1ES.exe"; Parameters: "--run ""{app}\current\ZombiesWP7.dll"" --content ""{app}\current"""; WorkingDir: "{app}\current"; Tasks: startmenu
+Name: "{autodesktop}\Z0MB1ES (on teh ph0ne)"; Filename: "{app}\current\Z0MB1ES.exe"; Parameters: "--run ""{app}\current\ZombiesWP7.dll"" --content ""{app}\current"""; WorkingDir: "{app}\current"; Tasks: desktop
 
 [Run]
-Filename: "{app}\current\Port.Launcher.exe"; Parameters: "--run ""{app}\current\ZombiesWP7.dll"" --content ""{app}\current"""; Description: "Launch Z0MB1ES Recompiled"; Flags: nowait postinstall skipifsilent unchecked
+Filename: "{app}\current\Z0MB1ES.exe"; Parameters: "--run ""{app}\current\ZombiesWP7.dll"" --content ""{app}\current"""; Description: "Launch Z0MB1ES (on teh ph0ne)"; Flags: nowait postinstall skipifsilent unchecked
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}\current"
@@ -41,11 +54,12 @@ Type: filesandordirs; Name: "{app}\current"
 var
   XapPage: TInputFileWizardPage;
   NormalPage: TInputOptionWizardPage;
+  NormalReinstallPage: TInputOptionWizardPage;
   VikingPage: TInputOptionWizardPage;
+  VikingReinstallPage: TInputOptionWizardPage;
   SteamPage: TInputDirWizardPage;
   Normal360Page: TInputFileWizardPage;
   Viking360Page: TInputFileWizardPage;
-  StagePage: TOutputProgressWizardPage;
   SelectedXap: String;
   InstallCommitted: Boolean;
   SetupCompleted: Boolean;
@@ -54,6 +68,31 @@ var
   SelectedViking: String;
   SelectedNormalSource: String;
   SelectedVikingSource: String;
+  HelperExtracted: Boolean;
+  ValidatedSteam: String;
+  ValidatedNormal360: String;
+  ValidatedViking360: String;
+  PreparingGame: Boolean;
+  CancellationRequested: Boolean;
+  CancelFile: String;
+
+function HasNormalArt: Boolean;
+begin
+  Result := DirExists(AddBackslash(WizardDirValue) + 'current\optional-art\i-maed-steam') or
+    DirExists(AddBackslash(WizardDirValue) + 'current\optional-art\i-maed-360');
+end;
+
+function HasVikingArt: Boolean;
+begin
+  Result := DirExists(AddBackslash(WizardDirValue) + 'current\optional-art\time-viking-360');
+end;
+
+procedure EnsureHelperExtracted;
+begin
+  if HelperExtracted then Exit;
+  ExtractTemporaryFile('Port.SetupHelper.exe');
+  HelperExtracted := True;
+end;
 
 function DefaultInstallDir(Param: String): String;
 var
@@ -71,54 +110,66 @@ end;
 
 procedure XapFileChanged(Sender: TObject);
 var
-  Code: Integer;
-  Output: TExecOutput;
   Path: String;
 begin
   if WizardSilent or (WizardForm.CurPageID <> XapPage.ID) then Exit;
-  WizardForm.NextButton.Enabled := False;
   Path := XapPage.Values[0];
-  if not FileExists(Path) then
-  begin
-    XapPage.SubCaptionLabel.Caption := 'Choose a readable .xap file.';
-    Exit;
-  end;
-  if not ExecAndCaptureOutput(ExpandConstant('{tmp}\Port.SetupHelper.exe'),
-     'validate-xap --xap ' + Quoted(Path), '', SW_SHOWNORMAL,
-     ewWaitUntilTerminated, Code, Output) then
-    XapPage.SubCaptionLabel.Caption := 'Could not start XAP validation.'
-  else if Code <> 0 then
-  begin
-    XapPage.SubCaptionLabel.Caption := 'Unsupported or damaged XAP.';
-    if GetArrayLength(Output.StdErr) > 0 then
-      XapPage.SubCaptionLabel.Caption := Output.StdErr[0];
-  end
+  WizardForm.NextButton.Enabled := FileExists(Path);
+  if FileExists(Path) then
+    XapPage.SubCaptionLabel.Caption := 'Click Next to check the selected XAP.'
   else
-  begin
-    XapPage.SubCaptionLabel.Caption := 'Supported game version detected. The XAP will stay in its original location.';
-    WizardForm.NextButton.Enabled := True;
-  end;
+    XapPage.SubCaptionLabel.Caption := 'Choose a readable .xap file.';
 end;
 
-procedure CurPageChanged(CurPageID: Integer);
+function CheckXapPage: Boolean;
+var
+  Path: String;
 begin
-  if CurPageID = XapPage.ID then XapFileChanged(nil);
+  Result := False;
+  Path := XapPage.Values[0];
+  if not FileExists(Path) then Exit;
+  XapPage.SubCaptionLabel.Caption := 'Checking XAP...';
+  XapPage.SubCaptionLabel.Refresh;
+  try
+    if CompareText(GetSHA256OfFile(Path),
+       '6b88c7fbd95444d2560b4b11e6f35d40a6c0f7abc30706155dcbccd18bc333fe') <> 0 then
+    begin
+      XapPage.SubCaptionLabel.Caption := 'Unsupported or damaged XAP.';
+      Exit;
+    end;
+  except
+    XapPage.SubCaptionLabel.Caption := 'The XAP could not be read.';
+    Exit;
+  end;
+  XapPage.SubCaptionLabel.Caption := 'Supported game version detected.';
+  Result := True;
 end;
 
 function NormalChoice: String;
 begin
   if WizardSilent then Result := ExpandConstant('{param:ARTNORMAL|keep}')
-  else if NormalPage.Values[1] then Result := 'none'
-  else if NormalPage.Values[2] then Result := 'steam'
-  else if NormalPage.Values[3] then Result := '360'
+  else if HasNormalArt then
+  begin
+    if NormalReinstallPage.Values[1] then Result := 'none'
+    else if NormalReinstallPage.Values[2] then Result := 'steam'
+    else if NormalReinstallPage.Values[3] then Result := '360'
+    else Result := 'keep';
+  end
+  else if NormalPage.Values[1] then Result := 'steam'
+  else if NormalPage.Values[2] then Result := '360'
   else Result := 'keep';
 end;
 
 function VikingChoice: String;
 begin
   if WizardSilent then Result := ExpandConstant('{param:ARTVIKING|keep}')
-  else if VikingPage.Values[1] then Result := 'none'
-  else if VikingPage.Values[2] then Result := '360'
+  else if HasVikingArt then
+  begin
+    if VikingReinstallPage.Values[1] then Result := 'none'
+    else if VikingReinstallPage.Values[2] then Result := '360'
+    else Result := 'keep';
+  end
+  else if VikingPage.Values[1] then Result := '360'
   else Result := 'keep';
 end;
 
@@ -137,7 +188,11 @@ end;
 
 function ShouldSkipPage(PageID: Integer): Boolean;
 begin
-  Result := (PageID = SteamPage.ID) and (NormalChoice <> 'steam') or
+  Result := (PageID = NormalPage.ID) and HasNormalArt or
+    (PageID = NormalReinstallPage.ID) and not HasNormalArt or
+    (PageID = VikingPage.ID) and HasVikingArt or
+    (PageID = VikingReinstallPage.ID) and not HasVikingArt or
+    (PageID = SteamPage.ID) and (NormalChoice <> 'steam') or
     (PageID = Normal360Page.ID) and (NormalChoice <> '360') or
     (PageID = Viking360Page.ID) and (VikingChoice <> '360');
 end;
@@ -150,7 +205,7 @@ begin
   Result := False;
   if Path = '' then
   begin
-    Detail := 'Select the optional art source or choose Original on the previous page.';
+    Detail := 'Select an artwork source or go back and choose Don''t Import.';
     Exit;
   end;
   if not ExecAndCaptureOutput(ExpandConstant('{tmp}\Port.SetupHelper.exe'),
@@ -164,50 +219,117 @@ begin
   end
   else
   begin
-    Detail := Output.StdOut[0];
+    Detail := 'Supported artwork source detected.';
     Result := True;
   end;
 end;
 
+procedure ValidateArtInput(const Kind, Path: String; LabelControl: TNewStaticText;
+  var CachedPath: String);
+var
+  Detail: String;
+begin
+  WizardForm.NextButton.Enabled := False;
+  if (Path = CachedPath) and (Path <> '') then
+  begin
+    WizardForm.NextButton.Enabled := True;
+    Exit;
+  end;
+  CachedPath := '';
+  if (Path = '') or ((Kind = 'i-maed-steam') and not DirExists(Path)) or
+     ((Kind <> 'i-maed-steam') and not FileExists(Path)) then
+  begin
+    LabelControl.Caption := 'Choose an artwork source.';
+    Exit;
+  end;
+  LabelControl.Caption := 'Validating artwork...';
+  LabelControl.Refresh;
+  EnsureHelperExtracted;
+  if ValidateArtPage(Kind, Path, Detail) then
+  begin
+    CachedPath := Path;
+    WizardForm.NextButton.Enabled := True;
+  end;
+  LabelControl.Caption := Detail;
+end;
+
+procedure SteamChanged(Sender: TObject);
+begin
+  if WizardSilent or (WizardForm.CurPageID <> SteamPage.ID) then Exit;
+  ValidateArtInput('i-maed-steam', SteamPage.Values[0], SteamPage.SubCaptionLabel, ValidatedSteam);
+end;
+
+procedure Normal360Changed(Sender: TObject);
+begin
+  if WizardSilent or (WizardForm.CurPageID <> Normal360Page.ID) then Exit;
+  ValidateArtInput('i-maed-360', Normal360Page.Values[0], Normal360Page.SubCaptionLabel, ValidatedNormal360);
+end;
+
+procedure Viking360Changed(Sender: TObject);
+begin
+  if WizardSilent or (WizardForm.CurPageID <> Viking360Page.ID) then Exit;
+  ValidateArtInput('time-viking-360', Viking360Page.Values[0], Viking360Page.SubCaptionLabel, ValidatedViking360);
+end;
+
+procedure CurPageChanged(CurPageID: Integer);
+begin
+  if CurPageID = XapPage.ID then XapFileChanged(nil)
+  else if CurPageID = SteamPage.ID then SteamChanged(nil)
+  else if CurPageID = Normal360Page.ID then Normal360Changed(nil)
+  else if CurPageID = Viking360Page.ID then Viking360Changed(nil);
+end;
+
 procedure InitializeWizard;
 begin
-  ExtractTemporaryFile('Port.SetupHelper.exe');
-  WizardForm.WelcomeLabel2.Caption := 'You need your own supported Z0MB1ES (on teh ph0ne) XAP. Setup works offline and keeps your source package untouched.';
   XapPage := CreateInputFilePage(wpSelectDir, 'Game XAP',
-    'Select your own supported Z0MB1ES XAP.',
-    'Setup checks the package read-only before installing. The source file stays where it is.');
+    'Select your Z0MB1ES (on teh ph0ne) XAP.',
+    'Choose the supported game package.');
   XapPage.Add('Game XAP:', 'XAP packages|*.xap|All files|*.*', '.xap');
   XapPage.Values[0] := ExpandConstant('{param:XAP|}');
   XapPage.Edits[0].OnChange := @XapFileChanged;
-  NormalPage := CreateInputOptionPage(XapPage.ID, 'I MAED artwork',
-    'Choose one optional artwork source for I MAED. It can also improve Endless.',
-    'Setup keeps the phone game and Original art available in every case.', True, False);
-  NormalPage.Add('Keep current artwork choice (phone Original on a new install)');
-  NormalPage.Add('Remove imported I MAED artwork and use Original');
-  NormalPage.Add('Import Steam I MAED 1.0.0.0 (I MAED and Endless artwork)');
-  NormalPage.Add('Import supported I MAED 360 LIVE (121 mapped artworks)');
+  NormalPage := CreateInputOptionPage(XapPage.ID, 'I MAED A GAM3 W1TH Z0MB1ES 1N IT!!!1 artwork',
+    'You can use artwork from a different game version to improve the quality.',
+    'The original artwork will still be available in game settings.', True, False);
+  NormalPage.Add('Don''t Import');
+  NormalPage.Add('Import from Steam');
+  NormalPage.Add('Import from Xbox 360 Package');
   NormalPage.Values[0] := True;
-  VikingPage := CreateInputOptionPage(NormalPage.ID, 'Time Viking artwork',
-    'Choose Time Viking artwork independently.',
-    'The 360 import supplies 270 mapped artworks; Original remains available.', True, False);
-  VikingPage.Add('Keep current artwork choice (phone Original on a new install)');
-  VikingPage.Add('Remove imported Time Viking artwork and use Original');
-  VikingPage.Add('Import supported Time Viking 360 LIVE (270 mapped artworks)');
+  NormalReinstallPage := CreateInputOptionPage(NormalPage.ID, 'I MAED A GAM3 W1TH Z0MB1ES 1N IT!!!1 artwork',
+    'You can use artwork from a different game version to improve the quality.',
+    'The original artwork will still be available in game settings.', True, False);
+  NormalReinstallPage.Add('Keep Current');
+  NormalReinstallPage.Add('Remove Imported Artwork');
+  NormalReinstallPage.Add('Import from Steam');
+  NormalReinstallPage.Add('Import from Xbox 360 Package');
+  NormalReinstallPage.Values[0] := True;
+  VikingPage := CreateInputOptionPage(NormalReinstallPage.ID, 'TIME VIKING artwork',
+    'You can use artwork from a different game version to improve the quality.',
+    'The original artwork will still be available in game settings.', True, False);
+  VikingPage.Add('Don''t Import');
+  VikingPage.Add('Import from Xbox 360 Package');
   VikingPage.Values[0] := True;
-  SteamPage := CreateInputDirPage(VikingPage.ID, 'Steam I MAED folder',
+  VikingReinstallPage := CreateInputOptionPage(VikingPage.ID, 'TIME VIKING artwork',
+    'You can use artwork from a different game version to improve the quality.',
+    'The original artwork will still be available in game settings.', True, False);
+  VikingReinstallPage.Add('Keep Current');
+  VikingReinstallPage.Add('Remove Imported Artwork');
+  VikingReinstallPage.Add('Import from Xbox 360 Package');
+  VikingReinstallPage.Values[0] := True;
+  SteamPage := CreateInputDirPage(VikingReinstallPage.ID, 'Steam I MAED A GAM3 W1TH Z0MB1ES 1N IT!!!1 folder',
     'Select your own Steam installation directory.',
     'Setup verifies the executable and all nine required texture files. It never runs the game.', False, '');
-  SteamPage.Add('Steam I MAED folder:');
-  Normal360Page := CreateInputFilePage(SteamPage.ID, 'I MAED 360 LIVE',
-    'Select your own supported I MAED 360 package.',
+  SteamPage.Add('Steam folder:');
+  SteamPage.Edits[0].OnChange := @SteamChanged;
+  Normal360Page := CreateInputFilePage(SteamPage.ID, 'I MAED A GAM3 W1TH Z0MB1ES 1N IT!!!1 package',
+    'Select your Xbox 360 package.',
     'Setup verifies the complete LIVE package and title before preparing mapped art.');
-  Normal360Page.Add('I MAED LIVE:', 'LIVE packages|*.*', '');
+  Normal360Page.Add('Xbox 360 package:', 'LIVE packages|*.*', '');
+  Normal360Page.Edits[0].OnChange := @Normal360Changed;
   Viking360Page := CreateInputFilePage(Normal360Page.ID, 'Time Viking 360 LIVE',
     'Select your own supported Time Viking 360 package.',
     'Setup verifies the complete LIVE package and title before preparing mapped art.');
   Viking360Page.Add('Time Viking LIVE:', 'LIVE packages|*.*', '');
-  StagePage := CreateOutputProgressPage('Preparing game',
-    'The selected XAP is prepared locally and verified before installation.');
+  Viking360Page.Edits[0].OnChange := @Viking360Changed;
 end;
 
 function UpdateReadyMemo(const Space, NewLine, MemoUserInfoInfo, MemoDirInfo,
@@ -216,9 +338,17 @@ begin
   Result := MemoDirInfo + NewLine + NewLine +
     'Game version: ZombiesWP7 1.0.0.0' + NewLine +
     'Game XAP: ' + SelectedXap + NewLine +
-    'I MAED art: ' + NormalChoice + NewLine +
-    'Time Viking art: ' + VikingChoice + NewLine +
+    'I MAED A GAM3 W1TH Z0MB1ES 1N IT!!!1 artwork: ' + NormalChoice + NewLine +
+    'TIME VIKING artwork: ' + VikingChoice + NewLine +
     'Setup will prepare and verify the game locally before installing it.';
+end;
+
+procedure AdvanceProgress(Value: Integer);
+begin
+  if Value > 1000 then Value := 1000;
+  if Value <= WizardForm.ProgressGauge.Position then Exit;
+  WizardForm.ProgressGauge.Position := Value;
+  WizardForm.ProgressGauge.Refresh;
 end;
 
 procedure InstallLog(const S: String; const Error, FirstLine: Boolean);
@@ -226,31 +356,44 @@ var
   Stage: String;
   Position: Integer;
 begin
+  if Pos('PROGRESS ', S) = 1 then
+  begin
+    Position := StrToIntDef(Copy(S, 10, Length(S)), -1);
+    if (Position >= 0) and (Position <= 1000) then
+      AdvanceProgress(200 + Position * 8 div 10);
+    Exit;
+  end;
   Log(S);
   if Error then LastHelperError := S;
   if Pos('STAGE ', S) <> 1 then Exit;
   Stage := Copy(S, 7, Length(S));
-  Position := 1;
-  if Stage = 'extract' then Position := 2
-  else if Stage = 'rewrite' then Position := 3
-  else if Stage = 'reuse' then Position := 3
-  else if Stage = 'content' then Position := 4
-  else if Stage = 'art-phone-source' then Position := 5
-  else if Stage = 'art-verify' then Position := 5
-  else if Stage = 'verify' then Position := 5
-  else if Stage = 'commit' then Position := 6;
-  StagePage.SetText('Preparing game', Stage);
-  StagePage.SetProgress(Position, 6);
-  StagePage.Msg1Label.Refresh;
-  StagePage.Msg2Label.Refresh;
-  StagePage.ProgressBar.Refresh;
+  if Stage = 'runtime' then WizardForm.StatusLabel.Caption := 'Copying runtime files...'
+  else if Stage = 'reuse-check' then WizardForm.StatusLabel.Caption := 'Checking installed game files...'
+  else if Stage = 'reuse' then WizardForm.StatusLabel.Caption := 'Copying prepared game data...'
+  else if Stage = 'extract' then WizardForm.StatusLabel.Caption := 'Extracting game package...'
+  else if Stage = 'inspect' then WizardForm.StatusLabel.Caption := 'Inspecting game assembly...'
+  else if Stage = 'abi' then WizardForm.StatusLabel.Caption := 'Checking runtime compatibility...'
+  else if Stage = 'rewrite' then WizardForm.StatusLabel.Caption := 'Preparing game code...'
+  else if Stage = 'content' then WizardForm.StatusLabel.Caption := 'Preparing game content and music...'
+  else if Stage = 'art' then WizardForm.StatusLabel.Caption := 'Preparing selected artwork...'
+  else if Stage = 'art-phone-source' then WizardForm.StatusLabel.Caption := 'Checking original artwork...'
+  else if Stage = 'art-verify' then WizardForm.StatusLabel.Caption := 'Checking prepared artwork...'
+  else if Stage = 'verify' then WizardForm.StatusLabel.Caption := 'Verifying prepared game files...'
+  else if Stage = 'commit' then WizardForm.StatusLabel.Caption := 'Finishing installation...';
+  WizardForm.StatusLabel.Refresh;
 end;
 
 function PrepareToInstall(var NeedsRestart: Boolean): String;
+begin
+  Result := '';
+end;
+
+function InstallGame: String;
 var
   Code: Integer;
+  ReusePrepared: Boolean;
+  NeedArtTools: Boolean;
   Output: TExecOutput;
-  Detail: String;
 begin
   Result := '';
   SelectedXap := XapPage.Values[0];
@@ -263,48 +406,60 @@ begin
     Result := 'Select a readable game XAP before installing.';
     Exit;
   end;
-  if not ExecAndCaptureOutput(ExpandConstant('{tmp}\Port.SetupHelper.exe'),
-     'validate-xap --xap ' + Quoted(SelectedXap), '', SW_SHOWNORMAL,
-     ewWaitUntilTerminated, Code, Output) then
-    Result := 'Could not start XAP validation.'
-  else if Code <> 0 then
-  begin
-    Result := 'The selected XAP is unsupported or damaged.';
-    if GetArrayLength(Output.StdErr) > 0 then Result := Result + #13#10 + Output.StdErr[0];
-  end;
-  if Result <> '' then Exit;
-  if SelectedNormal = 'steam' then
-  begin
-    if not ValidateArtPage('i-maed-steam', SelectedNormalSource, Detail) then
-    begin
-      Result := Detail;
-      Exit;
-    end;
-  end
-  else if SelectedNormal = '360' then
-  begin
-    if not ValidateArtPage('i-maed-360', SelectedNormalSource, Detail) then
-    begin
-      Result := Detail;
-      Exit;
-    end;
-  end;
-  if SelectedViking = '360' then
-  begin
-    if not ValidateArtPage('time-viking-360', SelectedVikingSource, Detail) then
-    begin
-      Result := Detail;
-      Exit;
-    end;
-  end;
-  StagePage.SetText('Preparing and verifying game files',
-    'Extraction, compatibility preparation, content conversion, and commit may take several minutes.');
-  StagePage.SetProgress(1, 2);
-  StagePage.Show;
-  StagePage.Msg1Label.Refresh;
-  StagePage.Msg2Label.Refresh;
+  CancelFile := ExpandConstant('{tmp}\port-cancel-requested');
+  if FileExists(CancelFile) then DeleteFile(CancelFile);
+  CancellationRequested := False;
+  PreparingGame := True;
+  WizardForm.ProgressGauge.Max := 1000;
+  WizardForm.ProgressGauge.Position := 0;
+  WizardForm.StatusLabel.Caption := 'Loading setup helper...';
+  WizardForm.StatusLabel.Refresh;
   try
-    ExtractTemporaryFiles('{tmp}\port-payload\*');
+    EnsureHelperExtracted;
+    AdvanceProgress(20);
+    WizardForm.StatusLabel.Caption := 'Checking existing game files...';
+    WizardForm.StatusLabel.Refresh;
+    ReusePrepared := False;
+    if FileExists(ExpandConstant('{app}\current\install-manifest.json')) then
+      if ExecAndCaptureOutput(ExpandConstant('{tmp}\Port.SetupHelper.exe'),
+         'verify-installed --directory ' + Quoted(ExpandConstant('{app}\current')),
+         '', SW_SHOWNORMAL, ewWaitUntilTerminated, Code, Output) then
+        ReusePrepared := Code = 0;
+    AdvanceProgress(40);
+    NeedArtTools := (SelectedNormal = 'steam') or (SelectedNormal = '360') or
+      (SelectedViking = '360') or
+      ((SelectedNormal = 'keep') and HasNormalArt) or
+      ((SelectedViking = 'keep') and HasVikingArt);
+    WizardForm.StatusLabel.Caption := 'Unpacking game runtime...';
+    WizardForm.StatusLabel.Refresh;
+    ExtractTemporaryFiles('{tmp}\port-payload\runtime\*');
+    AdvanceProgress(100);
+    ExtractTemporaryFiles('{tmp}\port-payload\config\*');
+    AdvanceProgress(110);
+    if not ReusePrepared then
+    begin
+      WizardForm.StatusLabel.Caption := 'Unpacking preparation tools...';
+      WizardForm.StatusLabel.Refresh;
+      ExtractTemporaryFiles('{tmp}\port-payload\tools\ffmpeg.exe');
+      AdvanceProgress(130);
+      ExtractTemporaryFiles('{tmp}\port-payload\tools\inspect_assembly.exe');
+      AdvanceProgress(150);
+      ExtractTemporaryFiles('{tmp}\port-payload\tools\abi\*');
+      AdvanceProgress(180);
+    end;
+    if NeedArtTools then
+    begin
+      WizardForm.StatusLabel.Caption := 'Unpacking artwork tools...';
+      WizardForm.StatusLabel.Refresh;
+      ExtractTemporaryFiles('{tmp}\port-payload\tools\Port.AssetImporter.exe');
+      AdvanceProgress(190);
+      ExtractTemporaryFiles('{tmp}\port-payload\tools\decode_360_xnb.exe');
+      AdvanceProgress(195);
+    end;
+    if CancellationRequested then Exit;
+    AdvanceProgress(200);
+    WizardForm.StatusLabel.Caption := 'Checking game package...';
+    WizardForm.StatusLabel.Refresh;
     LastHelperError := '';
     if not ExecAndLogOutput(ExpandConstant('{tmp}\Port.SetupHelper.exe'),
        'install --destination ' + Quoted(ExpandConstant('{app}\current')) +
@@ -312,7 +467,8 @@ begin
        ' --xap ' + Quoted(SelectedXap) +
        ' --normal ' + SelectedNormal + ' --viking ' + SelectedViking +
        ' --normal-source ' + Quoted(SelectedNormalSource) +
-       ' --viking-source ' + Quoted(SelectedVikingSource), '', SW_SHOWNORMAL,
+       ' --viking-source ' + Quoted(SelectedVikingSource) +
+       ' --cancel-file ' + Quoted(CancelFile), '', SW_SHOWNORMAL,
        ewWaitUntilTerminated, Code, @InstallLog) then
       Result := 'Could not start game preparation.'
     else if Code <> 0 then
@@ -323,76 +479,52 @@ begin
     else
     begin
       InstallCommitted := True;
-      StagePage.SetProgress(2, 2);
+      AdvanceProgress(1000);
     end;
   finally
-    StagePage.Hide;
+    PreparingGame := False;
   end;
 end;
 
 function NextButtonClick(CurPageID: Integer): Boolean;
-var
-  Code: Integer;
-  Output: TExecOutput;
-  Detail: String;
 begin
   Result := True;
   if WizardSilent then Exit;
-  if CurPageID = SteamPage.ID then
-  begin
-    Result := ValidateArtPage('i-maed-steam', SteamPage.Values[0], Detail);
-    if Result then MsgBox(Detail, mbInformation, MB_OK)
-    else MsgBox(Detail, mbError, MB_OK);
-    Exit;
-  end;
-  if CurPageID = Normal360Page.ID then
-  begin
-    Result := ValidateArtPage('i-maed-360', Normal360Page.Values[0], Detail);
-    if Result then MsgBox(Detail, mbInformation, MB_OK)
-    else MsgBox(Detail, mbError, MB_OK);
-    Exit;
-  end;
-  if CurPageID = Viking360Page.ID then
-  begin
-    Result := ValidateArtPage('time-viking-360', Viking360Page.Values[0], Detail);
-    if Result then MsgBox(Detail, mbInformation, MB_OK)
-    else MsgBox(Detail, mbError, MB_OK);
-    Exit;
-  end;
-  if CurPageID <> XapPage.ID then Exit;
-  SelectedXap := XapPage.Values[0];
-  if (SelectedXap = '') or not FileExists(SelectedXap) then
-  begin
-    MsgBox('Choose a readable .xap file.', mbError, MB_OK);
-    Result := False;
-    Exit;
-  end;
-  WizardForm.NextButton.Enabled := False;
-  try
-    if not ExecAndCaptureOutput(ExpandConstant('{tmp}\Port.SetupHelper.exe'),
-       'validate-xap --xap ' + Quoted(SelectedXap), '', SW_SHOWNORMAL,
-       ewWaitUntilTerminated, Code, Output) then
-      Detail := 'Could not start XAP validation.'
-    else if Code <> 0 then
-    begin
-      Detail := 'This XAP is unsupported, corrupted, or unreadable.';
-      if GetArrayLength(Output.StdErr) > 0 then Detail := Output.StdErr[0];
-    end
-    else Detail := '';
-    if Detail <> '' then
-    begin
-      MsgBox(Detail, mbError, MB_OK);
-      Result := False;
-    end;
-  finally
-    WizardForm.NextButton.Enabled := True;
-  end;
+  if CurPageID = XapPage.ID then Result := CheckXapPage
+  else if CurPageID = SteamPage.ID then Result := SteamPage.Values[0] = ValidatedSteam
+  else if CurPageID = Normal360Page.ID then Result := Normal360Page.Values[0] = ValidatedNormal360
+  else if CurPageID = Viking360Page.ID then Result := Viking360Page.Values[0] = ValidatedViking360;
+end;
+
+procedure CancelButtonClick(CurPageID: Integer; var Cancel, Confirm: Boolean);
+begin
+  if not PreparingGame then Exit;
+  Cancel := False;
+  Confirm := False;
+  if CancellationRequested then Exit;
+  CancellationRequested := True;
+  SaveStringToFile(CancelFile, 'cancel', False);
+  WizardForm.StatusLabel.Caption := 'Cancelling after the current step...';
+  WizardForm.StatusLabel.Refresh;
 end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
 var
   Code: Integer;
+  ErrorText: String;
 begin
+  if CurStep = ssInstall then
+  begin
+    ErrorText := InstallGame;
+    if CancellationRequested then Abort;
+    if ErrorText <> '' then
+    begin
+      if WizardSilent then Log(ErrorText)
+      else MsgBox(ErrorText, mbError, MB_OK);
+      Abort;
+    end;
+    Exit;
+  end;
   if CurStep <> ssDone then Exit;
   SetupCompleted := True;
   Code := -1;

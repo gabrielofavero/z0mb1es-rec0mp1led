@@ -14,7 +14,7 @@ internal static class RunSession
     {
         if (args.Length < 4 || args[2] != "--content")
         {
-            Console.Error.WriteLine("Usage: Port.Launcher --run <prepared.dll> --content <prepared-content-root> [--frames N] [--windowed] [--save-dir <directory>] [--probe-services] [--probe-mode normal|endless|viking] [--probe-menus] [--probe-resize WIDTHxHEIGHT] [--art-store <prepared-art-root>] [--art-normal original|steam|360] [--art-viking original|360] [--art-endless original|imported]");
+            Console.Error.WriteLine("Usage: Z0MB1ES --run <prepared.dll> --content <prepared-content-root> [--frames N] [--windowed] [--save-dir <directory>] [--probe-services] [--probe-mode normal|endless|viking] [--probe-menus] [--probe-resize WIDTHxHEIGHT] [--art-store <prepared-art-root>] [--art-normal original|steam|360] [--art-viking original|360] [--art-endless original|imported]");
             return 2;
         }
         int? frameLimit = null;
@@ -403,8 +403,13 @@ internal sealed class RunMonitor : DrawableGameComponent
         }
         if (menuProbe?.ShouldCaptureDisplay(Updates) == true)
         {
-            CaptureScreen("display-page", "MENU");
+            CaptureScreen("graphics-page", "MENU");
             menuProbe.MarkDisplayCaptured();
+        }
+        if (menuProbe?.ShouldCaptureResolution(Updates) == true)
+        {
+            CaptureScreen("resolution-page", "MENU");
+            menuProbe.MarkResolutionCaptured();
         }
         if (menuProbe?.ShouldCaptureCustom(Updates) == true)
         {

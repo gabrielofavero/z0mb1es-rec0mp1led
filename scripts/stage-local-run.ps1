@@ -20,7 +20,7 @@ foreach ($required in @(
     (Join-Path $prepared 'patch-manifest.json'),
     (Join-Path $content 'content-manifest.json'),
     (Join-Path $content 'Content/Arial.xnb'),
-    (Join-Path $runtime 'Port.Launcher.dll'),
+    (Join-Path $runtime 'Z0MB1ES.dll'),
     (Join-Path $runtime 'D3D12/D3D12Core.dll')
 )) {
     if (-not (Test-Path -LiteralPath $required -PathType Leaf)) { throw "Missing stage input: $required" }

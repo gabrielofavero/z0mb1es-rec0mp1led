@@ -48,7 +48,8 @@ try
         throw new ArgumentException("FFmpeg SHA-256 must be 64 hexadecimal characters.");
     if (OperatingSystem.IsWindows() && ffmpegSha != windowsSha)
         throw new InvalidDataException("Windows FFmpeg hash differs from the pinned converter.");
-    var manifestSha = ContentPreparer.Prepare(source, output, args[5], ffmpegSha, identity.XapSha256);
+    var manifestSha = ContentPreparer.Prepare(source, output, args[5], ffmpegSha, identity.XapSha256,
+        step => Console.WriteLine($"CONTENT_PROGRESS {step.Stage} {step.Completed}/{step.Total}"));
     Console.WriteLine($"CONTENT_PREPARED assets={assets.Count} manifestSha256={manifestSha}");
     return 0;
 }

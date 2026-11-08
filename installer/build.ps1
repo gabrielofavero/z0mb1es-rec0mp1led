@@ -17,7 +17,7 @@ if ((Get-FileHash -LiteralPath $converter -Algorithm SHA256).Hash -ine $expected
 }
 python (Join-Path $PSScriptRoot 'ffmpeg/package-source.py') --ffmpeg-path $converter
 if ($LASTEXITCODE -ne 0) { throw 'FFmpeg source bundle or license packaging failed.' }
-$priorSetup = Join-Path $PSScriptRoot 'out/ZombiesPort-Setup.exe'
+$priorSetup = Join-Path $PSScriptRoot 'out/Z0MB1ES-0.1.0.exe'
 if (Test-Path -LiteralPath $priorSetup) { Remove-Item -LiteralPath $priorSetup -Force }
 
 $expectedPayload = [System.IO.Path]::GetFullPath((Join-Path $repo 'installer/out/payload'))
@@ -155,7 +155,7 @@ New-Item -ItemType Directory -Force -Path (Join-Path $payload 'config') | Out-Nu
 Copy-Item -LiteralPath (Join-Path $repo 'config/supported-versions.json') -Destination (Join-Path $payload 'config') -Force
 
 $allowedRuntime = @(
-    'Port.Launcher.exe','Port.Bridge.dll','Port.Hooks.dll','FNA.dll','FNA.dll.config',
+    'Z0MB1ES.exe','Port.Bridge.dll','Port.Hooks.dll','FNA.dll','FNA.dll.config',
     'SDL3.dll','FNA3D.dll','FAudio.dll','libtheorafile.dll','D3D12/D3D12Core.dll',
     'notices/LICENSE','notices/lzxdecoder.LICENSE','notices/monoxna.LICENSE',
     'notices/FAudio-LICENSE','notices/FNA3D-LICENSE','notices/SDL3-CS-LICENSE',

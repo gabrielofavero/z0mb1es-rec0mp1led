@@ -5,10 +5,12 @@ using System.Text.Json;
 
 namespace Port.Content;
 
+public sealed record ContentProgress(string Stage, long Completed, long Total);
+
 public static class ContentPreparer
 {
     public static string Prepare(string extractionRoot, string outputDirectory, string ffmpegPath,
-        string expectedFfmpegSha256, string sourceXapSha256)
+        string expectedFfmpegSha256, string sourceXapSha256, Action<ContentProgress>? progress = null)
     {
         var source = Path.GetFullPath(extractionRoot);
         var output = Path.GetFullPath(outputDirectory);
@@ -30,38 +32,34 @@ public static class ContentPreparer
         try
         {
             Directory.CreateDirectory(staging);
-            foreach (var asset in assets.Where(asset => asset.Kind != "wma-companion"))
+            var copied = assets.Where(asset => asset.Kind != "wma-companion").ToArray();
+            progress?.Invoke(new ContentProgress("copy", 0, copied.Length));
+            for (var i = 0; i < copied.Length; i++)
             {
+                var asset = copied[i];
                 var destination = Path.Combine(staging, asset.Path.Replace('/', Path.DirectorySeparatorChar));
                 Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
                 File.Copy(Path.Combine(source, asset.Path.Replace('/', Path.DirectorySeparatorChar)), destination);
                 if (Hash(destination) != asset.Sha256)
                     throw new InvalidDataException($"Copied file changed: {asset.Path}");
+                progress?.Invoke(new ContentProgress("copy", i + 1, copied.Length));
             }
-            foreach (var asset in assets.Where(asset => asset.Kind == "wma-companion"))
-            {
-                var input = Path.Combine(source, asset.Path.Replace('/', Path.DirectorySeparatorChar));
-                var relative = Path.ChangeExtension(asset.Path, ".ogg");
-                var destination = Path.Combine(staging, relative.Replace('/', Path.DirectorySeparatorChar));
-                Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
-                var start = new ProcessStartInfo(tool)
+            var music = assets.Where(asset => asset.Kind == "wma-companion").ToArray();
+            var durations = music.Select(DurationMicroseconds).ToArray();
+            var encoded = new long[music.Length];
+            var totalDuration = durations.Sum();
+            var progressLock = new object();
+            progress?.Invoke(new ContentProgress("music", 0, totalDuration));
+            Task.WhenAll(music.Select((asset, index) => Task.Run(() =>
+                ConvertAudio(tool, source, staging, asset, progress is null ? null : elapsed =>
                 {
-                    UseShellExecute = false,
-                    RedirectStandardError = true,
-                    RedirectStandardOutput = true,
-                    CreateNoWindow = true
-                };
-                foreach (var argument in new[] { "-nostdin", "-hide_banner", "-loglevel", "error", "-i", input,
-                             "-map", "0:a:0", "-vn", "-c:a", "libvorbis", "-q:a", "5", "-map_metadata", "-1",
-                             "-bitexact", destination })
-                    start.ArgumentList.Add(argument);
-                using var process = Process.Start(start) ?? throw new IOException("Could not start FFmpeg.");
-                var standardError = process.StandardError.ReadToEnd();
-                process.WaitForExit();
-                if (process.ExitCode != 0 || !File.Exists(destination) || new FileInfo(destination).Length == 0)
-                    throw new InvalidDataException($"Audio conversion failed for {asset.Path}: {standardError.Trim()}");
-                VerifyOggVorbis(destination);
-            }
+                    lock (progressLock)
+                    {
+                        encoded[index] = Math.Max(encoded[index], Math.Clamp(elapsed, 0, durations[index]));
+                        progress(new ContentProgress("music", encoded.Sum(), totalDuration));
+                    }
+                }))))
+                .GetAwaiter().GetResult();
 
             // SceneMgr.ReadTextures loads gfx/scenes/<keyframe texture>, while this
             // exact package stores the five matching XNBs under gfx_2/scenes/.
@@ -78,6 +76,7 @@ public static class ContentPreparer
                     throw new InvalidDataException($"Scene alias differs from source: {name}");
             }
 
+            progress?.Invoke(new ContentProgress("finalize", 0, 1));
             var outputs = Directory.EnumerateFiles(staging, "*", SearchOption.AllDirectories)
                 .Select(path => new ContentOutput(Path.GetRelativePath(staging, path).Replace('\\', '/'),
                     new FileInfo(path).Length, Hash(path)))
@@ -88,6 +87,7 @@ public static class ContentPreparer
             File.WriteAllText(manifestPath, JsonSerializer.Serialize(manifest,
                 new JsonSerializerOptions { WriteIndented = true }) + "\n");
             Directory.Move(staging, output);
+            progress?.Invoke(new ContentProgress("finalize", 1, 1));
             return Hash(Path.Combine(output, "content-manifest.json"));
         }
         catch
@@ -101,6 +101,54 @@ public static class ContentPreparer
     {
         using var stream = File.OpenRead(path);
         return Convert.ToHexString(SHA256.HashData(stream)).ToLowerInvariant();
+    }
+
+    private static long DurationMicroseconds(ContentAsset asset) => asset.Path.Split('/')[^1] switch
+    {
+        // The installer accepts one exact XAP, so these source durations are fixed.
+        "endless.wma" => 302_050_000,
+        "epicopus.wma" => 817_950_000,
+        "timeviking.wma" => 907_670_000,
+        _ => throw new InvalidDataException($"Unknown music track: {asset.Path}")
+    };
+
+    private static void ConvertAudio(string tool, string source, string staging, ContentAsset asset,
+        Action<long>? onProgress)
+    {
+        var input = Path.Combine(source, asset.Path.Replace('/', Path.DirectorySeparatorChar));
+        var relative = Path.ChangeExtension(asset.Path, ".ogg");
+        var destination = Path.Combine(staging, relative.Replace('/', Path.DirectorySeparatorChar));
+        Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+        var start = new ProcessStartInfo(tool)
+        {
+            UseShellExecute = false,
+            RedirectStandardError = true,
+            RedirectStandardOutput = onProgress is not null,
+            CreateNoWindow = true
+        };
+        if (onProgress is not null)
+            foreach (var argument in new[] { "-stats_period", "0.25", "-progress", "pipe:1" })
+                start.ArgumentList.Add(argument);
+        foreach (var argument in new[] { "-nostdin", "-hide_banner", "-loglevel", "error", "-i", input,
+                     "-map", "0:a:0", "-vn", "-c:a", "libvorbis", "-q:a", "5", "-map_metadata", "-1",
+                     "-bitexact", destination })
+            start.ArgumentList.Add(argument);
+        using var process = Process.Start(start) ?? throw new IOException("Could not start FFmpeg.");
+        var errorTask = process.StandardError.ReadToEndAsync();
+        if (onProgress is not null)
+        {
+            string? line;
+            while ((line = process.StandardOutput.ReadLine()) is not null)
+                if (line.StartsWith("out_time_us=", StringComparison.Ordinal) &&
+                    long.TryParse(line.AsSpan("out_time_us=".Length), out var elapsed))
+                    onProgress(elapsed);
+        }
+        process.WaitForExit();
+        var standardError = errorTask.GetAwaiter().GetResult();
+        if (process.ExitCode != 0 || !File.Exists(destination) || new FileInfo(destination).Length == 0)
+            throw new InvalidDataException($"Audio conversion failed for {asset.Path}: {standardError.Trim()}");
+        VerifyOggVorbis(destination);
+        onProgress?.Invoke(DurationMicroseconds(asset));
     }
 
     private static void VerifyOggVorbis(string path)

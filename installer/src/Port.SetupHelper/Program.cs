@@ -39,7 +39,7 @@ try
             if (!values.TryAdd(args[i], args[i + 1])) throw new ArgumentException("Duplicate setup option.");
         if (!new[] { "--destination", "--payload", "--xap" }.All(values.ContainsKey) ||
             values.Keys.Except(new[] { "--destination", "--payload", "--xap", "--normal", "--normal-source",
-                                       "--viking", "--viking-source" }).Any())
+                                       "--viking", "--viking-source", "--cancel-file" }).Any())
             throw new ArgumentException("Invalid setup options.");
         values.TryGetValue("--normal-source", out var normalSource);
         values.TryGetValue("--viking-source", out var vikingSource);
@@ -47,7 +47,8 @@ try
         if (vikingSource == "") vikingSource = null;
         var art = new ArtOptions(values.GetValueOrDefault("--normal", "keep"), normalSource,
             values.GetValueOrDefault("--viking", "keep"), vikingSource);
-        InstallerEngine.Install(values["--destination"], values["--payload"], values["--xap"], art);
+        InstallerEngine.Install(values["--destination"], values["--payload"], values["--xap"], art,
+            values.GetValueOrDefault("--cancel-file"));
         Console.WriteLine("INSTALL_COMMITTED");
         return 0;
     }
