@@ -1,6 +1,6 @@
 # Optional asset swap for the phone games
 
-**Status:** In progress. Prompts 0–3 are implemented and recorded in the [P0](../../records/asset-swap-p0.md), [P1](../../records/asset-swap-p1.md), [P2](../../records/asset-swap-p2.md), and [P3](../../records/asset-swap-p3.md) evidence. [P4 automated validation](../../records/asset-swap-p4.md) is recorded; the focused hands-on visual pass, clean-account wizard check, and redistribution rights remediation remain release gates. The Windows Phone XAP remains the only playable game code and complete art fallback. The installer and ASSETS Settings page select verified optional art.
+**Status:** Done.
 
 ## Player contract
 
