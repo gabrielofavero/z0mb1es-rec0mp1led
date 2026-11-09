@@ -80,9 +80,11 @@ internal sealed class ModeProbe
                 players.SetValue(Enum.ToObject(players.GetType().GetElementType()!, 2), 0);
             }
             var target = GameObject();
+            if (mode == "endless") SetClockSelector(1); // Simulate entering Endless after Viking.
             if (mode == "endless") Invoke(target, "Play", true);
             else Invoke(target, "Play");
             Require(State == playState, "play state was not entered");
+            VerifyActiveClock();
             playStartedAt = updates;
             Advance(2, updates, "playing");
         }
@@ -127,6 +129,7 @@ internal sealed class ModeProbe
         {
             ClickLevel("EndGameYouSure", "End Gam3");
             Require(State == menuState, "end-game did not return to mode menu");
+            VerifyEndedClock();
             CaptureRestartState();
             if (mode != "viking")
                 gameType.Assembly.GetType("IMAK3Z0MB1EGAEM.map.MapMan", true)!
@@ -134,9 +137,11 @@ internal sealed class ModeProbe
             var players = (Array)menuType.GetField("playerState", Static)!.GetValue(null)!;
             players.SetValue(Enum.ToObject(players.GetType().GetElementType()!, 2), 0);
             var target = GameObject();
+            if (mode == "endless") SetClockSelector(1);
             if (mode == "endless") Invoke(target, "Play", true);
             else Invoke(target, "Play");
             Require(State == playState, "restart did not enter play");
+            VerifyActiveClock();
             VerifyRestartState();
             Advance(6, updates, "restarted");
         }
@@ -146,6 +151,7 @@ internal sealed class ModeProbe
             ClickLevel("Pause", "End Gam3");
             ClickLevel("EndGameYouSure", "End Gam3");
             Require(State == menuState, "restarted run did not end at mode menu");
+            VerifyEndedClock();
             menuType.GetField("needsQuit", Static)!.SetValue(null, true);
             Advance(7, updates, "mode-menu");
         }
@@ -169,6 +175,31 @@ internal sealed class ModeProbe
 
     private object GameObject() => gameType.GetField(mode == "viking" ? "vgame" : "zgame", Static)!
         .GetValue(null) ?? throw new InvalidOperationException("Original mode object is missing.");
+
+    private Type TimeManagerType() => gameType.Assembly.GetType("Viking_x86.director.TimeMgr", true)!;
+
+    private void SetClockSelector(int value) => TimeManagerType().GetField("time", Static)!.SetValue(null, value);
+
+    private object Timer(int index) => ((Array)TimeManagerType().GetField("timeMgr", Static)!.GetValue(null)!)
+        .GetValue(index)!;
+
+    private void VerifyActiveClock()
+    {
+        var index = mode == "viking" ? 1 : 0;
+        Require((int)TimeManagerType().GetField("time", Static)!.GetValue(null)! == index,
+            "the active mode selected another game's clock");
+        if (index == 0)
+            Require(Convert.ToInt32(Timer(0).GetType().GetField("playMode", Instance)!.GetValue(Timer(0))) == 1,
+                "the zombie clock did not start");
+    }
+
+    private void VerifyEndedClock()
+    {
+        Require((int)TimeManagerType().GetField("time", Static)!.GetValue(null)! == 0 &&
+                Enumerable.Range(0, 2).All(index =>
+                    Convert.ToInt32(Timer(index).GetType().GetField("playMode", Instance)!.GetValue(Timer(index))) == 0),
+            "a completed game's clock remained active");
+    }
 
     private void CaptureRestartState()
     {

@@ -32,6 +32,7 @@ public static class GameplayPatcher
     private const string ResolutionHooksHash = "ec882ec8281665391fe3bd4d44aceaa11f11b5e693957ffbcb80836cb3b30771";
     private const string RowNavigationHooksHash = "90e53a6843ac9682512d80c15ca86fc72b38329c00febb80c0933497941c9b4b";
     private const string InlineResolutionHooksHash = "c2414dc0ee553fdd4ab96e7bca9d62bba1f73b30ba86c0dac6390c1540725e90";
+    private const string SessionHooksHash = "3329508664cfe110ffc9c8a6592d725858a70790bef6702e18aace4ddddf8558";
     private const string OriginalMethodBodyHash = "54407b733f8c2d7cdc67534f66899e99191731e2e0beeed8481bc673ff54f425";
     private const string TouchBodyHash = "5d5aea53560307207b175bab14d39138756165598972d7604491f4cd44d7bfc6";
     private const string StorageWriteHash = "887e2f79ecea6543a5ba56aecd08b4c6c82dcda8b790ee81a3e8e5a568249433";
@@ -94,7 +95,7 @@ public static class GameplayPatcher
             prior.Patches.Any(patch => patch.Kind == "gameplay-call"))
             throw new PreparationException("Prepared DLL does not match its original guarded rewrite.");
         var hooksHash = Hash(hooksDll);
-        if (hooksHash is not (DebugHooksHash or ReleaseHooksHash or CurrentDebugHooksHash or CurrentReleaseHooksHash or LatestReleaseHooksHash or RestartReleaseHooksHash or EdgeArtReleaseHooksHash or VersionReleaseHooksHash or CreditsScrollHooksHash or PortCreditHooksHash or PictureButtonHooksHash or InstallerFoldersHooksHash or DocumentsSavesHooksHash or CenteredPicturesHooksHash or ReducedFlashFocusHooksHash or CreatorQualityHooksHash or ResolutionHooksHash or RowNavigationHooksHash or InlineResolutionHooksHash) ||
+        if (hooksHash is not (DebugHooksHash or ReleaseHooksHash or CurrentDebugHooksHash or CurrentReleaseHooksHash or LatestReleaseHooksHash or RestartReleaseHooksHash or EdgeArtReleaseHooksHash or VersionReleaseHooksHash or CreditsScrollHooksHash or PortCreditHooksHash or PictureButtonHooksHash or InstallerFoldersHooksHash or DocumentsSavesHooksHash or CenteredPicturesHooksHash or ReducedFlashFocusHooksHash or CreatorQualityHooksHash or ResolutionHooksHash or RowNavigationHooksHash or InlineResolutionHooksHash or SessionHooksHash) ||
             System.Reflection.AssemblyName.GetAssemblyName(hooksDll).Name != "Port.Hooks")
             throw new PreparationException("Hook target assembly identity differs.");
 
@@ -282,10 +283,10 @@ public static class GameplayPatcher
                         "insert Port made by Gabriel Favero through Port.Hooks.DesktopCredits",
                         "the original credit lines and their spacing remain in order"),
                     new PatchRecord("gameplay-il", OriginalHash,
-                        "0x0600000d ZombieGame::Play(bool); 0x0600002f VikingGame::Play()",
+                        "0x0600000d ZombieGame::Play(bool); 0x0600002f VikingGame::Play(); EndGameYouSure::Click(string)",
                         ZombiePlayHash + "/" + VikingPlayHash + "/" + MapInitHash + "/" + ParticleInitHash,
-                        "reset each mode's timeline, actors, particles and mutable world before Play; rebuild Endless rooms and Viking spawner",
-                        "a second start from the mode title screen begins a fresh run without changing saved profile data"),
+                        "stop both clocks and music when a run ends; select the correct clock and reset each mode's world before Play",
+                        "replays and mode switches begin fresh runs without changing saved profile data"),
                     new PatchRecord("gameplay-call", OriginalHash,
                         "pinned ContentManager.Load<Texture2D> and SpriteBatch.Draw call sites",
                         OriginalHash,
@@ -1182,12 +1183,17 @@ public static class GameplayPatcher
         var endless = module.Types.Single(type => type.FullName == "Viking_x86.zomb1es.endless.EndlessUpdate");
         var zombieTimer = module.Types.Single(type => type.FullName == "IMAK3Z0MB1EGAEM.director.ZombieTimeMgr");
         var vikingTimer = module.Types.Single(type => type.FullName == "IMAK3Z0MB1EGAEM.director.VikingTimeMgr");
+        var music = module.Types.Single(type => type.FullName == "IMAK3Z0MB1EGAEM.audio.Music");
+        var endGame = module.Types.Single(type => type.FullName == "IMAK3Z0MB1EGAEM.menu.EndGameYouSure");
+        var baseTimer = module.Types.Single(type => type.FullName == "IMAK3Z0MB1EGAEM.director.BaseTimeMgr");
         var zombiePlay = zombie.Methods.Single(method => method.Name == "Play" && method.Parameters.Count == 1);
         var vikingPlay = viking.Methods.Single(method => method.Name == "Play" && method.Parameters.Count == 0);
+        var endClick = endGame.Methods.Single(method => method.Name == "Click" && method.Parameters.Count == 1);
         if (zombiePlay.MetadataToken.ToInt32() != 0x0600000d ||
             vikingPlay.MetadataToken.ToInt32() != 0x0600002f ||
             zombiePlay.Body.Instructions[0].OpCode != OpCodes.Ldc_I4_0 ||
-            vikingPlay.Body.Instructions[0].OpCode != OpCodes.Ldarg_0)
+            vikingPlay.Body.Instructions[0].OpCode != OpCodes.Ldarg_0 ||
+            endClick.Body.Instructions[0].OpCode != OpCodes.Ldarg_1)
             throw new PreparationException("Run restart Play anchors differ from the supported game.");
 
         static void Prepend(Mono.Cecil.MethodDefinition method, params Instruction[] instructions)
@@ -1228,6 +1234,8 @@ public static class GameplayPatcher
         // The original Play only hides actors and restarts music. Its static timeline,
         // particle pool, map lighting and Endless rooms still describe the previous run.
         Prepend(zombiePlay,
+            Instruction.Create(OpCodes.Ldc_I4_0),
+            Instruction.Create(OpCodes.Stsfld, Field(timers, "time")),
             Instruction.Create(OpCodes.Ldsfld, Field(timers, "timeMgr")),
             Instruction.Create(OpCodes.Ldc_I4_0),
             Instruction.Create(OpCodes.Newobj, Ctor(zombieTimer)),
@@ -1263,6 +1271,31 @@ public static class GameplayPatcher
             Instruction.Create(OpCodes.Ldarg_0),
             Instruction.Create(OpCodes.Ldc_R4, 1f),
             Instruction.Create(OpCodes.Stfld, Field(viking, "initFrame")));
+
+        // End Gam3 returns to a mode menu without ending the current music or
+        // timeline. Stop the completed event before any other mode can start.
+        var continueClick = endClick.Body.Instructions[0];
+        var equals = endClick.Body.Instructions.Select(instruction => instruction.Operand)
+            .OfType<MethodReference>().First(method => method.FullName ==
+                "System.Boolean System.String::op_Equality(System.String,System.String)");
+        Prepend(endClick,
+            Instruction.Create(OpCodes.Ldarg_1),
+            Instruction.Create(OpCodes.Ldstr, "End Gam3"),
+            Instruction.Create(OpCodes.Call, equals),
+            Instruction.Create(OpCodes.Brfalse, continueClick),
+            Instruction.Create(OpCodes.Call, Method(music, "Stop")),
+            Instruction.Create(OpCodes.Ldsfld, Field(timers, "timeMgr")),
+            Instruction.Create(OpCodes.Ldc_I4_0),
+            Instruction.Create(OpCodes.Ldelem_Ref),
+            Instruction.Create(OpCodes.Ldc_I4_0),
+            Instruction.Create(OpCodes.Stfld, Field(baseTimer, "playMode")),
+            Instruction.Create(OpCodes.Ldsfld, Field(timers, "timeMgr")),
+            Instruction.Create(OpCodes.Ldc_I4_1),
+            Instruction.Create(OpCodes.Ldelem_Ref),
+            Instruction.Create(OpCodes.Ldc_I4_0),
+            Instruction.Create(OpCodes.Stfld, Field(baseTimer, "playMode")),
+            Instruction.Create(OpCodes.Ldc_I4_0),
+            Instruction.Create(OpCodes.Stsfld, Field(timers, "time")));
     }
 
     private static void VerifyRunRestart(ModuleDefinition module)
@@ -1275,7 +1308,8 @@ public static class GameplayPatcher
             .OfType<MethodReference>().Select(method => method.FullName).ToArray();
         var vikingCalls = viking.Body.Instructions.Take(10).Select(instruction => instruction.Operand)
             .OfType<MethodReference>().Select(method => method.FullName).ToArray();
-        if (zombie.Body.Instructions[0].Operand is not FieldReference zombieClock || zombieClock.Name != "timeMgr" ||
+        if (zombie.Body.Instructions[1].Operand is not FieldReference zombieSelector || zombieSelector.Name != "time" ||
+            zombie.Body.Instructions[2].Operand is not FieldReference zombieClock || zombieClock.Name != "timeMgr" ||
             !zombieCalls.Any(call => call.Contains("CharMan::Init()")) ||
             !zombieCalls.Any(call => call.Contains("ParticleMan::Init()")) ||
             !zombieCalls.Any(call => call.Contains("MapMan::Init()")) ||
@@ -1285,6 +1319,16 @@ public static class GameplayPatcher
             !vikingCalls.Any(call => call.Contains("VikingTimeMgr::.ctor()")) ||
             !vikingCalls.Any(call => call.Contains("SpawnMgr::.ctor()")))
             throw new PreparationException("Run restart postcondition failed.");
+        var endClick = module.Types.Single(type => type.FullName == "IMAK3Z0MB1EGAEM.menu.EndGameYouSure")
+            .Methods.Single(method => method.Name == "Click" && method.Parameters.Count == 1);
+        var cleanup = endClick.Body.Instructions.Take(20).ToArray();
+        if (!cleanup.Any(instruction => instruction.Operand is MethodReference method &&
+                method.FullName.Contains("Music::Stop()")) ||
+            cleanup.Count(instruction => instruction.Operand is FieldReference field &&
+                field.Name == "playMode" && instruction.OpCode == OpCodes.Stfld) != 2 ||
+            cleanup.Count(instruction => instruction.Operand is FieldReference field &&
+                field.Name == "time" && instruction.OpCode == OpCodes.Stsfld) != 1)
+            throw new PreparationException("Run end cleanup postcondition failed.");
         var particleInit = module.Types.Single(type => type.FullName == "IMAK3Z0MB1EGAEM.particles.ParticleMan")
             .Methods.Single(method => method.Name == "Init");
         var mapInit = module.Types.Single(type => type.FullName == "IMAK3Z0MB1EGAEM.map.MapMan")

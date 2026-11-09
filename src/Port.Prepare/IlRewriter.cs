@@ -27,12 +27,14 @@ public static class IlRewriter
     private const string RestartBridgeAbiReportHash = "df47f26c660a457f32c39950972ef77b8259d53b64f84e84ae5be85fef887e75";
     private const string RestoredBridgeAbiReportHash = "300aef24f365fee1a55ea2ea185f0131d891190c94ffbc5c7981bf92a4528482";
     private const string PictureButtonAbiReportHash = "7709d72d3dd18380e54363624c4fb489dcfefcde9030565fea488222c230acd8";
+    private const string SessionAbiReportHash = "fdac6a5441707e336aa5868b4713544688928dd4ef20a6ed26821e973fa86668";
     private const string BridgeHash = "d7b11e67fcc1c6794f214c4d37b6a6bbc566661a20d8b12414cad3f3a462d5c2";
     private const string CurrentBridgeHash = "c2c478c167eb24178e1808f3940156eb588e1dee92b575b81a4786d85dd51ba0";
     private const string LatestBridgeHash = "9648d82be1ecccc706666d89e24c0571de3754dceba3115d050ee6aefafe2421";
     private const string RestartBridgeHash = "208f5a7306a194312f5700380b501f95c0d196497470ab1b3d8f9c71c9829416";
     private const string RestoredBridgeHash = "f7148387e070135e26f0358c0b95875c5c79016f5ece1356fdf21d5c6ed14445";
     private const string PictureButtonBridgeHash = "4667e14c19737b8f7b7ecad8f7091a02d8f2bd3649ff0c5be6cee1f703b7adf2";
+    private const string SessionBridgeHash = "83b34691cc05d4d544950d2758f7faf0d6f0fb6375878993464ccc18dfb98fe0";
     private static readonly string[] LegacyAssemblies =
     [
         "Microsoft.Xna.Framework", "Microsoft.Xna.Framework.Game", "Microsoft.Xna.Framework.Graphics",
@@ -46,7 +48,7 @@ public static class IlRewriter
         using var document = JsonDocument.Parse(File.ReadAllBytes(reportPath));
         var root = document.RootElement;
         var reportHash = Hash(reportPath);
-        if (reportHash is not (AbiReportHash or BridgeAbiReportHash or CurrentBridgeAbiReportHash or LatestBridgeAbiReportHash or RestartBridgeAbiReportHash or RestoredBridgeAbiReportHash or PictureButtonAbiReportHash) ||
+        if (reportHash is not (AbiReportHash or BridgeAbiReportHash or CurrentBridgeAbiReportHash or LatestBridgeAbiReportHash or RestartBridgeAbiReportHash or RestoredBridgeAbiReportHash or PictureButtonAbiReportHash or SessionAbiReportHash) ||
             root.GetProperty("schemaVersion").GetInt32() != 1 ||
             root.GetProperty("input").GetProperty("dllSha256").GetString() != OriginalDllHash ||
             root.GetProperty("input").GetProperty("fnaSha256").GetString() != FnaHash ||
@@ -55,9 +57,9 @@ public static class IlRewriter
             Hash(fnaPath) != FnaHash)
             throw new PreparationException("ABI report or FNA does not match the pinned input.");
         var bridgeHash = Hash(bridgePath);
-        if (bridgeHash is not (BridgeHash or CurrentBridgeHash or LatestBridgeHash or RestartBridgeHash or RestoredBridgeHash or PictureButtonBridgeHash))
+        if (bridgeHash is not (BridgeHash or CurrentBridgeHash or LatestBridgeHash or RestartBridgeHash or RestoredBridgeHash or PictureButtonBridgeHash or SessionBridgeHash))
             throw new PreparationException($"Bridge DLL differs from the pinned supported bridge: {bridgeHash}.");
-        if (reportHash is BridgeAbiReportHash or CurrentBridgeAbiReportHash or LatestBridgeAbiReportHash or RestartBridgeAbiReportHash or RestoredBridgeAbiReportHash or PictureButtonAbiReportHash &&
+        if (reportHash is BridgeAbiReportHash or CurrentBridgeAbiReportHash or LatestBridgeAbiReportHash or RestartBridgeAbiReportHash or RestoredBridgeAbiReportHash or PictureButtonAbiReportHash or SessionAbiReportHash &&
             root.GetProperty("input").GetProperty("bridgeSha256").GetString() != bridgeHash)
             throw new PreparationException("Bridge DLL differs from the verified ABI report.");
 
