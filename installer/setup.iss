@@ -18,7 +18,8 @@ SolidCompression=no
 WizardStyle=modern
 DisableWelcomePage=no
 SetupIconFile={#RepoRoot}\assets\icon\icon.ico
-UninstallDisplayIcon={app}\icon-gray.ico
+UninstallDisplayIcon={app}\icon.ico
+UninstallDisplaySize=85_000_000
 WizardSmallImageFile={#RepoRoot}\assets\icon\icon-black.png
 WizardImageFile={#RepoRoot}\assets\installer\wizard-large-*.bmp
 DisableProgramGroupPage=yes
@@ -33,7 +34,7 @@ SelectTasksDesc=Choose shortcuts
 SelectTasksLabel2=Select the shortcuts to create:
 
 [Files]
-Source: "{#RepoRoot}\assets\icon\icon-gray.ico"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#RepoRoot}\assets\icon\icon.ico"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#Payload}\helper\Port.SetupHelper.exe"; Flags: dontcopy
 Source: "{#Payload}\runtime\*"; DestDir: "{tmp}\port-payload\runtime"; Flags: recursesubdirs createallsubdirs dontcopy
 Source: "{#Payload}\tools\*"; DestDir: "{tmp}\port-payload\tools"; Flags: recursesubdirs createallsubdirs dontcopy
@@ -672,6 +673,49 @@ begin
   WizardForm.StatusLabel.Refresh;
 end;
 
+function InstalledBytes(const Directory: String; var Total: Int64): Boolean;
+var
+  Entry: TFindRec;
+  Path: String;
+  Size: Int64;
+begin
+  Result := True;
+  if not FindFirst(AddBackslash(Directory) + '*', Entry) then Exit;
+  try
+    repeat
+      if (Entry.Name <> '.') and (Entry.Name <> '..') and
+         ((Entry.Attributes and FILE_ATTRIBUTE_REPARSE_POINT) = 0) then
+      begin
+        Path := AddBackslash(Directory) + Entry.Name;
+        if (Entry.Attributes and FILE_ATTRIBUTE_DIRECTORY) <> 0 then
+          Result := InstalledBytes(Path, Total)
+        else if FileSize64(Path, Size) then
+          Total := Total + Size
+        else
+          Result := False;
+        if not Result then Exit;
+      end;
+    until not FindNext(Entry);
+  finally
+    FindClose(Entry);
+  end;
+end;
+
+procedure UpdateInstalledSize;
+var
+  Total: Int64;
+  Key: String;
+begin
+  Total := 0;
+  Key := 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{F393AB61-549B-416A-B34E-E1AB2E96AF07}_is1';
+  if not InstalledBytes(ExpandConstant('{app}'), Total) or
+     (Total div 1024 > 2147483647) or not RegKeyExists(HKLM64, Key) or
+     not RegWriteDWordValue(HKLM64, Key, 'EstimatedSize', Cardinal((Total + 1023) div 1024)) then
+    Log('Could not update the installed size in Control Panel.')
+  else
+    Log('INSTALL_SIZE_BYTES ' + Int64ToStr(Total));
+end;
+
 procedure CurStepChanged(CurStep: TSetupStep);
 var
   Code: Integer;
@@ -716,6 +760,7 @@ begin
     SetIniString('Folders', 'Pictures', PicturesDirectory(''), ExpandConstant('{app}\locations.ini'));
     Log('INSTALL_FINALIZED');
   end;
+  UpdateInstalledSize;
 end;
 
 procedure DeinitializeSetup;

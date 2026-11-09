@@ -36,7 +36,7 @@ After an import, open Settings → ASSETS to choose Original or the installed so
 
 The setup may contain port-authored executables, FNA/native dependencies with their notices, patch recipes, metadata-only XAP fingerprints, and port-owned artwork. It must not contain a XAP, original `ZombiesWP7.dll`, decompiled source, converted content, or a locally prepared DLL. The developer's local XAP in `game/` is input only and must fail the release audit if accidentally included.
 
-The installer artwork is prepared in [assets](../assets/README.md). `setup.iss` uses the red icon, gray uninstaller icon, top badge, and seven-size side-image ladder.
+The installer artwork is prepared in [assets](../assets/README.md). `setup.iss` uses the red icon for setup and the Control Panel entry, plus the top badge and seven-size side-image ladder. After setup finishes, it reports the measured installation folder size to Control Panel, including locally prepared game files and optional artwork.
 
 The **player points setup at their own XAP**. The source XAP stays where the player selected it; setup records a hash and version, not a second copy of the package. Generated game files are local install output.
 
