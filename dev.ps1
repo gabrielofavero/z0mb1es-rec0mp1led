@@ -42,7 +42,12 @@ function Invoke-DevGame {
     }
     $game = Join-Path $Build.FullName 'ZombiesWP7.dll'
     Write-Host "Running $($Build.Name)..."
-    $arguments = @($launcher, '--run', $game, '--content', $Build.FullName)
+    $documents = [Environment]::GetFolderPath([Environment+SpecialFolder]::MyDocuments)
+    if ([string]::IsNullOrWhiteSpace($documents)) { throw 'Could not locate the Documents folder.' }
+    $userData = Join-Path $documents 'Z0MB1ES on teh ph0ne'
+    $arguments = @($launcher, '--run', $game, '--content', $Build.FullName,
+        '--save-dir', (Join-Path $userData 'Saves'),
+        '--pictures-dir', (Join-Path $userData 'Pictures'))
     $localArt = Join-Path $script:DevRoot 'private/asset-swap/prepared'
     if (Test-Path -LiteralPath $localArt -PathType Container) {
         $arguments += @('--art-store', $localArt)
@@ -162,7 +167,7 @@ function build-installer {
         [string]$PyInstallerRoot = 'private/tooling/pyinstaller'
     )
     $ErrorActionPreference = 'Stop'
-    Push-Location $script:DevRoot1.0.0
+    Push-Location $script:DevRoot
     try {
         & (Join-Path $script:DevRoot 'installer/build.ps1') -FfmpegPath $FfmpegPath `
             -RuntimePackSource $RuntimePackSource -IsccPath $IsccPath -PyInstallerRoot $PyInstallerRoot

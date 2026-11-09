@@ -15,7 +15,7 @@ internal static class RunSession
     {
         if (args.Length < 4 || args[2] != "--content")
         {
-            Console.Error.WriteLine("Usage: Z0MB1ES --run <prepared.dll> --content <prepared-content-root> [--frames N] [--windowed] [--save-dir <directory>] [--probe-services] [--probe-mode normal|endless|viking] [--probe-art-toggle] [--probe-menus] [--probe-resize WIDTHxHEIGHT] [--art-store <prepared-art-root>] [--art-normal original|steam|360] [--art-viking original|360] [--art-endless original|imported]");
+            Console.Error.WriteLine("Usage: Z0MB1ES --run <prepared.dll> --content <prepared-content-root> [--frames N] [--windowed] [--save-dir <directory>] [--pictures-dir <directory>] [--probe-services] [--probe-mode normal|endless|viking] [--probe-art-toggle] [--probe-menus] [--probe-resize WIDTHxHEIGHT] [--art-store <prepared-art-root>] [--art-normal original|steam|360] [--art-viking original|360] [--art-endless original|imported]");
             return 2;
         }
         int? frameLimit = null;
@@ -25,6 +25,7 @@ internal static class RunSession
         var probeArtToggle = false;
         string? probeMode = null;
         string? saveDirectory = null;
+        string? picturesDirectory = null;
         string? artStore = null;
         string? artNormal = null;
         string? artViking = null;
@@ -42,6 +43,8 @@ internal static class RunSession
                      int.TryParse(args[i], out var frames) && frames > 0) frameLimit = frames;
             else if (args[i] == "--save-dir" && ++i < args.Length &&
                      !string.IsNullOrWhiteSpace(args[i])) saveDirectory = args[i];
+            else if (args[i] == "--pictures-dir" && ++i < args.Length &&
+                     !string.IsNullOrWhiteSpace(args[i])) picturesDirectory = args[i];
             else if (args[i] == "--art-store" && ++i < args.Length &&
                      !string.IsNullOrWhiteSpace(args[i])) artStore = args[i];
             else if (args[i] == "--art-normal" && ++i < args.Length &&
@@ -85,7 +88,11 @@ internal static class RunSession
             var dll = Path.GetFullPath(args[1]);
             var content = Path.GetFullPath(args[3]);
             VerifyInputs(dll, content);
+            var locations = Path.Combine(Path.GetDirectoryName(content)!, "locations.ini");
+            saveDirectory ??= InstalledFolder(locations, "Saves");
+            picturesDirectory ??= InstalledFolder(locations, "Pictures");
             DesktopStorage.Configure(saveDirectory);
+            DesktopPictures.Configure(picturesDirectory);
             PlayerIdentity.Configure(DesktopStorage.SaveDirectory);
             AssetChoices.Initialize(artStore, artNormal, artViking, artEndless);
             Directory.SetCurrentDirectory(content);
@@ -122,6 +129,32 @@ internal static class RunSession
             Report("run", error);
             return 1;
         }
+    }
+
+    private static string? InstalledFolder(string file, string key)
+    {
+        if (!File.Exists(file)) return null;
+        try
+        {
+            var inFolders = false;
+            foreach (var line in File.ReadLines(file))
+            {
+                var entry = line.Trim();
+                if (entry.StartsWith('['))
+                {
+                    inFolders = entry.Equals("[Folders]", StringComparison.OrdinalIgnoreCase);
+                    continue;
+                }
+                if (inFolders && entry.StartsWith(key + "=", StringComparison.OrdinalIgnoreCase))
+                {
+                    var value = entry[(key.Length + 1)..].Trim();
+                    return value.Length == 0 ? null : value;
+                }
+            }
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+        { Trace.TraceWarning($"Could not read installed folder choices: {error.Message}"); }
+        return null;
     }
 
     private static void VerifyInputs(string dll, string content)
@@ -445,16 +478,6 @@ internal sealed class RunMonitor : DrawableGameComponent
         {
             CaptureScreen("graphics-page", "MENU");
             menuProbe.MarkDisplayCaptured();
-        }
-        if (menuProbe?.ShouldCaptureResolution(Updates) == true)
-        {
-            CaptureScreen("resolution-page", "MENU");
-            menuProbe.MarkResolutionCaptured();
-        }
-        if (menuProbe?.ShouldCaptureCustom(Updates) == true)
-        {
-            CaptureScreen("custom-page", "MENU");
-            menuProbe.MarkCustomCaptured();
         }
         if (menuProbe?.ShouldCaptureTouch(Updates) == true)
         {

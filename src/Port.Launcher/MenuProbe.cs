@@ -24,10 +24,6 @@ internal sealed class MenuProbe
     private bool gameplayCaptured;
     private bool displayOpened;
     private bool displayCaptured;
-    private bool resolutionOpened;
-    private bool resolutionCaptured;
-    private bool customOpened;
-    private bool customCaptured;
     private bool assetOpened;
     private bool assetCaptured;
 
@@ -48,12 +44,6 @@ internal sealed class MenuProbe
     public bool ShouldCaptureDisplay(int updates) => current == 5 && displayOpened &&
         !displayCaptured && updates - openedAt >= 2;
     public void MarkDisplayCaptured() => displayCaptured = true;
-    public bool ShouldCaptureResolution(int updates) => current == 5 && resolutionOpened &&
-        !resolutionCaptured && updates - openedAt >= 2;
-    public void MarkResolutionCaptured() => resolutionCaptured = true;
-    public bool ShouldCaptureCustom(int updates) => current == 5 && customOpened &&
-        !customCaptured && updates - openedAt >= 2;
-    public void MarkCustomCaptured() => customCaptured = true;
     public bool ShouldCaptureAsset(int updates) => current == 5 && assetOpened &&
         !assetCaptured && updates - openedAt >= 2;
     public void MarkAssetCaptured() => assetCaptured = true;
@@ -240,7 +230,7 @@ internal sealed class MenuProbe
             var graphicsItems = (Array)baseType.GetField("item", Instance)!.GetValue(level)!;
             var graphicsText = graphicsItems.GetValue(1)!.GetType().GetField("text", Instance)!;
             if (graphicsItems.Length != 6 ||
-                (string?)graphicsText.GetValue(graphicsItems.GetValue(1)) != "RES0LUTI0N" ||
+                !((string?)graphicsText.GetValue(graphicsItems.GetValue(1)))!.StartsWith("RES0LUTI0N:", StringComparison.Ordinal) ||
                 (string?)graphicsText.GetValue(graphicsItems.GetValue(4)) != "ASSETS")
                 throw new InvalidOperationException("Graphics category rows differ.");
             var graphics = (GraphicsDeviceManager)game.Services.GetService(typeof(IGraphicsDeviceManager))!;
@@ -271,65 +261,65 @@ internal sealed class MenuProbe
             openedAt = updates;
             return;
         }
-        if (current == 5 && !resolutionOpened)
+        if (current == 5 && !assetOpened)
         {
             if (!displayCaptured || !DesktopDisplay.IsDisplayPage)
                 throw new InvalidOperationException("Graphics settings page was not rendered.");
-            level.GetType().GetMethod("Click", Instance)!.Invoke(level, ["RES0LUTI0N"]);
-            if (!DesktopDisplay.IsResolutionPage)
-                throw new InvalidOperationException("Resolution entry did not open.");
-            var resolutionItems = (Array)baseType.GetField("item", Instance)!.GetValue(level)!;
-            var resolutionText = resolutionItems.GetValue(0)!.GetType().GetField("text", Instance)!;
-            if (resolutionItems.Length != 3 ||
-                !((string?)resolutionText.GetValue(resolutionItems.GetValue(0)))!.StartsWith("PRES3T:", StringComparison.Ordinal) ||
-                (string?)resolutionText.GetValue(resolutionItems.GetValue(1)) != "CUST0M RES0LUTI0N")
-                throw new InvalidOperationException("Resolution rows differ.");
-            resolutionOpened = true;
-            openedAt = updates;
-            return;
-        }
-        if (current == 5 && !customOpened)
-        {
-            if (!resolutionCaptured || !DesktopDisplay.IsResolutionPage)
-                throw new InvalidOperationException("Resolution page was not rendered.");
+            var graphicsItems = (Array)baseType.GetField("item", Instance)!.GetValue(level)!;
+            var resolutionItem = graphicsItems.GetValue(1)!;
+            var resolutionText = resolutionItem.GetType().GetField("text", Instance)!;
+            var click = level.GetType().GetMethod("Click", Instance)!;
             var desktopMode = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode;
             var presets = DesktopDisplay.AvailablePresets(desktopMode.Width, desktopMode.Height);
-            var start = Array.FindIndex(presets, preset =>
-                preset.Width == game.GraphicsDevice.PresentationParameters.BackBufferWidth &&
-                preset.Height == game.GraphicsDevice.PresentationParameters.BackBufferHeight);
-            for (var i = 1; i <= presets.Length; i++)
+            var start = Array.FindIndex(presets, preset => preset == DesktopDisplay.RenderResolution);
+            for (var i = 1; i <= presets.Length + 1; i++)
             {
-                level.GetType().GetMethod("Click", Instance)!.Invoke(level, ["PRES3T:"]);
-                var expected = presets[start < 0 ? (i - 1) % presets.Length : (start + i) % presets.Length];
+                click.Invoke(level, [(string)resolutionText.GetValue(resolutionItem)!]);
+                var choice = (start + i) % (presets.Length + 1);
+                var expected = choice == presets.Length
+                    ? DesktopDisplay.ResolveResolution(true, 600, 360, desktopMode.Width, desktopMode.Height)
+                    : presets[choice];
                 var actual = game.GraphicsDevice.PresentationParameters;
-                if (actual.BackBufferWidth != expected.Width || actual.BackBufferHeight != expected.Height)
+                var expectedLabel = choice == presets.Length ? "RES0LUTI0N: AUTO" :
+                    $"RES0LUTI0N: {expected.Width} X {expected.Height}";
+                if (!DesktopDisplay.IsDisplayPage ||
+                    (string?)resolutionText.GetValue(resolutionItem) != expectedLabel ||
+                    !ReferenceEquals(baseType.GetField("item", Instance)!.GetValue(level), graphicsItems) ||
+                    DesktopDisplay.RenderResolution != expected ||
+                    actual.BackBufferWidth != expected.Width || actual.BackBufferHeight != expected.Height)
                     throw new InvalidOperationException($"Settings preset cycle expected {expected.Width}x{expected.Height}, got {actual.BackBufferWidth}x{actual.BackBufferHeight}.");
             }
-            if (!DesktopDisplay.ApplyForProbe("Windowed", 1280, 720))
-                throw new InvalidOperationException("Resolution size did not restore after preset cycle.");
-            level.GetType().GetMethod("Click", Instance)!.Invoke(level, ["CUST0M RES0LUTI0N"]);
-            if (!DesktopDisplay.IsCustomPage)
-                throw new InvalidOperationException("Custom Resolution entry did not open.");
-            customOpened = true;
-            openedAt = updates;
-            return;
-        }
-        if (current == 5 && !assetOpened)
-        {
-            if (!customCaptured || !DesktopDisplay.IsCustomPage)
-                throw new InvalidOperationException("Native Custom Resolution page was not rendered.");
-            level.GetType().GetMethod("Click", Instance)!.Invoke(level, ["APPLY CUST0M"]);
-            if (game.GraphicsDevice.PresentationParameters.BackBufferWidth != 1280 ||
-                game.GraphicsDevice.PresentationParameters.BackBufferHeight != 720)
-                throw new InvalidOperationException("Custom resolution did not apply.");
-            level.GetType().GetMethod("Click", Instance)!.Invoke(level, ["BACK"]);
-            if (!DesktopDisplay.IsResolutionPage || DesktopDisplay.IsCustomPage)
-                throw new InvalidOperationException("Custom Resolution page did not return to Resolution.");
+            if (presets.Length > 1)
+            {
+                if (!DesktopDisplay.ApplyForProbe("Borderless", presets[0].Width, presets[0].Height))
+                    throw new InvalidOperationException("Borderless probe setup failed.");
+                click.Invoke(level, [(string)resolutionText.GetValue(resolutionItem)!]);
+                var actual = game.GraphicsDevice.PresentationParameters;
+                if (DesktopDisplay.RenderResolution != presets[1] ||
+                    actual.BackBufferWidth != desktopMode.Width || actual.BackBufferHeight != desktopMode.Height)
+                    throw new InvalidOperationException("Borderless preset did not change the render resolution within the desktop backbuffer.");
+            }
             if (!DesktopDisplay.ApplyForProbe("Windowed", 600, 360))
                 throw new InvalidOperationException("Display size did not restore.");
-            level.GetType().GetMethod("Click", Instance)!.Invoke(level, ["BACK"]);
-            if (!DesktopDisplay.IsDisplayPage || DesktopDisplay.IsResolutionPage)
-                throw new InvalidOperationException("Resolution page did not return to Graphics.");
+            var textType = game.GetType().Assembly.GetType("IMAK3Z0MB1EGAEM.Text", true)!;
+            var textWidth = textType.GetMethod("GetStringWidth", Static, [typeof(string)])!;
+            var menuScale = (float)game.GetType().GetField("MENUSCALE", Static)!.GetValue(null)!;
+            var position = (Vector2)resolutionItem.GetType().GetField("loc", Instance)!.GetValue(resolutionItem)!;
+            var layer = (float)resolutionItem.GetType().GetField("layer", Instance)!.GetValue(resolutionItem)!;
+            if (MathF.Abs(position.X - (DesktopDisplay.SceneSize.X / (2f * menuScale) + 40f)) > 0.01f)
+                throw new InvalidOperationException("Graphics Resolution row lost its staggered position.");
+            var labels = new[] { "RES0LUTI0N: AUTO" }.Concat(
+                DesktopDisplay.AvailablePresets(3840, 2160).Select(preset =>
+                    $"RES0LUTI0N: {preset.Width} X {preset.Height}"));
+            foreach (var label in labels)
+            {
+                var halfWidth = (float)textWidth.Invoke(null, [label])! * layer * menuScale / 2f;
+                var center = position.X * menuScale;
+                if (center - halfWidth < 0 || center + halfWidth > DesktopDisplay.SceneSize.X)
+                    throw new InvalidOperationException($"Graphics Resolution label does not fit at 600x360: {label} (center={center}, halfWidth={halfWidth}, scale={menuScale}).");
+            }
+            if (!DesktopDisplay.IsDisplayPage)
+                throw new InvalidOperationException("Resolution selection left Graphics.");
             level.GetType().GetMethod("Click", Instance)!.Invoke(level, ["ASSETS"]);
             if (!DesktopDisplay.IsAssetPage)
                 throw new InvalidOperationException("Assets entry did not open.");

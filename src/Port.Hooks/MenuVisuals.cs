@@ -23,7 +23,7 @@ public static class MenuVisuals
     public static Color Highlight(Color original, object item)
     {
         if (!DesktopInput.IsFocusedMenuItem(item)) return original;
-        if (DesktopDisplay.ReduceFlashing) return new Color(0.85f, 0.85f, 0.85f, original.A / 255f);
+        if (DesktopDisplay.ReduceFlashing) return new Color(0.5f, 0.5f, 0.5f, original.A / 255f);
         return new Color(
             0.4f + 0.6f * Random.Shared.NextSingle(),
             0.4f + 0.6f * Random.Shared.NextSingle(),

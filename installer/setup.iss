@@ -5,9 +5,12 @@
 AppId={{F393AB61-549B-416A-B34E-E1AB2E96AF07}
 AppName=Z0MB1ES (on teh ph0ne)
 AppVersion=1.0.0
-DefaultDirName={code:DefaultInstallDir}
+DefaultDirName={autopf}\Z0MB1ES on teh ph0ne
+DisableDirPage=yes
 DefaultGroupName=Z0MB1ES (on teh ph0ne)
-PrivilegesRequired=lowest
+PrivilegesRequired=admin
+ArchitecturesAllowed=x64compatible
+ArchitecturesInstallIn64BitMode=x64compatible
 OutputDir=out
 OutputBaseFilename=Z0MB1ES-1.0.0
 Compression=lzma2/fast
@@ -16,7 +19,7 @@ WizardStyle=modern
 DisableWelcomePage=no
 SetupIconFile={#RepoRoot}\assets\icon\icon.ico
 UninstallDisplayIcon={app}\icon-gray.ico
-WizardSmallImageFile={#RepoRoot}\assets\installer\wizard-top.png
+WizardSmallImageFile={#RepoRoot}\assets\icon\icon-black.png
 WizardImageFile={#RepoRoot}\assets\installer\wizard-large-*.bmp
 DisableProgramGroupPage=yes
 UsePreviousAppDir=yes
@@ -41,18 +44,20 @@ Name: "startmenu"; Description: "Start Menu shortcut"; Flags: checkedonce
 Name: "desktop"; Description: "Desktop shortcut"; Flags: unchecked
 
 [Icons]
-Name: "{autoprograms}\Z0MB1ES (on teh ph0ne)"; Filename: "{app}\current\Z0MB1ES.exe"; Parameters: "--run ""{app}\current\ZombiesWP7.dll"" --content ""{app}\current"""; WorkingDir: "{app}\current"; Tasks: startmenu
-Name: "{autodesktop}\Z0MB1ES (on teh ph0ne)"; Filename: "{app}\current\Z0MB1ES.exe"; Parameters: "--run ""{app}\current\ZombiesWP7.dll"" --content ""{app}\current"""; WorkingDir: "{app}\current"; Tasks: desktop
+Name: "{autoprograms}\Z0MB1ES (on teh ph0ne)"; Filename: "{app}\current\Z0MB1ES.exe"; Parameters: "--run ""{app}\current\ZombiesWP7.dll"" --content ""{app}\current"" --save-dir ""{code:SaveDirectory}"" --pictures-dir ""{code:PicturesDirectory}"""; WorkingDir: "{app}\current"; Tasks: startmenu
+Name: "{autodesktop}\Z0MB1ES (on teh ph0ne)"; Filename: "{app}\current\Z0MB1ES.exe"; Parameters: "--run ""{app}\current\ZombiesWP7.dll"" --content ""{app}\current"" --save-dir ""{code:SaveDirectory}"" --pictures-dir ""{code:PicturesDirectory}"""; WorkingDir: "{app}\current"; Tasks: desktop
 
 [Run]
-Filename: "{app}\current\Z0MB1ES.exe"; Parameters: "--run ""{app}\current\ZombiesWP7.dll"" --content ""{app}\current"""; Description: "Launch Z0MB1ES (on teh ph0ne)"; Flags: nowait postinstall skipifsilent unchecked
+Filename: "{app}\current\Z0MB1ES.exe"; Parameters: "--run ""{app}\current\ZombiesWP7.dll"" --content ""{app}\current"" --save-dir ""{code:SaveDirectory}"" --pictures-dir ""{code:PicturesDirectory}"""; Description: "Launch Z0MB1ES (on teh ph0ne)"; Flags: nowait postinstall skipifsilent unchecked
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}\current"
+Type: files; Name: "{app}\locations.ini"
 
 [Code]
 var
   FlashWarningPage: TWizardPage;
+  LocationsPage: TInputDirWizardPage;
   FlashWarningText: TNewStaticText;
   AgreeFlashing: TNewRadioButton;
   DisagreeFlashing: TNewRadioButton;
@@ -75,6 +80,7 @@ var
   SelectedVikingSource: String;
   HelperExtracted: Boolean;
   ValidatedSteam: String;
+  SteamDiscoveryAttempted: Boolean;
   ValidatedNormal360: String;
   ValidatedViking360: String;
   PreparingGame: Boolean;
@@ -113,13 +119,46 @@ begin
   HelperExtracted := True;
 end;
 
-function DefaultInstallDir(Param: String): String;
-var
-  Base: String;
+function DefaultSaveDirectory: String;
 begin
-  Base := GetEnv('LOCALAPPDATA');
-  if Base = '' then Base := GetEnv('USERPROFILE');
-  Result := AddBackslash(Base) + 'Programs\ZombiesPort';
+  Result := AddBackslash(ExpandConstant('{userdocs}')) + 'Z0MB1ES on teh ph0ne\Saves';
+end;
+
+function DefaultPicturesDirectory: String;
+begin
+  Result := AddBackslash(ExpandConstant('{userdocs}')) + 'Z0MB1ES on teh ph0ne\Pictures';
+end;
+
+function SaveDirectory(Param: String): String;
+begin
+  if WizardSilent then Result := ExpandConstant('{param:SAVEDIR|' + DefaultSaveDirectory + '}')
+  else Result := LocationsPage.Values[1];
+end;
+
+function PicturesDirectory(Param: String): String;
+begin
+  if WizardSilent then Result := ExpandConstant('{param:PICTURESDIR|' + DefaultPicturesDirectory + '}')
+  else Result := LocationsPage.Values[2];
+end;
+
+function CheckLocations: String;
+var
+  InstallPath: String;
+  SavesPath: String;
+  PicturesPath: String;
+begin
+  Result := '';
+  InstallPath := AddBackslash(LocationsPage.Values[0]);
+  SavesPath := SaveDirectory('');
+  PicturesPath := PicturesDirectory('');
+  if (Trim(SavesPath) = '') or (Trim(PicturesPath) = '') then
+  begin
+    Result := 'Choose both a saves folder and a pictures folder.';
+    Exit;
+  end;
+  if (CompareText(Copy(AddBackslash(SavesPath), 1, Length(InstallPath)), InstallPath) = 0) or
+     (CompareText(Copy(AddBackslash(PicturesPath), 1, Length(InstallPath)), InstallPath) = 0) then
+    Result := 'Keep saves and pictures outside the installation folder so uninstalling does not erase them.';
 end;
 
 function Quoted(const S: String): String;
@@ -278,6 +317,28 @@ begin
   ValidateArtInput('i-maed-steam', SteamPage.Values[0], SteamPage.SubCaptionLabel, ValidatedSteam);
 end;
 
+procedure PrefillSteamFolder;
+var
+  Code: Integer;
+  Output: TExecOutput;
+  Candidate: String;
+begin
+  if SteamDiscoveryAttempted or (SteamPage.Values[0] <> '') then Exit;
+  SteamDiscoveryAttempted := True;
+  SteamPage.SubCaptionLabel.Caption := 'Looking for your Steam installation...';
+  SteamPage.SubCaptionLabel.Refresh;
+  EnsureHelperExtracted;
+  if not ExecAndCaptureOutput(ExpandConstant('{tmp}\Port.SetupHelper.exe'),
+     'find-steam-art', '', SW_HIDE, ewWaitUntilTerminated, Code, Output) then Exit;
+  if (Code <> 0) or (GetArrayLength(Output.StdOut) = 0) then Exit;
+  if Pos('STEAM_ART_FOUND ', Output.StdOut[0]) <> 1 then Exit;
+  Candidate := Copy(Output.StdOut[0], Length('STEAM_ART_FOUND ') + 1, MaxInt);
+  if not DirExists(Candidate) then Exit;
+  ValidatedSteam := Candidate;
+  SteamPage.Values[0] := Candidate;
+  SteamPage.SubCaptionLabel.Caption := 'Supported Steam installation found.';
+end;
+
 procedure Normal360Changed(Sender: TObject);
 begin
   if WizardSilent or (WizardForm.CurPageID <> Normal360Page.ID) then Exit;
@@ -293,7 +354,11 @@ end;
 procedure CurPageChanged(CurPageID: Integer);
 begin
   if CurPageID = XapPage.ID then XapFileChanged(nil)
-  else if CurPageID = SteamPage.ID then SteamChanged(nil)
+  else if CurPageID = SteamPage.ID then
+  begin
+    PrefillSteamFolder;
+    SteamChanged(nil);
+  end
   else if CurPageID = Normal360Page.ID then Normal360Changed(nil)
   else if CurPageID = Viking360Page.ID then Viking360Changed(nil);
 end;
@@ -309,7 +374,7 @@ begin
   FlashWarningText.WordWrap := True;
   FlashWarningText.Caption :=
     'This game was designed with flashing visuals as part of its original art style. ' +
-    'The in-game Reduce Flashing setting reduces some effects, but flashing visuals ' +
+    'There is an in-game setting that reduces some effects, but flashing visuals ' +
     'can still occur during gameplay, even with that setting on.' + #13#10#13#10 +
     'This game is not recommended for people with photosensitive epilepsy or ' +
     'other sensitivity to flashing lights. Continue only if you understand this warning.';
@@ -320,13 +385,25 @@ begin
   DisagreeFlashing := TNewRadioButton.Create(FlashWarningPage);
   DisagreeFlashing.Parent := FlashWarningPage.Surface;
   DisagreeFlashing.SetBounds(0, ScaleY(190), FlashWarningPage.SurfaceWidth, ScaleY(24));
-  DisagreeFlashing.Caption := 'I disagree and cancel installation';
+  DisagreeFlashing.Caption := 'I want to cancel the installation';
   FirstStartReduceFlashing := TNewCheckBox.Create(FlashWarningPage);
   FirstStartReduceFlashing.Parent := FlashWarningPage.Surface;
   FirstStartReduceFlashing.SetBounds(0, ScaleY(230), FlashWarningPage.SurfaceWidth, ScaleY(32));
-  FirstStartReduceFlashing.Caption := 'Enable Reduce Flashing on first start';
+  FirstStartReduceFlashing.Caption := 'Enable reduced flashing on first start';
   FirstStartReduceFlashing.Checked := False;
-  XapPage := CreateInputFilePage(wpSelectDir, 'Game XAP',
+  LocationsPage := CreateInputDirPage(FlashWarningPage.ID, 'Folders',
+    'Choose where the game, saves, and pictures live.',
+    'PNG and JPEG files in the Pictures folder and its subfolders can be used in Mega Game Creator 2000.',
+    False, '');
+  LocationsPage.Add('Installation:');
+  LocationsPage.Add('Saves:');
+  LocationsPage.Add('Pictures:');
+  LocationsPage.Values[0] := WizardDirValue;
+  LocationsPage.Values[1] := GetIniString('Folders', 'Saves', DefaultSaveDirectory,
+    AddBackslash(WizardDirValue) + 'locations.ini');
+  LocationsPage.Values[2] := GetIniString('Folders', 'Pictures', DefaultPicturesDirectory,
+    AddBackslash(WizardDirValue) + 'locations.ini');
+  XapPage := CreateInputFilePage(LocationsPage.ID, 'Game XAP',
     'Select your Z0MB1ES (on teh ph0ne) XAP.',
     'Choose the supported game package.');
   XapPage.Add('Game XAP:', 'XAP packages|*.xap|All files|*.*', '.xap');
@@ -347,7 +424,17 @@ begin
   NormalReinstallPage.Add('Import from Steam');
   NormalReinstallPage.Add('Import from Xbox 360 Package');
   NormalReinstallPage.Values[0] := True;
-  VikingPage := CreateInputOptionPage(NormalReinstallPage.ID, 'TIME VIKING artwork',
+  SteamPage := CreateInputDirPage(NormalReinstallPage.ID, 'Steam I MAED A GAM3 W1TH Z0MB1ES 1N IT!!!1 folder',
+    'Select your own Steam installation directory.',
+    'Setup verifies the executable and all nine required texture files. It never runs the game.', False, '');
+  SteamPage.Add('Steam folder:');
+  SteamPage.Edits[0].OnChange := @SteamChanged;
+  Normal360Page := CreateInputFilePage(SteamPage.ID, 'I MAED A GAM3 W1TH Z0MB1ES 1N IT!!!1 package',
+    'Select your Xbox 360 package.',
+    'Setup verifies the complete LIVE package and title before preparing mapped art.');
+  Normal360Page.Add('Xbox 360 package:', 'LIVE packages|*.*', '');
+  Normal360Page.Edits[0].OnChange := @Normal360Changed;
+  VikingPage := CreateInputOptionPage(Normal360Page.ID, 'TIME VIKING artwork',
     'You can use artwork from a different game version to improve the quality.',
     'The original artwork will still be available in game settings.', True, False);
   VikingPage.Add('Don''t Import');
@@ -360,17 +447,7 @@ begin
   VikingReinstallPage.Add('Remove Imported Artwork');
   VikingReinstallPage.Add('Import from Xbox 360 Package');
   VikingReinstallPage.Values[0] := True;
-  SteamPage := CreateInputDirPage(VikingReinstallPage.ID, 'Steam I MAED A GAM3 W1TH Z0MB1ES 1N IT!!!1 folder',
-    'Select your own Steam installation directory.',
-    'Setup verifies the executable and all nine required texture files. It never runs the game.', False, '');
-  SteamPage.Add('Steam folder:');
-  SteamPage.Edits[0].OnChange := @SteamChanged;
-  Normal360Page := CreateInputFilePage(SteamPage.ID, 'I MAED A GAM3 W1TH Z0MB1ES 1N IT!!!1 package',
-    'Select your Xbox 360 package.',
-    'Setup verifies the complete LIVE package and title before preparing mapped art.');
-  Normal360Page.Add('Xbox 360 package:', 'LIVE packages|*.*', '');
-  Normal360Page.Edits[0].OnChange := @Normal360Changed;
-  Viking360Page := CreateInputFilePage(Normal360Page.ID, 'Time Viking 360 LIVE',
+  Viking360Page := CreateInputFilePage(VikingReinstallPage.ID, 'Time Viking 360 LIVE',
     'Select your own supported Time Viking 360 package.',
     'Setup verifies the complete LIVE package and title before preparing mapped art.');
   Viking360Page.Add('Time Viking LIVE:', 'LIVE packages|*.*', '');
@@ -380,7 +457,9 @@ end;
 function UpdateReadyMemo(const Space, NewLine, MemoUserInfoInfo, MemoDirInfo,
   MemoTypeInfo, MemoComponentsInfo, MemoGroupInfo, MemoTasksInfo: String): String;
 begin
-  Result := MemoDirInfo + NewLine + NewLine +
+  Result := 'Installation: ' + WizardDirValue + NewLine +
+    'Saves: ' + SaveDirectory('') + NewLine +
+    'Pictures: ' + PicturesDirectory('') + NewLine + NewLine +
     'Game version: ZombiesWP7 1.0.0.0' + NewLine +
     'Game XAP: ' + SelectedXap + NewLine +
     'I MAED A GAM3 W1TH Z0MB1ES 1N IT!!!1 artwork: ' + NormalChoice + NewLine +
@@ -432,7 +511,12 @@ end;
 
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 begin
-  Result := '';
+  Result := CheckLocations;
+  if Result <> '' then Exit;
+  if not ForceDirectories(SaveDirectory('')) then
+    Result := 'Could not create the saves folder.'
+  else if not ForceDirectories(PicturesDirectory('')) then
+    Result := 'Could not create the pictures folder.';
 end;
 
 function InstallGame: String;
@@ -550,6 +634,20 @@ begin
       Result := False;
     end;
   end
+  else if CurPageID = LocationsPage.ID then
+  begin
+    WizardForm.DirEdit.Text := LocationsPage.Values[0];
+    if Trim(LocationsPage.Values[0]) = '' then
+    begin
+      MsgBox('Choose an installation folder.', mbInformation, MB_OK);
+      Result := False;
+    end
+    else
+    begin
+      Result := CheckLocations = '';
+      if not Result then MsgBox(CheckLocations, mbInformation, MB_OK);
+    end;
+  end
   else if CurPageID = XapPage.ID then Result := CheckXapPage
   else if CurPageID = SteamPage.ID then Result := SteamPage.Values[0] = ValidatedSteam
   else if CurPageID = Normal360Page.ID then Result := Normal360Page.Values[0] = ValidatedNormal360
@@ -593,7 +691,8 @@ begin
     begin
       Code := -1;
       if not Exec(ExpandConstant('{tmp}\Port.SetupHelper.exe'),
-         'set-initial-flashing --enabled true', '', SW_HIDE, ewWaitUntilTerminated, Code) or
+         'set-initial-flashing --enabled true --save-dir ' + Quoted(SaveDirectory('')),
+         '', SW_HIDE, ewWaitUntilTerminated, Code) or
          (Code <> 0) then
       begin
         if WizardSilent then Log('Could not save the first-start Reduce Flashing preference.')
@@ -611,7 +710,12 @@ begin
      'finalize --destination ' + Quoted(ExpandConstant('{app}\current')),
      '', SW_HIDE, ewWaitUntilTerminated, Code) or (Code <> 0) then
     Log('INSTALL_FINALIZE_FAILED; previous install retained for recovery.')
-  else Log('INSTALL_FINALIZED');
+  else
+  begin
+    SetIniString('Folders', 'Saves', SaveDirectory(''), ExpandConstant('{app}\locations.ini'));
+    SetIniString('Folders', 'Pictures', PicturesDirectory(''), ExpandConstant('{app}\locations.ini'));
+    Log('INSTALL_FINALIZED');
+  end;
 end;
 
 procedure DeinitializeSetup;

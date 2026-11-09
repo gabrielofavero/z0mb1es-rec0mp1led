@@ -14,11 +14,10 @@ internal static class InstallerEngine
     private sealed record FileRow(string Path, long Bytes, string Sha256);
     private sealed record InstallManifest(int Format, string SourceXapSha256, FileRow[] Files);
 
-    public static void SetInitialFlashing(bool enabled)
+    public static void SetInitialFlashing(bool enabled, string saveDirectory)
     {
         if (!enabled) return;
-        var directory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "Z0MB1ES on teh ph0ne");
+        var directory = Path.GetFullPath(saveDirectory);
         Directory.CreateDirectory(directory);
         var path = Path.Combine(directory, "display.json");
         if (File.Exists(path)) return; // Never overwrite a player's existing display settings.
@@ -149,6 +148,9 @@ internal static class InstallerEngine
                 Console.WriteLine("STAGE reuse-check");
                 try { Verify(target, (done, total) => Report(100 + 80 * done / total)); }
                 catch { reuse = false; }
+                if (reuse && (Hash(Path.Combine(target, "Port.Hooks.dll")) != Hash(Path.Combine(staged, "Port.Hooks.dll")) ||
+                              Hash(Path.Combine(target, "Port.Bridge.dll")) != Hash(Path.Combine(staged, "Port.Bridge.dll"))))
+                    reuse = false;
             }
             string? originalRoot = null;
             if (reuse)

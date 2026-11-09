@@ -194,7 +194,6 @@ public static class DesktopInput
     {
         var mode = ReadMode();
         RestoreCarouselOnReturn(mode);
-        DesktopPictures.Update();
         Samples++;
         if (DesktopDisplay.CapturesInput)
         {
@@ -258,6 +257,10 @@ public static class DesktopInput
             touches, inside ? gestures : null);
 
         var level = active ? ActiveMenuLevel() : null;
+        DesktopPictures.UpdateMapperControls(
+            level?.GetType().FullName == "IMAK3Z0MB1EGAEM.menu.CustomMapper" &&
+            (float)menuLevelAlphaField!.GetValue(level)! > 0.9f ? level : null,
+            pointer, pointAndClick, pad, (float)frameTimeField!.GetValue(null)!);
         var leaderboard = level?.GetType().FullName == "IMAK3Z0MB1EGAEM.menu.Leaderboards";
         if (level?.GetType().FullName is "IMAK3Z0MB1EGAEM.menu.Achievements" or
             "IMAK3Z0MB1EGAEM.menu.Credits")
@@ -275,7 +278,8 @@ public static class DesktopInput
         var hoverItems = level is null ? [] : ClickableItems(level);
         var items = leaderboard ? [] : hoverItems;
         var itemArray = level is null ? null : menuLevelItemsField!.GetValue(level);
-        if (!ReferenceEquals(level, focusedLevel) || !ReferenceEquals(itemArray, focusedItems))
+        if (!ReferenceEquals(level, focusedLevel) ||
+            (!leaderboard && !ReferenceEquals(itemArray, focusedItems)))
         {
             focusedLevel = level;
             focusedItems = itemArray;
@@ -289,8 +293,10 @@ public static class DesktopInput
         var directionCode = direction.X < 0 ? -1 : direction.X > 0 ? 1 :
             direction.Y < 0 ? -2 : direction.Y > 0 ? 2 : 0;
         var now = Stopwatch.GetTimestamp();
+        var directionChanged = directionCode != previousDirection;
         var navigate = directionCode != 0 &&
-            (directionCode != previousDirection || now >= nextNavigationTick);
+            (directionChanged ||
+             ((!leaderboard || direction.X == 0) && now >= nextNavigationTick));
         if (navigate)
         {
             if (level is not null)

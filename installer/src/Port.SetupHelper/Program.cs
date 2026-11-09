@@ -27,16 +27,22 @@ try
         Console.WriteLine("INSTALL_FINALIZED");
         return 0;
     }
-    if (args.Length == 3 && args[0] == "set-initial-flashing" && args[1] == "--enabled" &&
-        args[2] is "true" or "false")
+    if (args.Length == 5 && args[0] == "set-initial-flashing" && args[1] == "--enabled" &&
+        args[2] is "true" or "false" && args[3] == "--save-dir")
     {
-        InstallerEngine.SetInitialFlashing(args[2] == "true");
+        InstallerEngine.SetInitialFlashing(args[2] == "true", args[4]);
         Console.WriteLine("FIRST_START_FLASHING_SET");
         return 0;
     }
     if (args.Length == 5 && args[0] == "validate-art" && args[1] == "--kind" && args[3] == "--source")
     {
         Console.WriteLine("ART_VALID " + OptionalArt.ValidateSource(args[2], args[4]));
+        return 0;
+    }
+    if ((args.Length == 1 || args.Length == 3 && args[1] == "--steam-root") && args[0] == "find-steam-art")
+    {
+        var path = SteamArtLocator.Find(args.Length == 3 ? args[2] : null);
+        Console.WriteLine(path is null ? "STEAM_ART_NOT_FOUND" : "STEAM_ART_FOUND " + path);
         return 0;
     }
     if (args.Length >= 7 && args[0] == "install" && args.Length % 2 == 1)
@@ -59,7 +65,7 @@ try
         Console.WriteLine("INSTALL_COMMITTED");
         return 0;
     }
-    Console.Error.WriteLine("Usage: Port.SetupHelper validate-xap --xap <file.xap> | validate-art --kind i-maed-steam|i-maed-360|time-viking-360 --source <path> | verify-installed --directory <install> | rollback|finalize --destination <install> | set-initial-flashing --enabled true|false | install --destination <dir> --payload <dir> --xap <file.xap> [--normal keep|none|steam|360 --normal-source <path>] [--viking keep|none|360 --viking-source <path>]");
+    Console.Error.WriteLine("Usage: Port.SetupHelper validate-xap --xap <file.xap> | validate-art --kind i-maed-steam|i-maed-360|time-viking-360 --source <path> | find-steam-art [--steam-root <dir>] | verify-installed --directory <install> | rollback|finalize --destination <install> | set-initial-flashing --enabled true|false --save-dir <dir> | install --destination <dir> --payload <dir> --xap <file.xap> [--normal keep|none|steam|360 --normal-source <path>] [--viking keep|none|360 --viking-source <path>]");
     return 2;
 }
 catch (Exception error)

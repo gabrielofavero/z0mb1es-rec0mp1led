@@ -23,6 +23,15 @@ public static class GameplayPatcher
     private const string VersionReleaseHooksHash = "5dffb36be4520249eb8f330a6b41a69b09b982e81bc8b1bbd60bc7ef5dc25d83";
     private const string CreditsScrollHooksHash = "b1f077e36eb6cad92b7ea51c955c668561cb9e45ce92f1f59a4ce77473c8f36e";
     private const string PortCreditHooksHash = "18232ffefca16d60f25252ec1456ff59120209ee8908084ca97a98466a038973";
+    private const string PictureButtonHooksHash = "2082c82f97da16019bf715a2b8fce8852c916d458cece54a9e223356b0c816a9";
+    private const string InstallerFoldersHooksHash = "cb8f71229484884eb4100d9056b8ef1a705df35e0439d0fdaa43d5314e337149";
+    private const string DocumentsSavesHooksHash = "d19ee6e0a935b7cf5c923217063bced1668747bf2967be5f00e93f032f7e201a";
+    private const string CenteredPicturesHooksHash = "2c2492eb771da5e9f5f28c15175dd4d37bb4e0fd1dc0d14cd5831c226e616071";
+    private const string ReducedFlashFocusHooksHash = "c5cfccbb70dd61e038207ca039eced399621a9c12bd32f167c923d9b8a4b578f";
+    private const string CreatorQualityHooksHash = "5418daaabbebe5089d525d5a000927dc4d83f23e231691e9af14a9fa0d5628ca";
+    private const string ResolutionHooksHash = "ec882ec8281665391fe3bd4d44aceaa11f11b5e693957ffbcb80836cb3b30771";
+    private const string RowNavigationHooksHash = "90e53a6843ac9682512d80c15ca86fc72b38329c00febb80c0933497941c9b4b";
+    private const string InlineResolutionHooksHash = "c2414dc0ee553fdd4ab96e7bca9d62bba1f73b30ba86c0dac6390c1540725e90";
     private const string OriginalMethodBodyHash = "54407b733f8c2d7cdc67534f66899e99191731e2e0beeed8481bc673ff54f425";
     private const string TouchBodyHash = "5d5aea53560307207b175bab14d39138756165598972d7604491f4cd44d7bfc6";
     private const string StorageWriteHash = "887e2f79ecea6543a5ba56aecd08b4c6c82dcda8b790ee81a3e8e5a568249433";
@@ -85,7 +94,7 @@ public static class GameplayPatcher
             prior.Patches.Any(patch => patch.Kind == "gameplay-call"))
             throw new PreparationException("Prepared DLL does not match its original guarded rewrite.");
         var hooksHash = Hash(hooksDll);
-        if (hooksHash is not (DebugHooksHash or ReleaseHooksHash or CurrentDebugHooksHash or CurrentReleaseHooksHash or LatestReleaseHooksHash or RestartReleaseHooksHash or EdgeArtReleaseHooksHash or VersionReleaseHooksHash or CreditsScrollHooksHash or PortCreditHooksHash) ||
+        if (hooksHash is not (DebugHooksHash or ReleaseHooksHash or CurrentDebugHooksHash or CurrentReleaseHooksHash or LatestReleaseHooksHash or RestartReleaseHooksHash or EdgeArtReleaseHooksHash or VersionReleaseHooksHash or CreditsScrollHooksHash or PortCreditHooksHash or PictureButtonHooksHash or InstallerFoldersHooksHash or DocumentsSavesHooksHash or CenteredPicturesHooksHash or ReducedFlashFocusHooksHash or CreatorQualityHooksHash or ResolutionHooksHash or RowNavigationHooksHash or InlineResolutionHooksHash) ||
             System.Reflection.AssemblyName.GetAssemblyName(hooksDll).Name != "Port.Hooks")
             throw new PreparationException("Hook target assembly identity differs.");
 
@@ -260,7 +269,7 @@ public static class GameplayPatcher
                     new PatchRecord("gameplay-call", OriginalHash,
                         "0x060002cc IMAK3Z0MB1EGAEM.menu.CustomMapper::Init()",
                         CustomMapperInitHash,
-                        "load the remembered picture folder and add a visible folder picker action",
+                        "load the configured picture folder into the creator source list",
                         "the creator uses imported thumbnails through its original source list"),
                     new PatchRecord("gameplay-call", OriginalHash,
                         "0x060001f9 IMAK3Z0MB1EGAEM.menu.HelpAndOptions::.ctor()",
@@ -988,44 +997,59 @@ public static class GameplayPatcher
         var il = mapper.Body.GetILProcessor();
         il.InsertBefore(first, il.Create(OpCodes.Ldsfld, gameCustom));
         il.InsertBefore(first, il.Create(OpCodes.Call, Target("LoadRememberedFolder")));
-        var returns = mapper.Body.Instructions.Where(instruction => instruction.OpCode == OpCodes.Ret).ToArray();
-        if (returns.Length is < 1 or > 2)
-            throw new PreparationException("CustomMapper.Init return layout differs.");
-        foreach (var ret in returns)
-        {
-            ret.OpCode = OpCodes.Ldarg_0;
-            il.InsertAfter(ret, il.Create(OpCodes.Call, Target("OfferFolderButton")));
-            il.InsertAfter(ret.Next, il.Create(OpCodes.Ret));
-        }
 
-        var click = mapper.DeclaringType.Methods.Single(method => method.Name == "Click" && method.Parameters.Count == 1);
-        var clickFirst = click.Body.Instructions.First();
+        var mapperType = module.Types.Single(type => type.FullName == "IMAK3Z0MB1EGAEM.menu.CustomMapper");
+        var draw = mapperType.Methods.Single(method => method.Name == "Draw");
+        var drawIl = draw.Body.GetILProcessor();
+        var drawFirst = draw.Body.Instructions.First();
+        drawIl.InsertBefore(drawFirst, drawIl.Create(OpCodes.Ldarg_0));
+        drawIl.InsertBefore(drawFirst, drawIl.Create(OpCodes.Call, Target("LayoutMapper")));
+
+        var click = mapperType.Methods.Single(method => method.Name == "CustomClick");
         var clickIl = click.Body.GetILProcessor();
-        clickIl.InsertBefore(clickFirst, clickIl.Create(OpCodes.Ldsfld, gameCustom));
+        var clickFirst = click.Body.Instructions.First();
         clickIl.InsertBefore(clickFirst, clickIl.Create(OpCodes.Ldarg_0));
         clickIl.InsertBefore(clickFirst, clickIl.Create(OpCodes.Ldarg_1));
-        clickIl.InsertBefore(clickFirst, clickIl.Create(OpCodes.Call, Target("HandleMapperClick")));
+        clickIl.InsertBefore(clickFirst, clickIl.Create(OpCodes.Call, Target("ClickMapperPicture")));
         clickIl.InsertBefore(clickFirst, clickIl.Create(OpCodes.Brfalse, clickFirst));
         clickIl.InsertBefore(clickFirst, clickIl.Create(OpCodes.Ret));
+
+        var image = module.Types.Single(type => type.FullName == "ZombiesWP7.custom.CustomImg");
+        var process = image.Methods.Single(method => method.Name == "Process");
+        if (process.Parameters.Count != 2 || process.Parameters[1].ParameterType.FullName !=
+            "Microsoft.Xna.Framework.Graphics.GraphicsDevice")
+            throw new PreparationException("Custom image processing signature differs.");
+        process.Body = new Mono.Cecil.Cil.MethodBody(process);
+        var processIl = process.Body.GetILProcessor();
+        processIl.Append(processIl.Create(OpCodes.Ldarg_0));
+        processIl.Append(processIl.Create(OpCodes.Ldarg_1));
+        processIl.Append(processIl.Create(OpCodes.Ldarg_2));
+        processIl.Append(processIl.Create(OpCodes.Call, Target("ProcessCustomImage")));
+        processIl.Append(processIl.Create(OpCodes.Ret));
+
     }
 
     private static void VerifyPictures(ModuleDefinition module)
     {
-        foreach (var (typeName, methodName, hookName) in new[]
-        {
-            ("IMAK3Z0MB1EGAEM.menu.CustomMapper", "Init", "LoadRememberedFolder"),
-            ("IMAK3Z0MB1EGAEM.menu.CustomMapper", "Init", "OfferFolderButton"),
-            ("IMAK3Z0MB1EGAEM.menu.CustomMapper", "Click", "HandleMapperClick")
-        })
-        {
-            var method = module.Types.Single(type => type.FullName == typeName)
-                .Methods.Single(candidate => candidate.Name == methodName);
-            var expected = hookName == "OfferFolderButton" ? 2 : 1;
-            if (method.Body.Instructions.Count(item => item.Operand is MethodReference target &&
-                target.DeclaringType.FullName == "Port.Hooks.DesktopPictures" &&
-                target.Name == hookName) != expected)
-                throw new PreparationException($"Picture hook {hookName} postcondition failed.");
-        }
+        var mapper = module.Types.Single(type => type.FullName == "IMAK3Z0MB1EGAEM.menu.CustomMapper");
+        var init = mapper.Methods.Single(candidate => candidate.Name == "Init");
+        if (init.Body.Instructions.Count(item => item.Operand is MethodReference target &&
+            target.DeclaringType.FullName == "Port.Hooks.DesktopPictures" &&
+            target.Name == "LoadRememberedFolder") != 1)
+            throw new PreparationException("Picture folder load hook postcondition failed.");
+        foreach (var (methodName, hookName) in new[] { ("Draw", "LayoutMapper"),
+                     ("CustomClick", "ClickMapperPicture") })
+            if (mapper.Methods.Single(candidate => candidate.Name == methodName).Body.Instructions
+                .Count(item => item.Operand is MethodReference target &&
+                    target.DeclaringType.FullName == "Port.Hooks.DesktopPictures" &&
+                    target.Name == hookName) != 1)
+                throw new PreparationException($"Picture mapper {hookName} hook postcondition failed.");
+        var image = module.Types.Single(type => type.FullName == "ZombiesWP7.custom.CustomImg")
+            .Methods.Single(method => method.Name == "Process");
+        if (image.Body.Instructions.Count(item => item.Operand is MethodReference target &&
+            target.DeclaringType.FullName == "Port.Hooks.DesktopPictures" &&
+            target.Name == "ProcessCustomImage") != 1)
+            throw new PreparationException("High resolution picture processing hook postcondition failed.");
     }
 
     private static void PatchHelpAndOptionsInfo(ModuleDefinition module, ModuleDefinition hooks)

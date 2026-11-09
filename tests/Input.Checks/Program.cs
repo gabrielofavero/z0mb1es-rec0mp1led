@@ -20,6 +20,21 @@ if (DesktopInput.MapPointer(10, 250, new Rectangle(0, 0, 1000, 500), target) is 
     throw new Exception("Legacy input mapping accepted a margin or empty window.");
 Console.WriteLine("INPUT_MAP_OK");
 
+foreach (var (width, height) in new[] { (266, 400), (400, 266), (400, 400) })
+foreach (var size in new[] { 0f, 0.2f, 0.5f })
+{
+    var (center, radius, correction) = DesktopPictures.FitMaskGeometry(
+        width, height, new Vector2(100, 100), size);
+    var scale = Math.Max(width, height) / 100f;
+    var bounds = new Vector2(width / scale, height / scale);
+    if (center.X - radius < -0.0001f || center.Y - radius < -0.0001f ||
+        center.X + radius > bounds.X + 0.0001f ||
+        center.Y + radius > bounds.Y + 0.0001f ||
+        MathF.Abs(radius * correction - (0.1f + size) * 100f) > 0.0001f)
+        throw new Exception($"Creator mask exceeds {width}x{height} at slider {size}.");
+}
+Console.WriteLine("INPUT_CREATOR_MASK_OK");
+
 var ultrawide = DesktopDisplay.Presentation(3440, 1440, DesktopDisplay.CanvasSize(3440, 1440));
 if (ultrawide.Offset != Vector2.Zero || MathF.Abs(ultrawide.Scale - 4) > 0.0001f ||
     DesktopDisplay.CanvasSize(3440, 1440) != (860, 360) ||
@@ -50,6 +65,16 @@ if (!DesktopDisplay.AvailablePresets(2560, 1080).SequenceEqual(
     DesktopDisplay.AvailablePresets(3840, 2160).Length != 8 ||
     DesktopDisplay.AvailablePresets(500, 300).Length != 0)
     throw new Exception("Display preset filtering differs from desktop bounds.");
+if (DesktopDisplay.ResolveResolution(true, 600, 360, 3440, 1440) != (3440, 1440) ||
+    DesktopDisplay.ResolveResolution(true, 600, 360, 500, 300) != (600, 360) ||
+    DesktopDisplay.ResolveResolution(false, 1280, 720, 3440, 1440) != (1280, 720))
+    throw new Exception("Auto resolution or its minimum size differs.");
+var letterbox = DesktopDisplay.Presentation(2560, 1080, (1280, 720));
+if (letterbox.Offset != new Vector2(320, 0) || MathF.Abs(letterbox.Scale - 1.5f) > 0.0001f ||
+    DesktopDisplay.MapPointer(100, 540, new Rectangle(0, 0, 2560, 1080), (640, 360)) is not null)
+    throw new Exception("16:9 preset did not create side bars on a 21:9 display.");
+Check(DesktopDisplay.MapPointer(1280, 540, new Rectangle(0, 0, 2560, 1080),
+    (640, 360)), 320, 180);
 
 var settingsRoot = new[] { new Vector2(167, 110), new Vector2(312, 110),
     new Vector2(250, 170), new Vector2(250, 215) };
@@ -66,6 +91,20 @@ var displayPage = new[] { new Vector2(250, 100), new Vector2(250, 140),
     new Vector2(250, 180), new Vector2(250, 220), new Vector2(250, 260) };
 CheckIndex(MenuNavigation.Next(displayPage, 2, 0, 1), 3);
 CheckIndex(MenuNavigation.Next(displayPage, 4, 0, -1), 3);
+var staggeredDisplayPage = new[] { new Vector2(240, 95), new Vector2(375, 129),
+    new Vector2(255, 163), new Vector2(350, 197), new Vector2(245, 231),
+    new Vector2(310, 265) };
+for (var i = 0; i < staggeredDisplayPage.Length - 1; i++)
+{
+    CheckIndex(MenuNavigation.Next(staggeredDisplayPage, i, 0, 1), i + 1);
+    CheckIndex(MenuNavigation.Next(staggeredDisplayPage, i + 1, 0, -1), i);
+}
+CheckIndex(MenuNavigation.Next(staggeredDisplayPage, 5, 0, 1), 0);
+CheckIndex(MenuNavigation.Next(staggeredDisplayPage, 0, 0, -1), 5);
+var sharedRow = new[] { new Vector2(100, 100), new Vector2(160, 140),
+    new Vector2(110, 140), new Vector2(100, 180) };
+CheckIndex(MenuNavigation.Next(sharedRow, 0, 0, 1), 2);
+CheckIndex(MenuNavigation.Next(sharedRow, 3, 0, -1), 2);
 var customPage = new[] { new Vector2(250, 100), new Vector2(250, 150),
     new Vector2(250, 200), new Vector2(250, 250) };
 CheckIndex(MenuNavigation.Next(customPage, 1, 0, 1), 2);

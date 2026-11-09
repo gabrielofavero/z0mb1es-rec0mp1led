@@ -10,8 +10,8 @@ public static class DesktopStorage
     private static byte[]? savedCustomBytes;
     private static bool customReapplied;
     public static string SaveDirectory => rootOverride ?? Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "Z0MB1ES on teh ph0ne");
+        Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+        "Z0MB1ES on teh ph0ne", "Saves");
 
     public static void Configure(string? directory)
     {

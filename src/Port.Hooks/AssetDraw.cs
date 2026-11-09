@@ -478,6 +478,8 @@ public static class AssetDraw
     public static void Draw(SpriteBatch sprite, Texture2D texture, Vector2 position, Rectangle? source, Color color,
         float rotation, Vector2 origin, float scale, SpriteEffects effects, float depth)
     {
+        if (DesktopPictures.TryDrawPicture(sprite, texture, position, source, color,
+                rotation, origin, scale, effects, depth)) return;
         if (TryDrawPhoneCharacter(sprite, texture, position, source, color, rotation, origin,
                 new Vector2(scale), effects, depth)) return;
         Draw360CharacterShadow(sprite, texture, position, source);

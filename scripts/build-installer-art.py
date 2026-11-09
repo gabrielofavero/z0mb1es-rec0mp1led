@@ -30,7 +30,6 @@ ICON_RENDER_SIZE = 768
 COVER_RENDER_SIZE = 1200
 ICO_SIZES = [(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)]
 SIDE_SIZES = [(202, 386), (269, 515), (336, 643), (403, 772), (430, 824), (498, 953), (534, 1022)]
-TOP_VIEWBOX = (76, 86, 308, 308)
 SVG_NS = "http://www.w3.org/2000/svg"
 XLINK_NS = "http://www.w3.org/1999/xlink"
 
@@ -139,6 +138,16 @@ def write_icon(image: Image.Image, stem: str) -> None:
     image.save(ICON_DIR / f"{stem}.ico", format="ICO", sizes=ICO_SIZES)
 
 
+def black_icon(svg: str, viewbox: list[float]) -> str:
+    """Keep the red icon artwork and fill its transparent canvas with black."""
+    x, y, width, height = viewbox
+    background = f'<rect x="{x:g}" y="{y:g}" width="{width:g}" height="{height:g}" fill="#000000"/>'
+    anchor = '<g id="red-creature">'
+    if svg.count(anchor) != 1:
+        raise RuntimeError("Red icon group was not found exactly once")
+    return svg.replace(anchor, background + "\n" + anchor, 1)
+
+
 def side_layout(cover_root: ElementTree.Element) -> str:
     """Recompose the original cover groups for the tall panel without clipping art."""
     ElementTree.register_namespace("", SVG_NS)
@@ -168,23 +177,11 @@ def side_layout(cover_root: ElementTree.Element) -> str:
     return ElementTree.tostring(side, encoding="unicode")
 
 
-def top_layout(cover_root: ElementTree.Element) -> str:
-    """Remove only the cover's empty black margins from the square header badge."""
-    ElementTree.register_namespace("", SVG_NS)
-    ElementTree.register_namespace("xlink", XLINK_NS)
-    top = deepcopy(cover_root)
-    top.set("width", "159")
-    top.set("height", "159")
-    top.set("viewBox", " ".join(str(value) for value in TOP_VIEWBOX))
-    return ElementTree.tostring(top, encoding="unicode")
-
-
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     group = parser.add_mutually_exclusive_group()
-    group.add_argument("--icons-only", action="store_true", help="Regenerate only the red and gray icons")
+    group.add_argument("--icons-only", action="store_true", help="Regenerate the red, gray, and black icons")
     group.add_argument("--side-only", action="store_true", help="Regenerate only the tall wizard side images")
-    group.add_argument("--wizard-only", action="store_true", help="Regenerate the wizard top and side images")
     args = parser.parse_args()
     WORK_DIR.mkdir(exist_ok=True)
     INSTALLER_DIR.mkdir(exist_ok=True)
@@ -198,7 +195,7 @@ def main() -> None:
     if cover_root.attrib.get("viewBox") != "0 0 450 450":
         raise RuntimeError("The cover source needs its original square 450x450 viewBox")
 
-    if not args.side_only and not args.wizard_only:
+    if not args.side_only:
         gray = (
             red.replace("#FF0000", "#A0A0A0")
             .replace("#790000", "#555555")
@@ -211,20 +208,17 @@ def main() -> None:
         (ICON_DIR / "icon-gray.svg").write_text(gray, encoding="utf-8")
         write_icon(transparent_icon(red, "icon-red"), "icon")
         write_icon(transparent_icon(gray, "icon-gray"), "icon-gray")
+        black = black_icon(red, icon_viewbox)
+        (ICON_DIR / "icon-black.svg").write_text(black, encoding="utf-8")
+        screenshot(black, 1024, 1024, "icon-black", paired=False).save(ICON_DIR / "icon-black.png")
 
     if args.icons_only:
-        print("Rendered compact red and gray 7-size ICOs and 256px PNGs")
+        print("Rendered red and gray ICOs and PNGs, plus the 1024px black icon")
         return
 
-    if not args.side_only and not args.wizard_only:
+    if not args.side_only:
         cover = screenshot(cover_svg, COVER_RENDER_SIZE, COVER_RENDER_SIZE, "cover", paired=False)
         cover.resize((450, 450), Image.Resampling.LANCZOS).save(COVER_DIR / "cover.png")
-
-    if not args.side_only:
-        top_svg = top_layout(cover_root)
-        (INSTALLER_DIR / "wizard-top.svg").write_text(top_svg, encoding="utf-8")
-        top_render = screenshot(top_svg, 636, 636, "wizard-top", paired=False)
-        top_render.resize((159, 159), Image.Resampling.LANCZOS).save(INSTALLER_DIR / "wizard-top.png")
 
     side_svg = side_layout(cover_root)
     (INSTALLER_DIR / "wizard-side.svg").write_text(side_svg, encoding="utf-8")
@@ -234,8 +228,7 @@ def main() -> None:
         side.save(INSTALLER_DIR / f"wizard-large-{width}x{height}.bmp", format="BMP")
 
     print("Rendered seven tall wizard side BMPs" if args.side_only else
-          "Rendered wizard top badge and seven tall side BMPs" if args.wizard_only else
-          "Rendered red and gray ICOs, square cover, header badge, and seven tall wizard side BMPs")
+          "Rendered red and gray ICOs, black icon, square cover, and seven tall wizard side BMPs")
 
 
 if __name__ == "__main__":

@@ -8,7 +8,7 @@ Build from the repository root after dependency bootstrap:
 ./installer/build.ps1 -FfmpegPath 'C:/path/to/pinned/ffmpeg.exe'
 ```
 
-The converter must match `config/content-tools.json`. The build checks the .NET runtime-pack hashes in `installer/config/runtime-packs.json` and writes `installer/out/Z0MB1ES-1.0.0.exe` plus `installer/out/FFmpeg-8.1.1-source.zip`. Both files must be offered together at the same release location; the player only needs setup, their XAP, and any optional Steam/360 source they choose. See the [FFmpeg source build and delivery instructions](ffmpeg/README.md). For automated testing, setup accepts `/XAP="C:\path\to\game.xap"` together with Inno Setup's `/VERYSILENT` and `/DIR` switches. Silent setup requires `/ACCEPTFLASHINGWARNING=1`; `/REDUCEFLASHING=1` enables the first-start preference. Silent optional import uses `/ARTNORMAL=steam|360`, `/ARTNORMALSOURCE=<path>`, `/ARTVIKING=360`, and `/ARTVIKINGSOURCE=<path>`; `keep` and `none` support later updates and removal.
+The converter must match `config/content-tools.json`. The build checks the .NET runtime-pack hashes in `installer/config/runtime-packs.json` and writes `installer/out/Z0MB1ES-1.0.0.exe` plus `installer/out/FFmpeg-8.1.1-source.zip`. Both files must be offered together at the same release location; the player only needs setup, their XAP, and any optional Steam/360 source they choose. See the [FFmpeg source build and delivery instructions](ffmpeg/README.md). For automated testing, setup accepts `/XAP="C:\path\to\game.xap"` together with Inno Setup's `/VERYSILENT` and `/DIR` switches. Silent setup accepts `/SAVEDIR=<path>` and `/PICTURESDIR=<path>` for the data folders. It requires `/ACCEPTFLASHINGWARNING=1`; `/REDUCEFLASHING=1` enables the first-start preference. Silent optional import uses `/ARTNORMAL=steam|360`, `/ARTNORMALSOURCE=<path>`, `/ARTVIKING=360`, and `/ARTVIKINGSOURCE=<path>`; `keep` and `none` support later updates and removal.
 
 ## User experience
 
@@ -16,12 +16,15 @@ The converter must match `config/content-tools.json`. The build checks the .NET 
 | --- | --- |
 | Welcome | Introduces the fan-made PC port and says the player's own XAP is required. |
 | Flashing lights warning | Explains that the original art style includes flashes and that Reduce Flashing cannot remove them all. Agree continues; Disagree cancels setup. The optional first-start Reduce Flashing checkbox starts unchecked. Existing display preferences are preserved on reinstall. |
-| Destination | Defaults to a per-user install location, using Inno Setup's [`PrivilegesRequired=lowest`](https://jrsoftware.org/ishelp/topic_setup_privilegesrequired.htm) to avoid an admin prompt. |
+| Folders | Choose installation, saves, and pictures together. The 64-bit installer defaults to `Program Files\Z0MB1ES on teh ph0ne` and requests administrator access. Saves and pictures default to `Documents\Z0MB1ES on teh ph0ne\Saves` and `Documents\Z0MB1ES on teh ph0ne\Pictures`. Setup remembers the choices on reinstall and reads PNG/JPEG files from the pictures folder and its subfolders. |
 | Game XAP | Browse to a `.xap`; Next checks the exact supported package SHA-256 without starting the .NET helper. Full DLL, manifest, and entry checks run during local preparation. Explain wrong versions clearly. |
 | I MAED A GAM3 W1TH Z0MB1ES 1N IT!!!1 artwork | Choose no import, Steam, or an Xbox 360 package. Keep and remove appear when this install contains imported artwork. Original artwork stays available in game settings. |
+| Steam artwork folder | When Steam import is selected, setup reads the user's Steam registry location, library list, and app manifest for app 1800730. It fills the folder only after the pinned executable and textures pass validation. If discovery fails, the field stays blank and Browse remains available. |
+| I MAED Xbox 360 package | When Xbox 360 import is selected, browse to the supported package before choosing Time Viking artwork. |
 | TIME VIKING artwork | Independently choose no import or an Xbox 360 package. Keep and remove appear when this install contains imported artwork. |
+| Time Viking Xbox 360 package | When Xbox 360 import is selected, browse to the supported package. |
 | Shortcuts | Choose Start Menu and Desktop shortcuts independently. Start Menu is checked on a new install. |
-| Ready | Show destination, detected game version, and what will be installed. |
+| Ready | Show all three folders, detected game version, and what will be installed. |
 | Progress | Show extraction, compatibility preparation, content conversion, verification, and commit as separate stages. Support cancel without leaving a claimed-successful installation. |
 | Finish | Choose Launch game or Close. A failed install never launches. |
 
@@ -50,12 +53,14 @@ installer/out/                     # ignored: built payload and setup executable
 {user install}/current/optional-art/  # verified optional generations and route manifests
 {user install}/current/install-manifest.json
 {user install}/current/install-report.txt
-{local app data}/Z0MB1ES on teh ph0ne/  # saves, outside install directory
+{chosen saves folder}/savegame         # defaults to Documents/Z0MB1ES on teh ph0ne/Saves
+{chosen saves folder}/savegame.bak     # backup
+{chosen pictures folder}/              # defaults to Documents/Z0MB1ES on teh ph0ne/Pictures
 ```
 
 The helper exposes `validate-xap`, `validate-art`, `verify-installed`, and `install`. The wizard uses an exact SHA-256 check on Next; the helper performs full XAP verification during installation. Setup unpacks the runtime and only the tools needed for fresh preparation or selected artwork. It generates the ABI report locally, reuses `Port.Prepare` and `Port.Content`, converts the three music tracks concurrently, prepares selected art with the bundled offline importer, hashes every staged file, then commits. The progress bar follows completed files and FFmpeg encoding time; stage labels explain the current work. On update, the previous `current/` directory is kept as `current.previous/` until Inno finishes. If Inno fails later, `DeinitializeSetup` restores it. An interrupted preparation cannot create a successful install manifest at the destination. A forced process kill can leave an abandoned work directory; a later build or manual cleanup can remove that ignored directory.
 
-On reinstall or update, verify the existing generated game data. Reuse it when its source XAP hash and preparation format remain compatible; otherwise ask for the XAP again. Optional art can be kept, replaced, repaired, or removed independently, including when one installed generation is corrupt. Do not silently re-import from a remembered arbitrary path. Preserve saves by default on uninstall; any deletion of player data must be an explicit choice. Do not remove source game packages.
+On reinstall or update, verify the existing generated game data. Reuse it when its source XAP hash and runtime hooks remain compatible; otherwise ask for the XAP again. Optional art can be kept, replaced, repaired, or removed independently, including when one installed generation is corrupt. Read the selected picture folder at game startup. Preserve saves and pictures by default on uninstall; any deletion of player data must be an explicit choice. Do not remove source game packages.
 
 ## Release and acceptance
 

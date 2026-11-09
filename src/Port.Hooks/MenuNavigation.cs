@@ -68,7 +68,8 @@ public static class MenuNavigation
         var origin = positions[selected];
         var axis = vertical;
         var best = -1;
-        var bestScore = float.PositiveInfinity;
+        var bestAlong = float.PositiveInfinity;
+        var bestAcross = float.PositiveInfinity;
         for (var i = 0; i < positions.Count; i++)
         {
             if (i == selected) continue;
@@ -76,17 +77,28 @@ public static class MenuNavigation
             var along = delta.Y * axis;
             var across = MathF.Abs(delta.X);
             if (along <= 1f) continue;
-            var score = along + across * 0.35f;
-            if (score < bestScore) { bestScore = score; best = i; }
+            if (along < bestAlong || (along == bestAlong && across < bestAcross))
+            {
+                bestAlong = along;
+                bestAcross = across;
+                best = i;
+            }
         }
         if (best >= 0) return best;
         // Wrap to the opposite end, preferring the same column when possible.
-        bestScore = float.PositiveInfinity;
+        bestAlong = float.PositiveInfinity;
+        bestAcross = float.PositiveInfinity;
         for (var i = 0; i < positions.Count; i++)
         {
             var point = positions[i];
-            var score = point.Y * axis + MathF.Abs(point.X - origin.X) * 0.35f;
-            if (score < bestScore) { bestScore = score; best = i; }
+            var along = point.Y * axis;
+            var across = MathF.Abs(point.X - origin.X);
+            if (along < bestAlong || (along == bestAlong && across < bestAcross))
+            {
+                bestAlong = along;
+                bestAcross = across;
+                best = i;
+            }
         }
         return best;
     }

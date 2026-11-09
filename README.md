@@ -26,6 +26,8 @@ The game is not recommended for people with photosensitive epilepsy or other sen
 
 Once a release is available, download the installer from the Releases page. It will ask for your copy of the game's XAP and handle the rest locally. You won't need to install development tools or copy game files yourself.
 
+Setup also lets you choose installation, save, and picture folders. New saves default to `Documents\Z0MB1ES on teh ph0ne\Saves`; put PNG or JPEG images in the chosen picture folder to use them in Edit Monsters.
+
 If you're interested in the technical side, the [docs](docs/README.md) cover the port, its compatibility work, and what has been checked so far.
 
 ## Optional asset swapping
