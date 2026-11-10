@@ -118,3 +118,7 @@ Windows now uses the [shared preparation and host boundaries](../runtime/platfor
 ## Platform expansion Prompt 1 shared import
 
 The [persistent import transaction](../runtime/platform-import.md) stages a phone-only or optional-art import under app data, checks the prepared game and all asset hashes, and activates it with rollback. `TryOpen` verifies on ordinary starts and offers the same flow for repair when invalid. The Settings Assets page includes Reimport; new hosts use `--run-managed` exit code 10 to dispose the game before selection and launch a fresh process after a successful commit. Windows continues to direct the player to Setup. Native Linux selection, visible progress, package tool inclusion, and player UI acceptance remain for Prompt 2.
+
+## Platform expansion Prompt 4 macOS source
+
+The authored macOS launcher and bundle recipe use the shared import/Reimport transaction, AppleScript system pickers, app-owned persistent data, and a child game session. The build is configured for Apple Silicon only and requires reviewed hashes for Mac native libraries, converter, importer, and runtime packs. No `.app` or `.pkg` has been built on a Mac, and no Finder, gameplay, input, audio, creator photo, or update acceptance has been recorded. Treat macOS as source implementation in progress, not a playable release.

@@ -4,7 +4,7 @@ using Port.Host;
 using Microsoft.Xna.Framework;
 using Port.Bridge;
 
-using var runLog = args.Length > 0 && args[0] is "--run" or "--run-managed" or "--linux"
+using var runLog = args.Length > 0 && args[0] is "--run" or "--run-managed" or "--linux" or "--macos"
     ? RunLog.Start() : null;
 Console.WriteLine($"Authored launcher loaded {typeof(Game).Assembly.GetName().Name} {typeof(Game).Assembly.GetName().Version}.");
 
@@ -14,6 +14,8 @@ if (args.Length > 0 && args[0] == "--run-managed")
     return RunSession.Start(args, enableReimport: true);
 if (args.Length == 1 && args[0] == "--linux")
     return await LinuxHost.StartAsync();
+if (args.Length == 1 && args[0] == "--macos")
+    return await MacHost.StartAsync();
 
 if (args.Length == 2 && args[0] == "--check-load")
 {

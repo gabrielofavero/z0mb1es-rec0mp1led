@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "runtime": "osx-arm64",
+  "dotnetSdk": "10.0.302",
+  "dotnetRuntime": "10.0.10",
+  "xcodeVersion": "27.1",
+  "fnaVersion": "26.11",
+  "ffmpegVersion": "8.1.1",
+  "requiredNativeFiles": [
+    "libSDL3.0.dylib", "libFNA3D.0.dylib", "libFAudio.0.dylib",
+    "libtheorafile.dylib"
+  ],
+  "artifactHashes": {}
+}

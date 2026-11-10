@@ -97,7 +97,8 @@ internal static class RunSession
             var paths = new HostPaths(AppContext.BaseDirectory, content, saveDirectory,
                 picturesDirectory, AppContext.BaseDirectory).FullPaths();
             IGameHostAdapter host = OperatingSystem.IsLinux()
-                ? new LinuxGameHostAdapter() : new WindowsGameHostAdapter();
+                ? new LinuxGameHostAdapter() : OperatingSystem.IsMacOS()
+                    ? new MacGameHostAdapter() : new WindowsGameHostAdapter();
             host.ConfigureNativeLibraries(paths);
             host.ConfigureStorage(paths);
             GameContent.Configure(content);

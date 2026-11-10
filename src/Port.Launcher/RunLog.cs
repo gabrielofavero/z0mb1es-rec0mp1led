@@ -30,8 +30,11 @@ internal sealed class RunLog : IDisposable
                 localData = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
                     ".local", "state");
         }
+        else if (OperatingSystem.IsMacOS())
+            localData = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                "Library", "Logs");
         if (string.IsNullOrWhiteSpace(localData)) localData = Path.GetTempPath();
-        var applicationName = OperatingSystem.IsLinux()
+        var applicationName = OperatingSystem.IsLinux() || OperatingSystem.IsMacOS()
             ? "z0mb1es-rec0mp1led" : "Z0MB1ES on teh ph0ne";
         var directories = new[]
         {
