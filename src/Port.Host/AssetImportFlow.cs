@@ -41,10 +41,11 @@ public static class AssetImportFlow
                     throw new InvalidDataException("Choose a supported I MAED source type.");
                 var normal = choices.ReplaceNormal
                     ? await picker.PickOptionalArtAsync(choices.NormalKind!, cancellationToken) : null;
-                if (choices.ReplaceNormal && normal is null) continue;
                 var viking = choices.ReplaceViking
                     ? await picker.PickOptionalArtAsync("time-viking-360", cancellationToken) : null;
-                if (choices.ReplaceViking && viking is null) continue;
+                // Cancelling an optional picker skips only that source.
+                if (phone is null && normal is null && viking is null)
+                    return new AssetImportOutcome(active, false);
                 var selection = new AssetImportSelection(phone,
                     normal is null ? null : new ArtImport(choices.NormalKind!, normal),
                     viking is null ? null : new ArtImport("time-viking-360", viking));

@@ -15,9 +15,9 @@ public sealed class ExternalOptionalArtImporter(string executable, string decode
     {
         Preview(kind, path);
         progress?.Invoke("prepare-" + kind);
-        Run(cancellationToken, "prepare", "--kind", kind, "--source", Path.GetFullPath(path),
+        Run(artRoot, cancellationToken, "prepare", "--kind", kind, "--source", Path.GetFullPath(path),
             "--store", artRoot, "--phone-root", phoneRoot);
-        Run(cancellationToken, "probe", "--kind", kind, "--store", artRoot,
+        Run(artRoot, cancellationToken, "probe", "--kind", kind, "--store", artRoot,
             "--phone-root", phoneRoot);
     }
 
@@ -25,13 +25,13 @@ public sealed class ExternalOptionalArtImporter(string executable, string decode
         CancellationToken cancellationToken)
     {
         progress?.Invoke("compose-art");
-        Run(cancellationToken, "compose-endless", "--store", artRoot,
+        Run(artRoot, cancellationToken, "compose-endless", "--store", artRoot,
             "--phone-root", phoneRoot);
-        Run(cancellationToken, "probe", "--store", artRoot,
+        Run(artRoot, cancellationToken, "probe", "--store", artRoot,
             "--phone-root", phoneRoot);
     }
 
-    private void Run(CancellationToken token, params string[] arguments)
+    private void Run(string artRoot, CancellationToken token, params string[] arguments)
     {
         token.ThrowIfCancellationRequested();
         var tool = Path.GetFullPath(executable);
@@ -43,7 +43,9 @@ public sealed class ExternalOptionalArtImporter(string executable, string decode
             RedirectStandardOutput = true, RedirectStandardError = true
         };
         Directory.CreateDirectory(info.WorkingDirectory);
-        info.Environment["PORT_ASSET_PRIVATE"] = info.WorkingDirectory;
+        // Art is committed from the host's staging tree, outside its scratch directory.
+        info.Environment["PORT_ASSET_PRIVATE"] = Path.GetDirectoryName(Path.GetFullPath(artRoot))
+            ?? throw new ArgumentException("Optional art must have a staging directory.", nameof(artRoot));
         info.Environment["PORT_ASSET_DECODER"] = Path.GetFullPath(decoder);
         info.Environment["PORT_ASSET_FNA"] = Path.GetFullPath(fnaAssembly);
         foreach (var argument in arguments) info.ArgumentList.Add(argument);

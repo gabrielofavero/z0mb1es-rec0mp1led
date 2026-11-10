@@ -1,6 +1,16 @@
 using Port.Prepare;
 using Port.Host;
 
+if (args.Length == 3 && args[0] == "--mac-onboarding")
+{
+    await MacOnboardingChecks.Run(args[1], args[2]);
+    return 0;
+}
+if (args.Length == 6 && args[0] == "--standalone-import")
+{
+    StandaloneImportChecks.Run(args[1], args[2], args[3], args[4], args[5]);
+    return 0;
+}
 if (args.Length == 2 && args[0] == "--flow-only")
 {
     var testRoot = Path.GetFullPath(args[1]);
@@ -149,6 +159,47 @@ var incompleteView = new FakeView(new ImportChoices(true, false, null, false));
 var incomplete = await AssetImportFlow.RunAsync(emptyStore, picker, incompleteView);
 if (incomplete.Active is not null || incomplete.Changed || incompleteView.Choices != 2)
     throw new Exception("Incomplete onboarding did not return to the importer.");
+
+foreach (var (name, normal, viking) in new[]
+{
+    ("cancel-normal", true, false),
+    ("cancel-viking", false, true),
+    ("cancel-both", true, true)
+})
+{
+    var onboarding = new PersistentAssetStore(Path.Combine(root, name), saves, Prepare, importer);
+    var cancelledPicker = new FakePicker(xap);
+    var cancelledView = new FakeView(new ImportChoices(true, normal,
+        normal ? "i-maed-360" : null, viking));
+    var played = false;
+    await AssetSessionCoordinator.RunAsync(onboarding, cancelledPicker, cancelledView, (active, _) =>
+    {
+        played = File.Exists(active.DllPath);
+        return Task.FromResult(false);
+    });
+    if (!played || onboarding.TryOpen() is null || cancelledView.Choices != 1 ||
+        cancelledPicker.OptionalKinds.Count != (normal ? 1 : 0) + (viking ? 1 : 0))
+        throw new Exception($"Cancelling optional artwork prevented first play: {name}");
+}
+
+var retainedViking = Path.Combine(root, "retained-viking.bin");
+File.WriteAllText(retainedViking, "viking artwork");
+var partialStore = new PersistentAssetStore(Path.Combine(root, "cancel-only-normal"), saves, Prepare, importer);
+var partialOutcome = await AssetImportFlow.RunAsync(partialStore,
+    new FakePicker(xap, null, retainedViking),
+    new FakeView(new ImportChoices(true, true, "i-maed-360", true)));
+if (partialOutcome.Active is not { } partial || !partialOutcome.Changed ||
+    !File.Exists(Path.Combine(partial.ArtRoot, "time-viking-360/current.json")) ||
+    Directory.Exists(Path.Combine(partial.ArtRoot, "i-maed-360")))
+    throw new Exception("Cancelling I MAED discarded the selected Time Viking source.");
+
+var resumed = 0;
+var cancelledReimportView = new FakeView(new ImportChoices(false, true, "i-maed-360", true));
+await AssetSessionCoordinator.RunAsync(store, new FakePicker(), cancelledReimportView, (_, _) =>
+    Task.FromResult(++resumed == 1));
+if (resumed != 2 || cancelledReimportView.Choices != 1 || store.TryOpen() is null)
+    throw new Exception("Cancelling optional reimport did not resume the current game.");
+Console.WriteLine("OPTIONAL_CANCEL_OK first-play/normal/viking/both/other-source/reimport-resume");
 Console.WriteLine("IMPORT_CHECKS_OK first/restart/source-delete/add/replace/bad/failure/cancel/repair/recovery/saves/preferences");
 return 0;
 
@@ -174,13 +225,19 @@ sealed class FakeArtImporter : IOptionalArtImporter
     }
 }
 
-sealed class FakePicker : IGameFilePicker
+sealed class FakePicker(string? phone = null, params string?[] optional) : IGameFilePicker
 {
     public int Calls { get; private set; }
+    public List<string> OptionalKinds { get; } = [];
     public Task<string?> PickGamePackageAsync(CancellationToken cancellationToken)
-    { Calls++; return Task.FromResult<string?>(null); }
+    { Calls++; return Task.FromResult(phone); }
     public Task<string?> PickOptionalArtAsync(string sourceKind, CancellationToken cancellationToken)
-    { Calls++; return Task.FromResult<string?>(null); }
+    {
+        Calls++;
+        var result = OptionalKinds.Count < optional.Length ? optional[OptionalKinds.Count] : null;
+        OptionalKinds.Add(sourceKind);
+        return Task.FromResult(result);
+    }
 }
 
 sealed class FakeView(params ImportChoices[] answers) : IAssetImportView

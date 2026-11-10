@@ -4,11 +4,25 @@
   "dotnetSdk": "10.0.302",
   "dotnetRuntime": "10.0.10",
   "xcodeVersion": "27.1",
+  "commandLineToolsVersion": "14.3.1.0.1.1683849156",
+  "commandLineToolsSdkVersion": "13.3",
   "fnaVersion": "26.11",
   "ffmpegVersion": "8.1.1",
   "requiredNativeFiles": [
-    "libSDL3.0.dylib", "libFNA3D.0.dylib", "libFAudio.0.dylib",
+    "libSDL3.0.dylib",
+    "libFNA3D.0.dylib",
+    "libFAudio.0.dylib",
     "libtheorafile.dylib"
   ],
-  "artifactHashes": {}
+  "artifactHashes": {
+    "out/deps/native/osx-arm64/libSDL3.0.dylib": "20f8da590ae0adf64ecdbfb6b983cdfbdd73c762e6ebe618d4e432263790da37",
+    "out/deps/native/osx-arm64/libFNA3D.0.dylib": "bb0b6b4caae6079c5c293c061adb22de5268cc4dc0e4da8ee46ec5bed4969d31",
+    "out/deps/native/osx-arm64/libFAudio.0.dylib": "540aaa0d0f82ecf26136393a8b2addf1240f3ec474df2066c63acb5c50816ec0",
+    "out/deps/native/osx-arm64/libtheorafile.dylib": "4985804b24056761e8cbe26d7796dfcf60d2fc36cef75fca2ae6f2e83fabf6c6",
+    "private/macos-inputs/ffmpeg": "b66cb2a51dbb061b19bae84608ff2f5700f5b17feba8623e7c754349fbf92ad5",
+    "private/macos-inputs/Port.AssetImporter": "62574532eb13f85460e7cca992157caf7f601b2b85b7d9ebf34b46e6b313764c",
+    "out/deps/cache/microsoft.netcore.app.runtime.osx-arm64.10.0.10.nupkg": "e30a65cb64909254c9ce3c9b3fd246f1edf678287e09f03f7634b5d9c0102ede",
+    "out/deps/cache/microsoft.netcore.app.host.osx-arm64.10.0.10.nupkg": "e7fbbf986fa3065ba4c7fd646fe84687b0db48bd58e548a688b269d467955e7d",
+    "out/deps/cache/microsoft.aspnetcore.app.runtime.osx-arm64.10.0.10.nupkg": "fcbdea788077cad1f6f37ec2cfb0eb491e439b5ab0ea13945d5b0f81905cf823"
+  }
 }

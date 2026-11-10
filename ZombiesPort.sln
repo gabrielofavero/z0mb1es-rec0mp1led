@@ -45,6 +45,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Port.Host", "src\Port.Host\
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Port.Import.Checks", "tests\Port.Import.Checks\Port.Import.Checks.csproj", "{59264BD7-D1B3-41A6-957D-DB643CB3C68A}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "inspect_assembly", "tools\inspect_assembly\inspect_assembly.csproj", "{73B61773-6B3B-468B-8832-0596A9AE18EA}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -271,6 +273,18 @@ Global
 		{59264BD7-D1B3-41A6-957D-DB643CB3C68A}.Release|x64.Build.0 = Release|Any CPU
 		{59264BD7-D1B3-41A6-957D-DB643CB3C68A}.Release|x86.ActiveCfg = Release|Any CPU
 		{59264BD7-D1B3-41A6-957D-DB643CB3C68A}.Release|x86.Build.0 = Release|Any CPU
+		{73B61773-6B3B-468B-8832-0596A9AE18EA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{73B61773-6B3B-468B-8832-0596A9AE18EA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{73B61773-6B3B-468B-8832-0596A9AE18EA}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{73B61773-6B3B-468B-8832-0596A9AE18EA}.Debug|x64.Build.0 = Debug|Any CPU
+		{73B61773-6B3B-468B-8832-0596A9AE18EA}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{73B61773-6B3B-468B-8832-0596A9AE18EA}.Debug|x86.Build.0 = Debug|Any CPU
+		{73B61773-6B3B-468B-8832-0596A9AE18EA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{73B61773-6B3B-468B-8832-0596A9AE18EA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{73B61773-6B3B-468B-8832-0596A9AE18EA}.Release|x64.ActiveCfg = Release|Any CPU
+		{73B61773-6B3B-468B-8832-0596A9AE18EA}.Release|x64.Build.0 = Release|Any CPU
+		{73B61773-6B3B-468B-8832-0596A9AE18EA}.Release|x86.ActiveCfg = Release|Any CPU
+		{73B61773-6B3B-468B-8832-0596A9AE18EA}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -294,5 +308,6 @@ Global
 		{1F237F19-EA2D-44A4-B350-001EE8981D76} = {4FD41CC5-3307-4E9A-A37C-536C51BF3DB1}
 		{152CA019-EEE3-46CE-A0A5-67EBC761037D} = {792432FB-51FD-4FA4-B2A3-C9C1E6A61104}
 		{59264BD7-D1B3-41A6-957D-DB643CB3C68A} = {4FD41CC5-3307-4E9A-A37C-536C51BF3DB1}
+		{73B61773-6B3B-468B-8832-0596A9AE18EA} = {C832DA75-4DB0-48D5-8F6E-8D0F291A3261}
 	EndGlobalSection
 EndGlobal

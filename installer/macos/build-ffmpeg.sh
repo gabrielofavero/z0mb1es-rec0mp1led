@@ -7,6 +7,8 @@ work="$repo/private/ffmpeg-macos/build"
 output="$repo/private/macos-inputs/ffmpeg"
 test "$(uname -s)" = Darwin && test "$(uname -m)" = arm64
 mkdir -p "$work" "$(dirname "$output")"
+# Keep FFmpeg's version probe from picking up the enclosing game's Git tags.
+export GIT_CEILING_DIRECTORIES="$work"
 printf '%s  %s\n' \
   83e6704730683d004d20e21b8f7f55dcb3383cdf84c0daedf30bde175f774638 "$source_dir/libogg-1.3.6.tar.gz" \
   b33cc4934322bcbf6efcbacf49e3ca01aadbea4114ec9589d1b1e9d20f72954b "$source_dir/libvorbis-1.3.7.tar.xz" \

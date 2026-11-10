@@ -59,14 +59,18 @@ function build-game {
     [CmdletBinding()]
     param(
         [string]$XapPath = (Join-Path $script:DevRoot 'game/Z0MB1ES (on teh ph0ne) v1.0.0.0.xap'),
-        [string]$FfmpegPath = (Join-Path $script:DevRoot 'private/tooling/ffmpeg.exe')
+        [string]$FfmpegPath = (Join-Path $script:DevRoot $(if ($IsMacOS) { 'private/macos-inputs/ffmpeg' } else { 'private/tooling/ffmpeg.exe' }))
     )
     $ErrorActionPreference = 'Stop'
     $xap = (Resolve-Path -LiteralPath $XapPath).Path
     $ffmpeg = (Resolve-Path -LiteralPath $FfmpegPath).Path
     $expectedFfmpeg = (Get-Content -Raw -LiteralPath (Join-Path $script:DevRoot 'config/content-tools.json') | ConvertFrom-Json).ffmpeg.executableSha256
+    if ($IsMacOS) {
+        $expectedFfmpeg = (Get-Content -Raw -LiteralPath (Join-Path $script:DevRoot 'config/macos-packaging.json') | ConvertFrom-Json).artifactHashes.'private/macos-inputs/ffmpeg'
+        if ([string]::IsNullOrWhiteSpace($expectedFfmpeg)) { throw 'Missing macOS FFmpeg SHA-256 pin in config/macos-packaging.json.' }
+    }
     if ((Get-FileHash -LiteralPath $ffmpeg -Algorithm SHA256).Hash -ine $expectedFfmpeg) {
-        throw 'FFmpeg does not match config/content-tools.json.'
+        throw 'FFmpeg does not match the pinned conversion tool configuration.'
     }
 
     $buildId = [guid]::NewGuid().ToString('N').Substring(0, 12)
@@ -95,7 +99,8 @@ function build-game {
         New-Item -ItemType Directory -Path $work | Out-Null
         Invoke-DevDotnet -Arguments @($prepareCli, '--xap', $xap, '--output', $preparation)
         Invoke-DevDotnet -Arguments @((Join-Path $script:DevRoot 'tools/content-prepare/bin/Release/net10.0/content-prepare.dll'),
-            '--xap', $xap, '--preparation', $preparation, '--ffmpeg', $ffmpeg, '--output', $content)
+            '--xap', $xap, '--preparation', $preparation, '--ffmpeg', $ffmpeg, '--output', $content,
+            '--ffmpeg-sha256', $expectedFfmpeg)
         Invoke-DevDotnet -Arguments @((Join-Path $script:DevRoot 'tools/inspect_assembly/bin/Release/net10.0/inspect_assembly.dll'),
             '--json', '--xap', $xap, '--output', $inventory)
 

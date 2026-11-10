@@ -11,3 +11,6 @@ private/
 **/bin/
 **/obj/
 __pycache__/
+
+# macOS Finder folder metadata.
+.DS_Store

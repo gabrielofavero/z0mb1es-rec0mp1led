@@ -96,23 +96,25 @@ internal sealed class MacImportView(string program, bool optionalArt) : IGameFil
     {
         if (!hasValidInstall)
         {
-            if (!await Ask(token, "Import the supported phone XAP to start playing?")) return null;
+            if (!await Ask(token, "Import Z0MB1ES (on teh ph0ne) from your Windows Phone XAP to start playing?")) return null;
             if (!optionalArt) return new ImportChoices(true, false, null, false);
-            var normal = await Ask(token, "Add optional I MAED artwork now?");
+            var normal = await Show(token, "optional-art",
+                "Add artwork from I MAED A GAM3 W1TH Z0MB1ES 1N IT!!!? You can skip this and add it later in Settings.") is not null;
             var kind = normal ? await ChooseNormalKind(token) : null;
-            if (normal && kind is null) return null;
-            var viking = await Ask(token, "Add optional Time Viking artwork now?");
-            return new ImportChoices(true, normal, kind, viking);
+            var viking = await Show(token, "optional-art",
+                "Add artwork from Time Viking? You can skip this and add it later in Settings.") is not null;
+            return new ImportChoices(true, kind is not null, kind, viking);
         }
         var selection = await Show(token, "sources");
         if (string.IsNullOrEmpty(selection)) return null;
         var choices = selection.Split('\n');
-        var phone = choices.Contains("Phone XAP");
+        var phone = choices.Contains("Z0MB1ES phone XAP");
         var normalSource = optionalArt && choices.Contains("I MAED artwork");
         var vikingSource = optionalArt && choices.Contains("Time Viking artwork");
         if (!phone && !normalSource && !vikingSource) return null;
         var normalKind = normalSource ? await ChooseNormalKind(token) : null;
-        if (normalSource && normalKind is null) return null;
+        if (normalKind is null) normalSource = false;
+        if (!phone && !normalSource && !vikingSource) return null;
         return new ImportChoices(phone, normalSource, normalKind, vikingSource);
     }
 
@@ -126,7 +128,7 @@ internal sealed class MacImportView(string program, bool optionalArt) : IGameFil
 
     public Task<string?> PickGamePackageAsync(CancellationToken token) => Show(token, "xap");
     public Task<string?> PickOptionalArtAsync(string sourceKind, CancellationToken token) =>
-        Show(token, sourceKind == "i-maed-steam" ? "directory" : "package");
+        Show(token, sourceKind);
 
     public Task<bool> ConfirmAsync(AssetImportPreview preview, CancellationToken token) =>
         Ask(token, $"Source: {preview.PhoneVersion}\n" +

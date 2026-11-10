@@ -1,4 +1,4 @@
-"""Render the authored SVGs into Windows icon and Inno Setup artwork.
+"""Render the authored SVGs into desktop icons and Inno Setup artwork.
 
 Developer-only prerequisites: Pillow, NumPy, and local Edge or Chrome.
 The generated artwork can be committed; the player installer does not run this script.
@@ -36,6 +36,8 @@ XLINK_NS = "http://www.w3.org/1999/xlink"
 
 def browser_path() -> Path:
     candidates = [
+        Path('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'),
+        Path('/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge'),
         Path(r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"),
         Path(r"C:\Program Files\Microsoft\Edge\Application\msedge.exe"),
         Path(r"C:\Program Files\Google\Chrome\Application\chrome.exe"),
@@ -56,7 +58,8 @@ def svg_data_uri(svg: str) -> str:
     return "data:image/svg+xml;base64," + encoded
 
 
-def screenshot(svg: str, width: int, height: int, name: str, paired: bool) -> Image.Image:
+def screenshot(svg: str, width: int, height: int, name: str, paired: bool,
+               transparent: bool = False) -> Image.Image:
     render_dir = Path(tempfile.mkdtemp(prefix="installer-art-", dir=WORK_DIR))
     data_uri = html.escape(svg_data_uri(svg), quote=True)
     panels = (
@@ -69,7 +72,7 @@ def screenshot(svg: str, width: int, height: int, name: str, paired: bool) -> Im
     page.write_text(
         f'<html><head><style>html,body{{margin:0;padding:0}}body{{display:flex}}'
         f'.panel{{width:{width}px;height:{height}px;flex:none}}'
-        f'.black{{background:#000}}.white{{background:#fff}}'
+        f'.black{{background:{"transparent" if transparent else "#000"}}}.white{{background:#fff}}'
         f'img{{display:block;width:{width}px;height:{height}px}}'
         f'</style></head><body>{panels}</body></html>',
         encoding="utf-8",
@@ -84,11 +87,14 @@ def screenshot(svg: str, width: int, height: int, name: str, paired: bool) -> Im
         "--hide-scrollbars",
         "--no-first-run",
         "--disable-background-networking",
+        "--force-device-scale-factor=1",
         "--user-data-dir=" + str(render_dir / "profile"),
         "--screenshot=" + str(output),
         f"--window-size={viewport_width},{height}",
         page.as_uri(),
     ]
+    if transparent:
+        command.insert(1, '--default-background-color=00000000')
     process = subprocess.Popen(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     deadline = time.monotonic() + 35
     rendered = None
@@ -98,7 +104,7 @@ def screenshot(svg: str, width: int, height: int, name: str, paired: bool) -> Im
                 try:
                     with Image.open(output) as image:
                         image.load()
-                        rendered = image.convert("RGB")
+                        rendered = image.convert("RGBA" if transparent else "RGB")
                     break
                 except OSError:
                     pass  # The browser may still be writing the screenshot.
@@ -148,6 +154,31 @@ def black_icon(svg: str, viewbox: list[float]) -> str:
     return svg.replace(anchor, background + "\n" + anchor, 1)
 
 
+def write_macos_icon(black: str) -> None:
+    """Give the legacy ICNS artwork rounded corners and transparent Dock padding."""
+    ElementTree.register_namespace('', SVG_NS)
+    root = ElementTree.Element(f'{{{SVG_NS}}}svg', {
+        'width': '1024', 'height': '1024', 'viewBox': '0 0 1024 1024'
+    })
+    definitions = ElementTree.SubElement(root, f'{{{SVG_NS}}}defs')
+    clip = ElementTree.SubElement(definitions, f'{{{SVG_NS}}}clipPath', {
+        'id': 'macos-icon-mask', 'clipPathUnits': 'userSpaceOnUse'
+    })
+    ElementTree.SubElement(clip, f'{{{SVG_NS}}}rect', {
+        'x': '100', 'y': '100', 'width': '824', 'height': '824', 'rx': '180'
+    })
+    group = ElementTree.SubElement(root, f'{{{SVG_NS}}}g', {
+        'clip-path': 'url(#macos-icon-mask)'
+    })
+    artwork = ElementTree.fromstring(black)
+    artwork.attrib.update({'x': '100', 'y': '100', 'width': '824', 'height': '824'})
+    group.append(artwork)
+    svg = '\n'.join(line.rstrip() for line in ElementTree.tostring(root, encoding='unicode').splitlines()) + '\n'
+    (ICON_DIR / 'icon-macos.svg').write_text(svg, encoding='utf-8')
+    screenshot(svg, 1024, 1024, 'icon-macos', paired=False, transparent=True).save(
+        ICON_DIR / 'icon-macos.png')
+
+
 def side_layout(cover_root: ElementTree.Element) -> str:
     """Recompose the original cover groups for the tall panel without clipping art."""
     ElementTree.register_namespace("", SVG_NS)
@@ -182,8 +213,13 @@ def main() -> None:
     group = parser.add_mutually_exclusive_group()
     group.add_argument("--icons-only", action="store_true", help="Regenerate the red, gray, and black icons")
     group.add_argument("--side-only", action="store_true", help="Regenerate only the tall wizard side images")
+    group.add_argument("--macos-icon-only", action="store_true", help="Regenerate only the rounded macOS icon")
     args = parser.parse_args()
     WORK_DIR.mkdir(exist_ok=True)
+    if args.macos_icon_only:
+        write_macos_icon((ICON_DIR / 'icon-black.svg').read_text(encoding='utf-8-sig'))
+        print('Rendered the rounded 1024px macOS icon')
+        return
     INSTALLER_DIR.mkdir(exist_ok=True)
     red = (ICON_DIR / "icon.svg").read_text(encoding="utf-8-sig")
     cover_svg = (COVER_DIR / "cover.svg").read_text(encoding="utf-8-sig")
@@ -211,9 +247,10 @@ def main() -> None:
         black = black_icon(red, icon_viewbox)
         (ICON_DIR / "icon-black.svg").write_text(black, encoding="utf-8")
         screenshot(black, 1024, 1024, "icon-black", paired=False).save(ICON_DIR / "icon-black.png")
+        write_macos_icon(black)
 
     if args.icons_only:
-        print("Rendered red and gray ICOs and PNGs, plus the 1024px black icon")
+        print("Rendered red and gray ICOs and PNGs, plus the black and rounded macOS icons")
         return
 
     if not args.side_only:

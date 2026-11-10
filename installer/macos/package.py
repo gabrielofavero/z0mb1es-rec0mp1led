@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """Assemble an unsigned Apple Silicon app and installer from pinned local inputs."""
+import argparse
 import hashlib
 import json
 import pathlib
 import shutil
 import subprocess
+import tarfile
 import tempfile
 import zipfile
 
@@ -14,7 +16,10 @@ if pin['runtime'] != 'osx-arm64':
     raise SystemExit('Only osx-arm64 is configured')
 inputs = repo / 'private/macos-inputs'
 publish = repo / 'private/macos-publish'
-output = repo / 'out/macos/packages'
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--output', type=pathlib.Path, default=repo / 'out/macos/packages',
+                    help='Destination directory for the app, installer, and FFmpeg source ZIP')
+output = parser.parse_args().output.resolve()
 output.mkdir(parents=True, exist_ok=True)
 source_dir = repo / 'private/ffmpeg-macos/source'
 source_hashes = {
@@ -55,7 +60,7 @@ with tempfile.TemporaryDirectory(prefix='z0mb1es-macos-') as temporary:
     shutil.copy2(repo / 'installer/macos/Info.plist', app / 'Contents/Info.plist')
     iconset = pathlib.Path(temporary) / 'Z0MB1ES.iconset'
     iconset.mkdir()
-    icon = repo / 'assets/icon/icon.png'
+    icon = repo / 'assets/icon/icon-macos.png'
     for size in (16, 32, 128, 256, 512):
         for scale in (1, 2):
             target = iconset / f'icon_{size}x{size}{"@2x" if scale == 2 else ""}.png'
@@ -71,6 +76,19 @@ with tempfile.TemporaryDirectory(prefix='z0mb1es-macos-') as temporary:
         ('out/deps/fna-26.11/FNA/lib/FAudio/LICENSE', 'FAudio-LICENSE.txt'),
         ('out/deps/fna-26.11/FNA/lib/Theorafile/licenses/LICENSE', 'Theorafile-LICENSE.txt')):
         shutil.copy2(repo / source, notices / target)
+    for archive, member, target in (
+        ('ffmpeg-239f2c733d.tar.gz', 'FFmpeg-239f2c733d/COPYING.LGPLv2.1', 'FFmpeg-LGPL-2.1.txt'),
+        ('ffmpeg-239f2c733d.tar.gz', 'FFmpeg-239f2c733d/LICENSE.md', 'FFmpeg-LICENSE.md'),
+        ('libogg-1.3.6.tar.gz', 'libogg-1.3.6/COPYING', 'libogg-COPYING.txt'),
+        ('libvorbis-1.3.7.tar.xz', 'libvorbis-1.3.7/COPYING', 'libvorbis-COPYING.txt')):
+        with tarfile.open(source_dir / archive) as source:
+            with source.extractfile(member) as license_file:
+                (notices / target).write_bytes(license_file.read())
+    (notices / 'FFmpeg-source.txt').write_text(
+        'FFmpeg 8.1.1 (239f2c733d), built with libogg 1.3.6 and libvorbis 1.3.7.\n'
+        'Corresponding source and build recipe: FFmpeg-8.1.1-macos-source.zip,\n'
+        'distributed beside the macOS installer.\n'
+        f'Converter SHA-256: {converter_hash}\n')
     for path in app.rglob('*'):
         if path.is_file() and (path.suffix.lower() in ('.xap', '.xnb', '.wma', '.ogg')
                                or path.name == 'ZombiesWP7.dll'):
@@ -84,6 +102,7 @@ with tempfile.TemporaryDirectory(prefix='z0mb1es-macos-') as temporary:
     shutil.copytree(app, app_destination)
     destination = output / 'Z0MB1ES-1.0.0-osx-arm64.pkg'
     subprocess.run(['pkgbuild', '--root', str(stage), '--install-location', '/Applications',
+                    '--component-plist', str(repo / 'installer/macos/components.plist'),
                     '--identifier', 'io.github.z0mb1esrec0mp1led.game', '--version', '1.0.0',
                     str(destination)], check=True)
     print(f'{hashlib.sha256(destination.read_bytes()).hexdigest()}  {destination}')
