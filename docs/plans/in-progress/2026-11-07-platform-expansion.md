@@ -1,6 +1,6 @@
 # Platform expansion plan
 
-**Status:** Windows implementation and Prompt 0 complete. Prompt 1 shared import transaction is implemented. Prompt 2 has a Linux x64 host and local `.deb`/`.rpm` artifacts, but its graphical install, visible first-launch UI, and playable desktop acceptance remain open because the available WSL environment has no graphical session. Linux is not a published release. Prompt 4 now has macOS host and packaging source, but no Mac-built `.app` or `.pkg`; exact native hashes and macOS acceptance are open. iOS and Android remain planned. macOS, iOS, and Android are homebrew releases: no app store, paid developer program, publisher certificate, or player-side build. Players receive prebuilt downloads, then provide their own supported game package and any optional art sources. For iOS, **AltStore Classic** handles the per-device signing of a prebuilt IPA using the player's regular Apple ID; for Android, the release build applies the APK signature the OS requires using a local key. Neither calls for a paid developer account or a player-compiled build.
+**Status:** Windows implementation and Prompt 0 complete. Prompt 1 shared import transaction is implemented. Prompt 2 has a Linux x64 host and local `.deb`/`.rpm` artifacts, but its graphical install, visible first-launch UI, and playable desktop acceptance remain open because the available WSL environment has no graphical session. Linux is not a published release. Prompts 4 and 5 are complete for macOS Apple Silicon: unsigned `.app`/`.pkg` artifacts, reviewed input hashes, standalone import checks, and user-confirmed full manual validation are recorded as of 2026-11-10. Intel is not offered. Prompt 6 now has an authored iOS execution experiment and desktop import/audio checks; IPA build and real-device execution remain open. Android remains planned. macOS, iOS, and Android are homebrew releases: no app store, paid developer program, publisher certificate, or player-side build. Players receive prebuilt downloads, then provide their own supported game package and any optional art sources. For iOS, **AltStore Classic** handles the per-device signing of a prebuilt IPA using the player's regular Apple ID; for Android, the release build applies the APK signature the OS requires using a local key. Neither calls for a paid developer account or a player-compiled build.
 
 ## Current baseline and major constraints
 
@@ -70,23 +70,29 @@ On native Linux hardware, exercise clean install, update, removal, import and Re
 
 **Acceptance:** A player installs either package, imports their XAP once, plays every mode, and can repair or reimport without developer tools. Updates preserve prepared assets and saves; optional-art failure leaves original art usable.
 
-### Prompt 4 — Build the macOS app and unsigned package
+### Prompt 4 — Build the macOS app and unsigned package (complete)
 
 Port native libraries, file/photo pickers, input, app-bundle resources, storage, and WMA conversion to macOS. Build a self-contained `.app` and unsigned `.pkg` on macOS; keep generated content and saves outside the bundle. Pin the Xcode/.NET/native toolchain. Package Apple Silicon and Intel variants only when each has a tested build and matching native libraries. Use the common first-launch import and Reimport contract. Document the exact macOS **Open Anyway** procedure for the unsigned package ([Apple instructions](https://support.apple.com/en-us/102445)).
 
 **Acceptance:** A fresh macOS install opens the importer after the documented security override; it needs no SDK, account, publisher certificate, or original packages in the app bundle. A package audit finds no proprietary files.
 
-### Prompt 5 — Validate the macOS release path
+**Closed 2026-11-10:** Apple Silicon builds and package audits passed on the Apple M1 Mac. Installer relocation, optional-art output boundaries, optional-source cancellation, and the rounded app icon were corrected. Standalone import and source-free restart passed with developer resources blocked. See the [macOS guide](../../../installer/macos/README.md) and [implementation log](../../records/implementation-log.md).
+
+### Prompt 5 — Validate the macOS release path (complete)
 
 On real Mac hardware for each promised architecture, test fresh install/update, Gatekeeper override, first import, Reimport and repair, all game modes, controller/mouse/keyboard, creator photos, audio, and save preservation. Check that launch works through Finder and that canceling or failing an import leaves the prior install intact. Publish checksum and concise homebrew download instructions after the package audit and rights review.
 
 **Acceptance:** A Mac user can install the unsigned package, perform the one-time security override, import their XAP, play, and update without developer tools or an account.
 
-### Prompt 6 — Prove the iOS execution path on a real device
+**Closed 2026-11-10:** The user reported the current Apple Silicon build fully validated after manual testing, closing this prompt's hardware and player-flow acceptance. This manual confirmation is recorded separately from the automated build, cancellation, package, and standalone-import checks in the [implementation log](../../records/implementation-log.md). Local package checksums and player instructions are available; release upload is a separate action. Linux and mobile acceptance remain open.
+
+### Prompt 6 — Prove the iOS execution path on a real device (in progress)
 
 Create the smallest content-free `ios-arm64` IPA that AltStore Classic can install with a regular Apple ID. On a real iPhone, prototype on-device XAP preparation, three-song conversion without a spawned desktop executable, persistent asset storage, and execution of the prepared game assembly under a supported iOS interpreter/AOT configuration. Test a normal AltStore launch without manually enabling JIT each time; a simulator is insufficient. Use [.NET iOS runtime guidance](https://learn.microsoft.com/en-us/dotnet/maui/deployment/runtimes-compilation?view=net-maui-10.0) and verify the actual host's [`EnableCodeSigning`/`BuildIpa` settings](https://github.com/dotnet/macios/blob/main/docs/building-apps/build-properties.md). If imported executable IL cannot run reliably, assess an authored, statically bundled gameplay implementation that imports data/assets only, including its preservation and licensing constraints. Record the chosen path and a device trace.
 
 **Acceptance:** A real-device prototype demonstrates a viable content-free execution path for all three phone modes, or the plan records a concrete authored-gameplay design that can do so. Do not claim iOS playability from AltStore installation or simulator results alone.
+
+**Progress 2026-11-10:** Added a content-free UIKit experiment, static in-process WMA-to-Vorbis converter, exact XAP extraction/metadata roundtrip, persistent hash receipts, restartable authored-IL probe, and IPA audit. Desktop checks passed; the iOS UI source compiles against the pinned reference assembly. The current Ventura 13.5 Mac has no full Xcode or iOS workload, and cannot build the pinned Xcode 26.0.1 / macOS 15.6+ baseline. The user has set up AltStore on an iPhone. No IPA, device trace or prepared-game execution exists yet. The [probe guide](../../../installer/ios/README.md) and [execution/fallback design](../../runtime/ios-execution.md) distinguish prerequisite experiments from all-mode acceptance. Mono interpreter is the experiment, not a proven production choice; the authored-gameplay fallback is specified but unimplemented and has not been selected. Prompt 6 remains open; do not claim iOS playability or advance its acceptance from desktop results.
 
 ### Prompt 7 — Implement shared mobile import, display, input, and photos
 

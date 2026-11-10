@@ -28,7 +28,11 @@ Once a release is available, download the installer from the Releases page. It w
 
 Linux x64 `.deb` and `.rpm` packages are being tested. Their desktop entry opens a first-launch XAP importer, then stores prepared assets and saves in your user data directory. The [Linux package guide](installer/linux/README.md) explains the current local artifacts and remaining desktop checks; no Linux release has been published yet.
 
-Setup also lets you choose installation, save, and picture folders. New saves default to `Documents\Z0MB1ES on teh ph0ne\Saves`; put PNG or JPEG images in the chosen picture folder to use them in Edit Monsters.
+macOS Apple Silicon builds are validated. Install the unsigned `.pkg`, open **Z0MB1ES** from Applications, and import your XAP on first launch. The [macOS package guide](installer/macos/README.md) covers the security override, optional artwork, and app-data locations.
+
+iOS is at the [execution experiment stage](installer/ios/README.md). There is no playable IPA yet.
+
+On Windows, Setup also lets you choose installation, save, and picture folders. New saves default to `Documents\Z0MB1ES on teh ph0ne\Saves`; put PNG or JPEG images in the chosen picture folder to use them in Edit Monsters.
 
 If you're interested in the technical side, the [docs](docs/README.md) cover the port, its compatibility work, and what has been checked so far.
 

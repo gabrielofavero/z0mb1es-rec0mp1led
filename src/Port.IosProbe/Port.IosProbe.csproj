@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-ios26.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>Port.IosProbe</AssemblyName>
+    <SupportedOSPlatformVersion>15.0</SupportedOSPlatformVersion>
+    <RuntimeIdentifier>ios-arm64</RuntimeIdentifier>
+    <UseInterpreter>true</UseInterpreter>
+    <PublishAot>false</PublishAot>
+    <!-- Imported IL and Cecil need metadata that a closed-world trim would remove. -->
+    <TrimMode>copy</TrimMode>
+    <EnableCodeSigning>false</EnableCodeSigning>
+    <BuildIpa>true</BuildIpa>
+    <IpaPackageName>Z0MB1ES-execution-probe.ipa</IpaPackageName>
+    <JsonSerializerIsReflectionEnabledByDefault>true</JsonSerializerIsReflectionEnabledByDefault>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Port.Prepare/Port.Prepare.csproj" />
+    <NativeReference Include="../../out/ios/native/libz0audio.a">
+      <Kind>Static</Kind>
+      <ForceLoad>true</ForceLoad>
+    </NativeReference>
+    <BundleResource Include="../../out/ios/native/converter-identity.txt" LogicalName="converter-identity.txt" />
+    <BundleResource Include="../../out/ios/native/notices/*" LogicalName="notices/%(Filename)%(Extension)" />
+    <LinkerArgument Include="-lz" />
+    <LinkerArgument Include="-liconv" />
+  </ItemGroup>
+</Project>

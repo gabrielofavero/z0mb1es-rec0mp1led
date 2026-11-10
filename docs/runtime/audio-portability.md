@@ -19,4 +19,6 @@ Example on a non-Windows development host after obtaining and checking a local F
 dotnet tools/content-prepare/bin/Release/net10.0/content-prepare.dll --xap <supported.xap> --preparation <verified-extraction> --ffmpeg <local-ffmpeg> --output private/content-prepared/<new-directory> --ffmpeg-sha256 <verified-sha256>
 ```
 
-The Windows FNA probe loaded and played all prepared sounds, including simultaneous sound effects and music pause/resume. That validates this prepared content and code path on Windows only. Linux and macOS runtime checks remain open; neither platform is claimed tested by this audit.
+The Windows FNA probe loaded and played all prepared sounds, including simultaneous sound effects and music pause/resume. That validates this prepared content and code path on Windows only. That audit did not test Linux or macOS. Linux runtime acceptance remains open; macOS Apple Silicon manual acceptance was subsequently confirmed by the user on 2026-11-10, as recorded in the [implementation log](../records/implementation-log.md).
+
+The [Prompt 6 iOS experiment](../../installer/ios/README.md) adds a static libav/libvorbis converter implementing `IContentAudioConverter` without a process. Its macOS check converted all three pinned songs concurrently, produced valid Vorbis, and passed full decode checks (302.04517, 817.94612 and 907.66803 seconds). This is desktop evidence for the library API, not iOS playback evidence. iOS static compilation, device memory/performance, actual game music time and the static-link distribution review remain open.

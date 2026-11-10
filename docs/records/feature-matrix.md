@@ -113,12 +113,23 @@ The phone's original achievements, saves, controls, pause flow, and offline serv
 
 ## Platform expansion Prompt 0
 
-Windows now uses the [shared preparation and host boundaries](../runtime/platform-host.md). The launcher verified and played a prepared game with its executable, content, and saves in separate directories; the offline setup helper prepared and verified a phone-only install. Existing optional-art selection remained available in the separate-path launch. Linux, macOS, iOS, and Android hosts, native libraries, pickers, and device runs remain future prompts.
+Windows now uses the [shared preparation and host boundaries](../runtime/platform-host.md). The launcher verified and played a prepared game with its executable, content, and saves in separate directories; the offline setup helper prepared and verified a phone-only install. Existing optional-art selection remained available in the separate-path launch. Linux has a host and local packages with graphical acceptance still open. macOS Apple Silicon implementation and validation are complete; iOS and Android remain future prompts.
 
 ## Platform expansion Prompt 1 shared import
 
 The [persistent import transaction](../runtime/platform-import.md) stages a phone-only or optional-art import under app data, checks the prepared game and all asset hashes, and activates it with rollback. `TryOpen` verifies on ordinary starts and offers the same flow for repair when invalid. The Settings Assets page includes Reimport; new hosts use `--run-managed` exit code 10 to dispose the game before selection and launch a fresh process after a successful commit. Windows continues to direct the player to Setup. Native Linux selection, visible progress, package tool inclusion, and player UI acceptance remain for Prompt 2.
 
-## Platform expansion Prompt 4 macOS source
+## Platform expansion Prompts 4–5 macOS Apple Silicon (complete)
 
-The authored macOS launcher and bundle recipe use the shared import/Reimport transaction, AppleScript system pickers, app-owned persistent data, and a child game session. The build is configured for Apple Silicon only and requires reviewed hashes for Mac native libraries, converter, importer, and runtime packs. No `.app` or `.pkg` has been built on a Mac, and no Finder, gameplay, input, audio, creator photo, or update acceptance has been recorded. Treat macOS as source implementation in progress, not a playable release.
+The macOS launcher and unsigned `.app`/`.pkg` use the shared import/Reimport transaction, AppleScript system pickers, app-owned persistent data, and a child game session. Apple Silicon build inputs are pinned in `config/macos-packaging.json`; Intel is not offered. Package audits, standalone phone and optional-art import, source-free restart, optional-source cancellation, and a Metal menu run passed. The user reported full manual validation on 2026-11-10, closing the macOS implementation and release-path prompts. See the [macOS package guide](../../installer/macos/README.md) and [implementation log](implementation-log.md) for automated evidence, user-confirmed acceptance, and artifact checksums.
+
+## Platform expansion Prompt 6 — iOS feasibility (acceptance open)
+
+| Path | Evidence | Remaining gate |
+| --- | --- | --- |
+| Generated IL, Cecil rewrite, reflection and delegate invocation | Desktop checks and a separate-process reload passed; corrupted payload rejected. | Run the Release interpreter IPA from AltStore after reboot without enabling JIT. |
+| XAP import and persistent data | Pinned XAP extraction, real-game metadata roundtrip, 221 persisted-file hashes, failed-repeat preservation and corrupt-output rejection passed on macOS. | Test the system picker and source-free restart on iPhone. The metadata-roundtrip DLL is not an executable game preparation. |
+| Three-song conversion | Static libav/libvorbis bridge converted all three tracks in-process on macOS; full decode and durations matched the sources. | Build/link iOS static libraries, measure device conversion and memory, then verify actual game playback/timing. |
+| IPA / game execution | UI source compiled against iOS 26.0.11017 references. Local build/audit source exists. | This Ventura Mac lacks full Xcode; no IPA or device trace exists. All three game modes remain unproven on iOS. |
+
+The user confirmed AltStore setup on 2026-11-10. The [execution decision and contingent fallback](../runtime/ios-execution.md) preserve the open gate; no mobile release or all-mode acceptance is claimed.
