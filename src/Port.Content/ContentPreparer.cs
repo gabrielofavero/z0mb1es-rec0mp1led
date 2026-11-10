@@ -7,20 +7,40 @@ namespace Port.Content;
 
 public sealed record ContentProgress(string Stage, long Completed, long Total);
 
+/// <summary>Host-supplied WMA decoder/encoder. Implementations write Ogg Vorbis.</summary>
+public interface IContentAudioConverter
+{
+    string ToolSha256 { get; }
+    void Convert(string input, string output, Action<long>? onProgress);
+}
+
 public static class ContentPreparer
 {
     public static string Prepare(string extractionRoot, string outputDirectory, string ffmpegPath,
         string expectedFfmpegSha256, string sourceXapSha256, Action<ContentProgress>? progress = null)
     {
+        var tool = Path.GetFullPath(ffmpegPath);
+        if (Hash(tool) != expectedFfmpegSha256.ToLowerInvariant())
+            throw new InvalidDataException("FFmpeg executable differs from the pinned binary.");
+        return Prepare(extractionRoot, outputDirectory,
+            new ProcessAudioConverter(tool, expectedFfmpegSha256.ToLowerInvariant()),
+            sourceXapSha256, progress);
+    }
+
+    public static string Prepare(string extractionRoot, string outputDirectory,
+        IContentAudioConverter converter, string sourceXapSha256,
+        Action<ContentProgress>? progress = null)
+    {
+        ArgumentNullException.ThrowIfNull(converter);
         var source = Path.GetFullPath(extractionRoot);
         var output = Path.GetFullPath(outputDirectory);
         if (Path.Exists(output)) throw new InvalidOperationException("Content output must be a new directory.");
         if (output.StartsWith(source + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("Content output must be outside the source extraction.");
         var parent = Path.GetDirectoryName(output) ?? throw new InvalidOperationException("Output must not be a drive root.");
-        var tool = Path.GetFullPath(ffmpegPath);
-        if (Hash(tool) != expectedFfmpegSha256.ToLowerInvariant())
-            throw new InvalidDataException("FFmpeg executable differs from the pinned binary.");
+        if (converter.ToolSha256.Length != 64 ||
+            !converter.ToolSha256.All(Uri.IsHexDigit))
+            throw new ArgumentException("Audio converter must provide a SHA-256 identity.", nameof(converter));
         var assets = ContentInventory.Read(source);
         if (assets.Count(asset => asset.Kind == "xnb") != 91 ||
             assets.Count(asset => asset.Kind == "wma-companion") != 3 ||
@@ -51,7 +71,7 @@ public static class ContentPreparer
             var progressLock = new object();
             progress?.Invoke(new ContentProgress("music", 0, totalDuration));
             Task.WhenAll(music.Select((asset, index) => Task.Run(() =>
-                ConvertAudio(tool, source, staging, asset, progress is null ? null : elapsed =>
+                ConvertAudio(converter, source, staging, asset, progress is null ? null : elapsed =>
                 {
                     lock (progressLock)
                     {
@@ -81,7 +101,7 @@ public static class ContentPreparer
                 .Select(path => new ContentOutput(Path.GetRelativePath(staging, path).Replace('\\', '/'),
                     new FileInfo(path).Length, Hash(path)))
                 .OrderBy(asset => asset.Path, StringComparer.Ordinal).ToArray();
-            var manifest = new ContentManifest(1, sourceXapSha256, expectedFfmpegSha256.ToLowerInvariant(),
+            var manifest = new ContentManifest(1, sourceXapSha256, converter.ToolSha256.ToLowerInvariant(),
                 assets, outputs);
             var manifestPath = Path.Combine(staging, "content-manifest.json");
             File.WriteAllText(manifestPath, JsonSerializer.Serialize(manifest,
@@ -112,43 +132,55 @@ public static class ContentPreparer
         _ => throw new InvalidDataException($"Unknown music track: {asset.Path}")
     };
 
-    private static void ConvertAudio(string tool, string source, string staging, ContentAsset asset,
+    private static void ConvertAudio(IContentAudioConverter converter, string source, string staging, ContentAsset asset,
         Action<long>? onProgress)
     {
         var input = Path.Combine(source, asset.Path.Replace('/', Path.DirectorySeparatorChar));
         var relative = Path.ChangeExtension(asset.Path, ".ogg");
         var destination = Path.Combine(staging, relative.Replace('/', Path.DirectorySeparatorChar));
         Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
-        var start = new ProcessStartInfo(tool)
-        {
-            UseShellExecute = false,
-            RedirectStandardError = true,
-            RedirectStandardOutput = onProgress is not null,
-            CreateNoWindow = true
-        };
-        if (onProgress is not null)
-            foreach (var argument in new[] { "-stats_period", "0.25", "-progress", "pipe:1" })
-                start.ArgumentList.Add(argument);
-        foreach (var argument in new[] { "-nostdin", "-hide_banner", "-loglevel", "error", "-i", input,
-                     "-map", "0:a:0", "-vn", "-c:a", "libvorbis", "-q:a", "5", "-map_metadata", "-1",
-                     "-bitexact", destination })
-            start.ArgumentList.Add(argument);
-        using var process = Process.Start(start) ?? throw new IOException("Could not start FFmpeg.");
-        var errorTask = process.StandardError.ReadToEndAsync();
-        if (onProgress is not null)
-        {
-            string? line;
-            while ((line = process.StandardOutput.ReadLine()) is not null)
-                if (line.StartsWith("out_time_us=", StringComparison.Ordinal) &&
-                    long.TryParse(line.AsSpan("out_time_us=".Length), out var elapsed))
-                    onProgress(elapsed);
-        }
-        process.WaitForExit();
-        var standardError = errorTask.GetAwaiter().GetResult();
-        if (process.ExitCode != 0 || !File.Exists(destination) || new FileInfo(destination).Length == 0)
-            throw new InvalidDataException($"Audio conversion failed for {asset.Path}: {standardError.Trim()}");
+        converter.Convert(input, destination, onProgress);
+        if (!File.Exists(destination) || new FileInfo(destination).Length == 0)
+            throw new InvalidDataException($"Audio conversion failed for {asset.Path}.");
         VerifyOggVorbis(destination);
         onProgress?.Invoke(DurationMicroseconds(asset));
+    }
+
+    private sealed class ProcessAudioConverter(string tool, string hash) : IContentAudioConverter
+    {
+        public string ToolSha256 => hash;
+
+        public void Convert(string input, string destination, Action<long>? onProgress)
+        {
+            var start = new ProcessStartInfo(tool)
+            {
+                UseShellExecute = false,
+                RedirectStandardError = true,
+                RedirectStandardOutput = onProgress is not null,
+                CreateNoWindow = true
+            };
+            if (onProgress is not null)
+                foreach (var argument in new[] { "-stats_period", "0.25", "-progress", "pipe:1" })
+                    start.ArgumentList.Add(argument);
+            foreach (var argument in new[] { "-nostdin", "-hide_banner", "-loglevel", "error", "-i", input,
+                         "-map", "0:a:0", "-vn", "-c:a", "libvorbis", "-q:a", "5", "-map_metadata", "-1",
+                         "-bitexact", destination })
+                start.ArgumentList.Add(argument);
+            using var process = Process.Start(start) ?? throw new IOException("Could not start FFmpeg.");
+            var errorTask = process.StandardError.ReadToEndAsync();
+            if (onProgress is not null)
+            {
+                string? line;
+                while ((line = process.StandardOutput.ReadLine()) is not null)
+                    if (line.StartsWith("out_time_us=", StringComparison.Ordinal) &&
+                        long.TryParse(line.AsSpan("out_time_us=".Length), out var elapsed))
+                        onProgress(elapsed);
+            }
+            process.WaitForExit();
+            var standardError = errorTask.GetAwaiter().GetResult();
+            if (process.ExitCode != 0)
+                throw new InvalidDataException($"Audio conversion failed for {Path.GetFileName(input)}: {standardError.Trim()}");
+        }
     }
 
     private static void VerifyOggVorbis(string path)

@@ -80,6 +80,8 @@ public static class DesktopDisplay
     public static bool IsStaticPlayerNameLabel(object item) =>
         gameplayPage && gameplayItems is not null && ReferenceEquals(gameplayItems.GetValue(0), item);
     public static bool IsAssetPage => assetPage;
+    /// <summary>New hosts set this to leave the game and open the shared importer.</summary>
+    public static Action? ReimportRequested { get; set; }
     internal static IntPtr GameWindowHandle => game?.Window.Handle ?? IntPtr.Zero;
 
     public static void Configure(Game runningGame)
@@ -210,10 +212,10 @@ public static class DesktopDisplay
         var displayOffsets = new[] { -60f, 40f, -45f, 50f, -55f, 10f };
         for (var i = 0; i < displayLabels.Length; i++)
             displayItems.SetValue(Item(displayLabels[i], 95 + i * 34, displayOffsets[i], 0.7f), i);
-        assetItems = Array.CreateInstance(itemType, 4);
-        var assetOffsets = new[] { -35f, 35f, -25f, 0f };
-        for (var i = 0; i < 4; i++)
-            assetItems.SetValue(Item("BACK", 95 + i * 50, assetOffsets[i], 0.7f), i);
+        assetItems = Array.CreateInstance(itemType, 5);
+        var assetOffsets = new[] { -35f, 35f, -25f, 30f, 0f };
+        for (var i = 0; i < 5; i++)
+            assetItems.SetValue(Item("BACK", 75 + i * 45, assetOffsets[i], 0.7f), i);
         settingsMenu = settings;
         previousInfos = null;
         editing = -1;
@@ -379,6 +381,11 @@ public static class DesktopDisplay
         if (assetPage)
         {
             if (text == "BACK") ReturnToGraphicsPage();
+            else if (text == "REIMPORT")
+            {
+                if (ReimportRequested is null) SetInfo("USE SETUP TO REIMPORT ON WINDOWS.");
+                else ReimportRequested();
+            }
             else
             {
                 var mode = text.StartsWith("I MAED:", StringComparison.Ordinal) ? "normal" :
@@ -567,7 +574,7 @@ public static class DesktopDisplay
         {
             $"I MAED: {AssetChoices.NormalLabel}",
             $"TIME VIKING: {AssetChoices.VikingLabel}",
-            $"ENDLESS: {AssetChoices.EndlessLabel}", "BACK"
+            $"ENDLESS: {AssetChoices.EndlessLabel}", "REIMPORT", "BACK"
         };
         for (var i = 0; i < assetLabels.Length; i++)
             itemTextField.SetValue(assetItems.GetValue(i), assetLabels[i]);

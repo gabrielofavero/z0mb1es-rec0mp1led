@@ -2,6 +2,14 @@
 
 This matrix covers the pinned v1.0.0.0 XAP only. The evidence source is the original `ZombiesWP7.dll` and the Windows/FNA runtime. No original phone runtime was available. `IL` means original IL establishes the path; `probe` means an authored diagnostic called the original method on a locally prepared DLL; `manual` means a player used the visible controls. A probe does not certify the click path, visual quality, or gameplay feel.
 
+## Linux x64 Prompt 2 status
+
+| Path | Current result | Remaining check |
+| --- | --- | --- |
+| Self-contained `.deb` and `.rpm` | Local packages contain the authored launcher, pinned native libraries, converter, import tools, desktop entry, and icon; payload audit found no phone DLL or game asset files. | Install and update through graphical package managers on native Linux. |
+| First import and restart | Headless WSL with scripted dialog responses imported the supported phone XAP into app data; the prepared DLL/content manifest verified. The Linux ABI checker resolved all 146 type and 382 member references. | Use the visible native picker/progress UI; confirm cancellation, repair, update, and source deletion on a Linux desktop. |
+| Game startup | The Linux executable loaded 177 prepared game types and JIT-prepared 818 methods. After adding unversioned native-library aliases, startup reached SDL initialization. | WSL reports `No available video device`; play all three modes with graphics, audio, controller, saves, and creator photos on native Linux. |
+
 ## Mode and navigation paths
 
 | Path | Original evidence | Port result | Remaining check |
@@ -102,3 +110,11 @@ The phone matrix above remains the gameplay baseline. [The 360 evidence ledger](
 | ZOMBIES ENDLESS | No standalone source. The [Endless manifest](asset-swap-mappings/endless-360.json) orders matching I MAED 360 art, Steam I MAED art, Viking 360 art, then phone Original. | Steam alone imports 113 of 230 elements; Steam plus Viking imports 171. Both Endless mode cycles and art catalogs passed with 67 and 125 distinct routes respectively; earlier mixed 360 resize probes passed. |
 
 The phone's original achievements, saves, controls, pause flow, and offline service policy remain the only planned behavior paths.
+
+## Platform expansion Prompt 0
+
+Windows now uses the [shared preparation and host boundaries](../runtime/platform-host.md). The launcher verified and played a prepared game with its executable, content, and saves in separate directories; the offline setup helper prepared and verified a phone-only install. Existing optional-art selection remained available in the separate-path launch. Linux, macOS, iOS, and Android hosts, native libraries, pickers, and device runs remain future prompts.
+
+## Platform expansion Prompt 1 shared import
+
+The [persistent import transaction](../runtime/platform-import.md) stages a phone-only or optional-art import under app data, checks the prepared game and all asset hashes, and activates it with rollback. `TryOpen` verifies on ordinary starts and offers the same flow for repair when invalid. The Settings Assets page includes Reimport; new hosts use `--run-managed` exit code 10 to dispose the game before selection and launch a fresh process after a successful commit. Windows continues to direct the player to Setup. Native Linux selection, visible progress, package tool inclusion, and player UI acceptance remain for Prompt 2.

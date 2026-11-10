@@ -22,9 +22,20 @@ internal sealed class RunLog : IDisposable
 
     public static RunLog Start()
     {
+        var localData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        if (OperatingSystem.IsLinux())
+        {
+            localData = Environment.GetEnvironmentVariable("XDG_STATE_HOME");
+            if (string.IsNullOrWhiteSpace(localData) || !Path.IsPathFullyQualified(localData))
+                localData = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                    ".local", "state");
+        }
+        if (string.IsNullOrWhiteSpace(localData)) localData = Path.GetTempPath();
+        var applicationName = OperatingSystem.IsLinux()
+            ? "z0mb1es-rec0mp1led" : "Z0MB1ES on teh ph0ne";
         var directories = new[]
         {
-            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Z0MB1ES on teh ph0ne", "logs"),
+            Path.Combine(localData, applicationName, "logs"),
             Path.Combine(Path.GetTempPath(), "Z0MB1ES logs")
         };
         Exception? lastError = null;

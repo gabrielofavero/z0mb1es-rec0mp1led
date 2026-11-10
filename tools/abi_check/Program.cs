@@ -16,6 +16,12 @@ internal static class AbiCheck
     public static int Run(string[] args)
     {
         if (args.Length == 2 && args[0] == "--self-test") return AbiFixtureChecks.Run(args[1]);
+        var versionsPath = "config/supported-versions.json";
+        if (args.Length >= 2 && args[^2] == "--versions")
+        {
+            versionsPath = args[^1];
+            args = args[..^2];
+        }
         var withBridge = args.Length == 10 && args[6] == "--bridge" && args[8] == "--output";
         if ((args.Length != 8 && !withBridge) || args[0] != "--inventory" || args[2] != "--dll" ||
             args[4] != "--fna" || (args.Length == 8 && args[6] != "--output"))
@@ -23,7 +29,8 @@ internal static class AbiCheck
             Console.Error.WriteLine("Usage: abi_check --inventory <Prompt1.json> --dll <original.dll> --fna <pinned FNA.dll> [--bridge <Port.Bridge.dll>] --output <report.json>");
             return 2;
         }
-        try { return Check(args[1], args[3], args[5], withBridge ? args[7] : null, withBridge ? args[9] : args[7]); }
+        try { return Check(args[1], args[3], args[5], withBridge ? args[7] : null,
+            withBridge ? args[9] : args[7], versionsPath); }
         catch (Exception e) when (e is IOException or InvalidDataException or BadImageFormatException or
             JsonException or ArgumentException or InvalidOperationException or NotSupportedException)
         {
@@ -32,9 +39,10 @@ internal static class AbiCheck
         }
     }
 
-    private static int Check(string inventoryPath, string dllPath, string fnaPath, string? bridgePath, string outputPath)
+    private static int Check(string inventoryPath, string dllPath, string fnaPath, string? bridgePath,
+        string outputPath, string versionsPath)
     {
-        using var versions = JsonDocument.Parse(File.ReadAllText("config/supported-versions.json"));
+        using var versions = JsonDocument.Parse(File.ReadAllText(versionsPath));
         var supported = versions.RootElement.GetProperty("versions")[0];
         var expectedHash = supported.GetProperty("dllSha256").GetString()!;
         var dllBytes = File.ReadAllBytes(dllPath);

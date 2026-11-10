@@ -1,19 +1,21 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <OutputType Condition="'$(Configuration)' == 'Release'">WinExe</OutputType>
+    <OutputType Condition="'$(Configuration)' == 'Release' and '$(RuntimeIdentifier)' != 'linux-x64'">WinExe</OutputType>
     <AssemblyName>Z0MB1ES</AssemblyName>
     <Version>1.0.0</Version>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
-    <ApplicationIcon>../../assets/icon/icon.ico</ApplicationIcon>
+    <ApplicationIcon Condition="'$(RuntimeIdentifier)' != 'linux-x64'">../../assets/icon/icon.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../Port.Bridge/Port.Bridge.csproj" />
     <ProjectReference Include="../Port.Hooks/Port.Hooks.csproj" />
+    <ProjectReference Include="../Port.Prepare/Port.Prepare.csproj" />
+    <ProjectReference Include="../Port.Host/Port.Host.csproj" />
     <Reference Include="FNA"><HintPath>$(FnaDependencyDirectory)/managed/FNA.dll</HintPath><Private>true</Private></Reference>
     <Content Include="$(FnaDependencyDirectory)/managed/FNA.dll.config" Link="FNA.dll.config" CopyToOutputDirectory="PreserveNewest" />
-    <Content Include="$(FnaDependencyDirectory)/native/win-x64/*.dll" Link="%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
-    <Content Include="$(FnaDependencyDirectory)/native/win-x64/D3D12/*.dll" Link="D3D12/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <Content Condition="'$(RuntimeIdentifier)' != 'linux-x64'" Include="$(FnaDependencyDirectory)/native/win-x64/*.dll" Link="%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <Content Condition="'$(RuntimeIdentifier)' != 'linux-x64'" Include="$(FnaDependencyDirectory)/native/win-x64/D3D12/*.dll" Link="D3D12/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
   <Target Name="CheckFnaDependencies" BeforeTargets="ResolveReferences" Condition="!Exists('$(FnaDependencyDirectory)/managed/FNA.dll')">
     <Error Text="Pinned FNA is missing. Run scripts/bootstrap-fna.ps1 first." />

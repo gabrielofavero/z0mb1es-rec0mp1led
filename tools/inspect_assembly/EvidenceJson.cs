@@ -21,13 +21,19 @@ internal static class EvidenceJson
 
     private static int RunChecked(string[] args)
     {
+        var versionsPath = "config/supported-versions.json";
+        if (args.Length >= 2 && args[^2] == "--versions")
+        {
+            versionsPath = args[^1];
+            args = args[..^2];
+        }
         if (args.Length is not (2 or 4) || args[0] is not ("--dll" or "--xap") ||
             (args.Length == 4 && args[2] != "--output"))
         {
             Console.Error.WriteLine("Usage: --json (--dll <original.dll> | --xap <original.xap>) [--output <report.json>]");
             return 2;
         }
-        using var manifest = JsonDocument.Parse(File.ReadAllText("config/supported-versions.json"));
+        using var manifest = JsonDocument.Parse(File.ReadAllText(versionsPath));
         var supported = manifest.RootElement.GetProperty("versions")[0];
         var xapHash = supported.GetProperty("xapSha256").GetString()!;
         var dllHash = supported.GetProperty("dllSha256").GetString()!;

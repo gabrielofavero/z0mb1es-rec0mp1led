@@ -33,6 +33,8 @@ public static class DesktopPictures
     private static bool previousSliderMouse;
     private static bool previousLeftShoulder;
     private static bool previousRightShoulder;
+    private static bool previousPhotoKey;
+    public static Func<IReadOnlyList<string>>? PhotoSelectionRequested { get; set; }
     private static string LegacyFolderFile => Path.Combine(DesktopStorage.SaveDirectory, "pictures-folder.txt");
 
     public static void Configure(string? folder) =>
@@ -175,7 +177,29 @@ public static class DesktopPictures
             sliderDragging = previousSliderMouse = false;
             previousLeftShoulder = previousRightShoulder = false;
         }
-        if (mapper is null) return;
+        if (mapper is null) { previousPhotoKey = false; return; }
+        var photoKey = Keyboard.GetState().IsKeyDown(Keys.P);
+        if (photoKey && !previousPhotoKey && PhotoSelectionRequested is not null)
+        {
+            try
+            {
+                var selected = PhotoSelectionRequested();
+                var copied = CopySelectedPhotos(selected);
+                if (copied > 0 && pictureFolder is not null)
+                {
+                    var manager = mapper.GetType().Assembly.GetType("ZombiesWP7.Game1", true)!
+                        .GetField("custom", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)!
+                        .GetValue(null)!;
+                    if (Import(manager, pictureFolder)) DesktopStorage.ReapplyCustom(manager);
+                }
+                if (copied > 0)
+                    mapper.GetType().BaseType!.GetField("infos", InstanceFields)!.SetValue(mapper,
+                        new[] { new StringBuilder($"Added {copied} creator photos.") });
+            }
+            catch (Exception error) when (error is IOException or UnauthorizedAccessException or InvalidDataException)
+            { Trace.TraceWarning($"Creator photo selection failed: {error.Message}"); }
+        }
+        previousPhotoKey = photoKey;
         LayoutMapper(mapper);
         if (mousePressed && !previousSliderMouse && pointer is Vector2 press && SliderHit(mapper, press))
             sliderDragging = true;
@@ -385,6 +409,25 @@ public static class DesktopPictures
             if (sources.Count == 0)
                 foreach (var texture in loaded) texture.Dispose();
         }
+    }
+
+    private static int CopySelectedPhotos(IReadOnlyList<string> selected)
+    {
+        if (pictureFolder is null || selected.Count == 0) return 0;
+        Directory.CreateDirectory(pictureFolder);
+        var copied = 0;
+        foreach (var path in selected.Take(MaximumPictures))
+        {
+            if (!Extensions.Contains(Path.GetExtension(path))) continue;
+            var file = new FileInfo(path);
+            if (!file.Exists || file.Length is 0 or > 32 * 1024 * 1024) continue;
+            using var stream = file.OpenRead();
+            var hash = Convert.ToHexString(SHA256.HashData(stream)).ToLowerInvariant();
+            var destination = Path.Combine(pictureFolder, hash + file.Extension.ToLowerInvariant());
+            if (!File.Exists(destination)) File.Copy(path, destination);
+            copied++;
+        }
+        return copied;
     }
 
 }

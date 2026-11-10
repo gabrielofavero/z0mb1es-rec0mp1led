@@ -1,0 +1,4 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><AssemblyName>Port.Host</AssemblyName></PropertyGroup>
+  <ItemGroup><ProjectReference Include="../Port.Prepare/Port.Prepare.csproj" /></ItemGroup>
+</Project>

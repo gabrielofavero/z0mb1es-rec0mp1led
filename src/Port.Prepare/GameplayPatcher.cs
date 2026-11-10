@@ -34,6 +34,12 @@ public static class GameplayPatcher
     private const string InlineResolutionHooksHash = "c2414dc0ee553fdd4ab96e7bca9d62bba1f73b30ba86c0dac6390c1540725e90";
     private const string SessionHooksHash = "3329508664cfe110ffc9c8a6592d725858a70790bef6702e18aace4ddddf8558";
     private const string UpdatedReleaseHooksHash = "1d84608b436404417714882d71a980bed96bc545db43dfcbf172c9408ced2f3b";
+    private const string PlatformHooksHash = "1ca2a59f90b038a6f7224d2035950f96355237ef5974391dec883a3b411766d5";
+    private const string ExplicitContentHooksHash = "efc4505bc00c0415870e35ebf77694383793db4b9b9a71ee389f2b6c63dd9670";
+    private const string ImportDebugHooksHash = "558b926b836122109a5f36ae020669569fd7be56afa54aad0d678ca376e475a4";
+    private const string ImportReleaseHooksHash = "8a83d8c6621a1a11d469e132873af193fbdb3d5931852eadb0fea0176f230916";
+    private const string LinuxPhotoDebugHooksHash = "38f61787a774640940a9793709af84faddef4a9554c041e15a79155500272521";
+    private const string LinuxPhotoReleaseHooksHash = "870a15e0d0f121ad4531ee395bb60064467eed457c0f947ae7294d9fca98b692";
     private const string OriginalMethodBodyHash = "54407b733f8c2d7cdc67534f66899e99191731e2e0beeed8481bc673ff54f425";
     private const string TouchBodyHash = "5d5aea53560307207b175bab14d39138756165598972d7604491f4cd44d7bfc6";
     private const string StorageWriteHash = "887e2f79ecea6543a5ba56aecd08b4c6c82dcda8b790ee81a3e8e5a568249433";
@@ -58,10 +64,11 @@ public static class GameplayPatcher
     private const int AssetDrawCallCount = 170;
     private const string MethodSignature = "0x06000152 System.Void ZombiesWP7.custom.CustomMgr::Init(Microsoft.Xna.Framework.Graphics.GraphicsDevice,Microsoft.Xna.Framework.Content.ContentManager)";
 
-    public static RewriteResult Apply(string originalDll, string preparedDll, string hooksDll, string outputDirectory)
+    public static RewriteResult Apply(string originalDll, string preparedDll, string hooksDll,
+        string outputDirectory, string? privatePreparedRoot = null)
     {
         var final = Path.GetFullPath(outputDirectory);
-        var privateRoot = Path.GetFullPath(Path.Combine("private", "prepared"));
+        var privateRoot = Path.GetFullPath(privatePreparedRoot ?? Path.Combine("private", "prepared"));
         if (!final.StartsWith(privateRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) ||
             Path.Exists(final))
             throw new PreparationException("Hook output must be a new directory under private/prepared/.");
@@ -96,7 +103,7 @@ public static class GameplayPatcher
             prior.Patches.Any(patch => patch.Kind == "gameplay-call"))
             throw new PreparationException("Prepared DLL does not match its original guarded rewrite.");
         var hooksHash = Hash(hooksDll);
-        if (hooksHash is not (DebugHooksHash or ReleaseHooksHash or CurrentDebugHooksHash or CurrentReleaseHooksHash or LatestReleaseHooksHash or RestartReleaseHooksHash or EdgeArtReleaseHooksHash or VersionReleaseHooksHash or CreditsScrollHooksHash or PortCreditHooksHash or PictureButtonHooksHash or InstallerFoldersHooksHash or DocumentsSavesHooksHash or CenteredPicturesHooksHash or ReducedFlashFocusHooksHash or CreatorQualityHooksHash or ResolutionHooksHash or RowNavigationHooksHash or InlineResolutionHooksHash or SessionHooksHash or UpdatedReleaseHooksHash) ||
+        if (hooksHash is not (DebugHooksHash or ReleaseHooksHash or CurrentDebugHooksHash or CurrentReleaseHooksHash or LatestReleaseHooksHash or RestartReleaseHooksHash or EdgeArtReleaseHooksHash or VersionReleaseHooksHash or CreditsScrollHooksHash or PortCreditHooksHash or PictureButtonHooksHash or InstallerFoldersHooksHash or DocumentsSavesHooksHash or CenteredPicturesHooksHash or ReducedFlashFocusHooksHash or CreatorQualityHooksHash or ResolutionHooksHash or RowNavigationHooksHash or InlineResolutionHooksHash or SessionHooksHash or UpdatedReleaseHooksHash or PlatformHooksHash or ExplicitContentHooksHash or ImportDebugHooksHash or ImportReleaseHooksHash or LinuxPhotoDebugHooksHash or LinuxPhotoReleaseHooksHash) ||
             System.Reflection.AssemblyName.GetAssemblyName(hooksDll).Name != "Port.Hooks")
             throw new PreparationException("Hook target assembly identity differs.");
 
@@ -137,6 +144,7 @@ public static class GameplayPatcher
                 ReplaceTouchCall(module, hooks, touch, 0x0785, "Microsoft.Xna.Framework.Input.Touch.TouchPanel", "get_IsGestureAvailable", "get_IsGestureAvailable");
                 ReplaceTouchCall(module, hooks, touch, 0x078f, "Microsoft.Xna.Framework.Input.Touch.TouchPanel", "ReadGesture", "ReadGesture");
                 PatchStorage(module, hooks);
+                PatchTitlePaths(module, hooks);
                 PatchAchievementAwards(module, hooks);
                 PatchOfflineLeaderboards(module);
                 CenterLeaderboards(module, hooks);
@@ -204,6 +212,7 @@ public static class GameplayPatcher
                 VerifyHelpAndOptionsInfo(check);
                 VerifyAssetDraw(check);
                 VerifyRunRestart(check);
+                VerifyTitlePaths(check);
             }
             var outputHash = Hash(stageDll);
             var patch = new PatchRecord("gameplay-call", OriginalHash, MethodSignature,
@@ -292,7 +301,11 @@ public static class GameplayPatcher
                         "pinned ContentManager.Load<Texture2D> and SpriteBatch.Draw call sites",
                         OriginalHash,
                         "route phone texture paths and source rectangles through Port.Hooks.AssetDraw",
-                        "phone logical geometry and Original fallback remain in effect")]
+                        "phone logical geometry and Original fallback remain in effect"),
+                    new PatchRecord("gameplay-call", OriginalHash,
+                        "four pinned TitleContainer.OpenStream call sites", OriginalHash,
+                        "route custom non-XNB files through Port.Hooks.GameContent.OpenStream",
+                        "the host supplies an explicit verified content root")]
             };
             File.WriteAllText(Path.Combine(stage, "patch-manifest.json"),
                 JsonSerializer.Serialize(manifest,
@@ -322,6 +335,40 @@ public static class GameplayPatcher
             ?? throw new PreparationException($"Original method 0x{token:x8} body is missing.");
         if (Hex(SHA256.HashData(body)) != expected)
             throw new PreparationException($"Original method 0x{token:x8} body differs from its guard.");
+    }
+
+    private static void PatchTitlePaths(ModuleDefinition module, ModuleDefinition hooks)
+    {
+        var target = hooks.Types.Single(type => type.FullName == "Port.Hooks.GameContent")
+            .Methods.Single(method => method.Name == "OpenStream" && method.IsStatic &&
+                method.Parameters.Count == 1 &&
+                method.Parameters[0].ParameterType.FullName == "System.String" &&
+                method.ReturnType.FullName == "System.IO.Stream");
+        var calls = module.Types.SelectMany(type => type.Methods)
+            .Where(method => method.HasBody)
+            .SelectMany(method => method.Body.Instructions)
+            .Where(instruction => instruction.OpCode == OpCodes.Call &&
+                instruction.Operand is MethodReference method &&
+                method.DeclaringType.FullName == "Microsoft.Xna.Framework.TitleContainer" &&
+                method.Name == "OpenStream" && method.Parameters.Count == 1 &&
+                method.Parameters[0].ParameterType.FullName == "System.String" &&
+                method.ReturnType.FullName == "System.IO.Stream")
+            .ToArray();
+        if (calls.Length != 4)
+            throw new PreparationException($"Expected four guarded custom content calls; found {calls.Length}.");
+        foreach (var call in calls) call.Operand = module.ImportReference(target);
+    }
+
+    private static void VerifyTitlePaths(ModuleDefinition module)
+    {
+        var calls = module.Types.SelectMany(type => type.Methods)
+            .Where(method => method.HasBody)
+            .SelectMany(method => method.Body.Instructions)
+            .Where(instruction => instruction.Operand is MethodReference method &&
+                method.Name == "OpenStream" &&
+                method.DeclaringType.FullName == "Port.Hooks.GameContent")
+            .Count();
+        if (calls != 4) throw new PreparationException("Custom content path postcondition failed.");
     }
 
     private static void ReplaceTouchCall(ModuleDefinition module, ModuleDefinition hooks,

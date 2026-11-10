@@ -8,10 +8,12 @@ using Microsoft.Xna.Framework.Input;
 using Microsoft.Xna.Framework.GamerServices;
 using Port.Bridge;
 using Port.Hooks;
+using Port.Prepare;
+using Port.Host;
 
 internal static class RunSession
 {
-    public static int Start(string[] args)
+    public static int Start(string[] args, bool enableReimport = false)
     {
         if (args.Length < 4 || args[2] != "--content")
         {
@@ -85,17 +87,21 @@ internal static class RunSession
 
         try
         {
+            var reimportRequested = false;
             var dll = Path.GetFullPath(args[1]);
             var content = Path.GetFullPath(args[3]);
-            VerifyInputs(dll, content);
+            PreparedGameVerifier.Verify(dll, content);
             var locations = Path.Combine(Path.GetDirectoryName(content)!, "locations.ini");
             saveDirectory ??= InstalledFolder(locations, "Saves");
             picturesDirectory ??= InstalledFolder(locations, "Pictures");
-            DesktopStorage.Configure(saveDirectory);
-            DesktopPictures.Configure(picturesDirectory);
-            PlayerIdentity.Configure(DesktopStorage.SaveDirectory);
+            var paths = new HostPaths(AppContext.BaseDirectory, content, saveDirectory,
+                picturesDirectory, AppContext.BaseDirectory).FullPaths();
+            IGameHostAdapter host = OperatingSystem.IsLinux()
+                ? new LinuxGameHostAdapter() : new WindowsGameHostAdapter();
+            host.ConfigureNativeLibraries(paths);
+            host.ConfigureStorage(paths);
+            GameContent.Configure(content);
             AssetChoices.Initialize(artStore, artNormal, artViking, artEndless);
-            Directory.SetCurrentDirectory(content);
             var assembly = Assembly.LoadFrom(dll);
             if (assembly.GetName().Name != "ZombiesWP7")
                 throw new InvalidDataException("Prepared assembly identity is not ZombiesWP7.");
@@ -104,9 +110,14 @@ internal static class RunSession
                 ?? throw new InvalidDataException("Game1 construction returned null."));
             game.IsMouseVisible = false;
             game.Window.AllowUserResizing = true;
-            DesktopDisplay.Configure(game);
+            host.ConfigureWindow(game);
+            DesktopDisplay.ReimportRequested = enableReimport ? () =>
+            {
+                reimportRequested = true;
+                game.Exit();
+            } : null;
             DesktopAchievements.Configure();
-            DesktopInput.Configure(game);
+            host.ConfigureInput(game);
             game.Content.RootDirectory = Path.Combine(content, "Content");
             var monitor = new RunMonitor(game, gameType, frameLimit, windowed, probeServices,
                 probeMode, probeMenus, probeArtToggle, probeResize);
@@ -119,6 +130,7 @@ internal static class RunSession
                 throw;
             }
             Console.WriteLine($"RUN_END updates={monitor.Updates} frames={monitor.Frames} menuReached={monitor.MenuReached} menuAnimated={monitor.MenuAnimated} rendered={monitor.RenderedMenu} serviceScreens={monitor.ServiceScreens} serviceVerified={monitor.ServiceStatesVerified} modeProbe={probeMode} modeVerified={monitor.ModeVerified} artToggleVerified={monitor.ArtToggleVerified} menusVerified={monitor.MenusVerified} artDraws={AssetDraw.Replacements} originalDraws={AssetDraw.OriginalDraws} artUnique={AssetDraw.UsedCount} artSample={AssetDraw.UsedSample} inputSamples={DesktopInput.Samples} activeSamples={DesktopInput.ActiveSamples} mouseSamples={DesktopInput.MouseSamples} keyboardSamples={DesktopInput.KeyboardSamples} movementSeen={monitor.MovementSeen} aimSeen={monitor.AimSeen} clickSeen={monitor.ClickSeen} backSeen={monitor.BackSeen} pauseSeen={monitor.PauseSeen} hostQuit={monitor.HostQuit} timedOut={monitor.TimedOut}");
+            if (reimportRequested) return 10;
             return monitor.MenuReached && monitor.MenuAnimated && monitor.RenderedMenu &&
                 monitor.Frames >= 2 && !monitor.TimedOut && (!probeServices || monitor.ServiceStatesVerified) &&
                 (probeMode is null || monitor.ModeVerified) && (!probeArtToggle || monitor.ArtToggleVerified) &&
@@ -155,44 +167,6 @@ internal static class RunSession
         catch (Exception error) when (error is IOException or UnauthorizedAccessException)
         { Trace.TraceWarning($"Could not read installed folder choices: {error.Message}"); }
         return null;
-    }
-
-    private static void VerifyInputs(string dll, string content)
-    {
-        var runtimeRoot = Path.GetFullPath(AppContext.BaseDirectory).TrimEnd(Path.DirectorySeparatorChar);
-        content = content.TrimEnd(Path.DirectorySeparatorChar);
-        if (!string.Equals(Path.GetDirectoryName(dll), runtimeRoot, StringComparison.OrdinalIgnoreCase) ||
-            !string.Equals(content, runtimeRoot, StringComparison.OrdinalIgnoreCase))
-            throw new InvalidDataException("Prepared DLL and content must be staged beside the launcher for FNA TitleContainer paths.");
-        var gameManifest = Path.Combine(Path.GetDirectoryName(dll)!, "patch-manifest.json");
-        using var patch = JsonDocument.Parse(File.ReadAllText(gameManifest));
-        if (patch.RootElement.GetProperty("sourceSha256").GetString() !=
-                "7b819cb562826ae4d2592ff741877e76da0e57bfbe48192aabb79319fdb36823" ||
-            patch.RootElement.GetProperty("preparedSha256").GetString() != Hash(dll))
-            throw new InvalidDataException("Prepared DLL differs from its verified patch manifest.");
-        using var manifest = JsonDocument.Parse(File.ReadAllText(Path.Combine(content, "content-manifest.json")));
-        if (manifest.RootElement.GetProperty("SourceXapSha256").GetString() !=
-            "6b88c7fbd95444d2560b4b11e6f35d40a6c0f7abc30706155dcbccd18bc333fe")
-            throw new InvalidDataException("Prepared content is not from the supported XAP.");
-        if (!File.Exists(Path.Combine(content, "Content", "Arial.xnb")))
-            throw new InvalidDataException("Prepared content is missing Arial.xnb.");
-        foreach (var output in manifest.RootElement.GetProperty("Outputs").EnumerateArray())
-        {
-            var relative = output.GetProperty("Path").GetString()
-                ?? throw new InvalidDataException("Content manifest has an empty output path.");
-            var path = Path.GetFullPath(Path.Combine(content, relative));
-            if (!path.StartsWith(content + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) ||
-                !File.Exists(path) ||
-                new FileInfo(path).Length != output.GetProperty("Bytes").GetInt64() ||
-                Hash(path) != output.GetProperty("Sha256").GetString())
-                throw new InvalidDataException($"Prepared content differs from its manifest: {relative}");
-        }
-    }
-
-    private static string Hash(string path)
-    {
-        using var stream = File.OpenRead(path);
-        return Convert.ToHexString(SHA256.HashData(stream)).ToLowerInvariant();
     }
 
     private static void Report(string stage, Exception? error)

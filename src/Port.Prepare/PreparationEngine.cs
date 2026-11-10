@@ -20,6 +20,14 @@ public static class PreparationEngine
         return package.Identity;
     }
 
+    /// <summary>Checks manifest identities without requiring the original package at launch.</summary>
+    public static bool IsSupportedIdentity(string xapSha256, string dllSha256)
+    {
+        var supported = FindSupported(xapSha256);
+        return supported is not null &&
+            string.Equals(supported.DllSha256, dllSha256, StringComparison.Ordinal);
+    }
+
     public static PreparationResult Prepare(
         PreparationRequest request,
         Action<PreparationProgress>? progress = null,

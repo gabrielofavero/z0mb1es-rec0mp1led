@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "runtime": "linux-x64",
+  "dotnetSdk": "10.0.302",
+  "runtimePacks": {
+    "microsoft.netcore.app.runtime.linux-x64.10.0.10.nupkg": "1225154d0588617fdb9fe3fa1c37b40216ecdd2372154e661e115a6836b85b84",
+    "microsoft.netcore.app.host.linux-x64.10.0.10.nupkg": "0efbaceec8bb257804c13074f4405a6676722e551fedcc1528f73ae051199a5c",
+    "microsoft.aspnetcore.app.runtime.linux-x64.10.0.10.nupkg": "0c1b77989393429856761176af70c8cbd22932134fc95230d1418ded0f9f7264"
+  },
+  "nativeArchiveSha256": "c79c41819651d839066314f4556e679c6b609c7f035f241dfe81d63f09dfb3e6",
+  "nativeFiles": {
+    "libSDL3.so.0": "ff1e6a3ef72c458cd22227e847fc3f5f6f3d69c5c9c6b8c9280c5ad1f0f991c7",
+    "libFNA3D.so.0": "1c46f72f02869066ab97809e424ebfaf7273a1561ad1f647e113931c7c8776aa",
+    "libFAudio.so.0": "d713dfbc7b8c0fb835e9bff380cb01afff7746bec3ed9f6e2dbf68f4c7832b66",
+    "libtheorafile.so": "c7b16205cfe70f428487ae6548dceedf59288a68130939c89b4a1141a14319fb"
+  },
+  "ffmpegVersion": "8.1.1-source-239f2c733d-linux-x64",
+  "ffmpegSha256": "7895c3b0687e340f7bee2d2ac5d7049b7a91eec003b042db1263555131c7c562",
+  "ffmpegBaseSourceBundleSha256": "46a2190c1331786596aac7ec4943fed4099710dea5a5974926697fc4e8765360",
+  "ffmpegSourceBundleSha256": "d4bb7ce367d898b0f09b599c6486148f30f66dd6af414bbd65d427be7f2868b3",
+  "nfpmVersion": "2.48.0",
+  "nfpmArchiveSha256": "6d7f9a28b2f397934403950fcbba83f598b08d02edbe79a0815b3b4897341750",
+  "pythonBuild": "3.8.10",
+  "numpyBuild": "1.24.4",
+  "pillowBuild": "10.4.0",
+  "pyinstallerBuild": "6.10.0"
+}

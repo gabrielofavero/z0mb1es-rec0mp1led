@@ -332,9 +332,11 @@ internal sealed class MenuProbe
             if (!assetCaptured || !DesktopDisplay.IsAssetPage)
                 throw new InvalidOperationException("Assets page was not rendered.");
             var assetItems = (Array)baseType.GetField("item", Instance)!.GetValue(level)!;
-            if (assetItems.Length != 4 ||
+            if (assetItems.Length != 5 ||
                 !((string)assetItems.GetValue(0)!.GetType().GetField("text", Instance)!
-                    .GetValue(assetItems.GetValue(0))!).StartsWith("I MAED:", StringComparison.Ordinal))
+                    .GetValue(assetItems.GetValue(0))!).StartsWith("I MAED:", StringComparison.Ordinal) ||
+                (string?)assetItems.GetValue(3)!.GetType().GetField("text", Instance)!
+                    .GetValue(assetItems.GetValue(3)) != "REIMPORT")
                 throw new InvalidOperationException("Assets rows differ.");
             var before = AssetChoices.NormalImported;
             level.GetType().GetMethod("Click", Instance)!.Invoke(level, ["I MAED:"]);

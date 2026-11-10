@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Z0MB1ES Rec0mp1led
+Comment=Play your supported phone copy on Linux
+Exec=/opt/z0mb1es-rec0mp1led/launch.sh
+Icon=z0mb1es-rec0mp1led
+Terminal=false
+Categories=Game;

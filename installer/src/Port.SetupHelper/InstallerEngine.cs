@@ -1,7 +1,5 @@
-using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text.Json;
-using Port.Content;
 using Port.Prepare;
 
 namespace Port.SetupHelper;
@@ -65,6 +63,7 @@ internal static class InstallerEngine
                 row.Sha256 != output.GetProperty("Sha256").GetString())
                 throw new InvalidDataException($"Installed content differs from its preparation manifest: {path}");
         }
+        PreparedGameVerifier.Verify(Path.Combine(root, "ZombiesWP7.dll"), root);
         progress?.Invoke(manifest.Files.Length + 1, manifest.Files.Length + 1);
     }
 
@@ -129,14 +128,9 @@ internal static class InstallerEngine
             if (Directory.Exists(target)) Directory.Delete(target, recursive: true);
             Directory.Move(backup, target);
         }
-        var previousCwd = Directory.GetCurrentDirectory();
         try
         {
             Directory.CreateDirectory(work);
-            Directory.SetCurrentDirectory(work);
-            Directory.CreateDirectory(Path.Combine(work, "config"));
-            File.Copy(Path.Combine(source, "config", "supported-versions.json"),
-                Path.Combine(work, "config", "supported-versions.json"));
             Console.WriteLine("STAGE runtime");
             CopyTree(Path.Combine(source, "runtime"), staged,
                 (done, total) => Report(30 + 70 * done / total));
@@ -176,38 +170,31 @@ internal static class InstallerEngine
             else
             {
                 Console.WriteLine("STAGE extract");
-                var extracted = PreparationEngine.Prepare(new PreparationRequest(xap, Path.Combine(work, "extraction")),
-                    step => Report(100 + 230 * step.CompletedFiles / Math.Max(1, step.TotalFiles)));
-                Report(330);
-                CheckCancelled();
-                originalRoot = Path.Combine(extracted.OutputDirectory, "original-xap");
-                var original = Path.Combine(originalRoot, "ZombiesWP7.dll");
-                var evidence = Path.Combine(work, "evidence.json");
-                var report = Path.Combine(work, "abi-report.json");
-                Console.WriteLine("STAGE inspect");
-                Run(Path.Combine(source, "tools", "inspect_assembly.exe"), work,
-                    ["--json", "--xap", xap, "--output", evidence]);
-                Report(370);
-                Console.WriteLine("STAGE abi");
-                Run(Path.Combine(source, "tools", "abi", "abi_check.exe"), work,
-                    ["--inventory", evidence, "--dll", original, "--fna", Path.Combine(staged, "FNA.dll"),
-                     "--bridge", Path.Combine(staged, "Port.Bridge.dll"), "--output", report], allowReportFailure: true);
-                Report(410);
-                CheckCancelled();
-                Console.WriteLine("STAGE rewrite");
-                var plan = IlRewriter.ReadPinnedPlan(report, Path.Combine(staged, "FNA.dll"),
-                    Path.Combine(staged, "Port.Bridge.dll"), Path.Combine(source, "tools", "abi"));
-                Report(440);
-                var rewritten = IlRewriter.Rewrite(original, Path.Combine(work, "private", "prepared", "rewrite"), plan);
-                Report(470);
-                var hooked = GameplayPatcher.Apply(original, Path.Combine(rewritten.OutputDirectory, "ZombiesWP7.dll"),
-                    Path.Combine(staged, "Port.Hooks.dll"), Path.Combine(work, "private", "prepared", "hook"));
-                Report(500);
-                CheckCancelled();
-                Console.WriteLine("STAGE content");
-                var contentDir = Path.Combine(work, "content");
-                ContentPreparer.Prepare(originalRoot, contentDir, Path.Combine(source, "tools", "ffmpeg.exe"),
-                    FfmpegHash, identity.XapSha256, step =>
+                var prepared = GamePreparationPipeline.Prepare(xap, Path.Combine(work, "base"),
+                    new GamePreparationTools(
+                        Path.Combine(source, "tools", "inspect_assembly.exe"),
+                        Path.Combine(source, "tools", "abi", "abi_check.exe"),
+                        Path.Combine(source, "tools", "abi"),
+                        Path.Combine(source, "config", "supported-versions.json"),
+                        Path.Combine(staged, "FNA.dll"), Path.Combine(staged, "Port.Bridge.dll"),
+                        Path.Combine(staged, "Port.Hooks.dll"),
+                        Path.Combine(source, "tools", "ffmpeg.exe"), FfmpegHash),
+                    step =>
+                    {
+                        Console.WriteLine($"STAGE {step}");
+                        Report(step switch
+                        {
+                            "extract" => 100, "inspect" => 330, "abi" => 370,
+                            "rewrite" => 410, "hook" => 470, _ => 500
+                        });
+                        CheckCancelled();
+                    },
+                    step =>
+                    {
+                        Report(100 + 230 * step.CompletedFiles / Math.Max(1, step.TotalFiles));
+                        CheckCancelled();
+                    },
+                    step =>
                     {
                         var fraction = (int)(step.Completed * 1000 / Math.Max(1, step.Total));
                         Report(step.Stage switch
@@ -216,11 +203,13 @@ internal static class InstallerEngine
                             "music" => 545 + 245 * fraction / 1000,
                             _ => 790 + 20 * fraction / 1000
                         });
+                        CheckCancelled();
                     });
                 CheckCancelled();
-                File.Copy(Path.Combine(hooked.OutputDirectory, "ZombiesWP7.dll"), Path.Combine(staged, "ZombiesWP7.dll"));
-                File.Copy(Path.Combine(hooked.OutputDirectory, "patch-manifest.json"), Path.Combine(staged, "patch-manifest.json"));
-                CopyTree(contentDir, staged, (done, total) => Report(810 + 40 * done / total));
+                originalRoot = prepared.ExtractedRoot;
+                File.Copy(Path.Combine(prepared.PreparedDllDirectory, "ZombiesWP7.dll"), Path.Combine(staged, "ZombiesWP7.dll"));
+                File.Copy(Path.Combine(prepared.PreparedDllDirectory, "patch-manifest.json"), Path.Combine(staged, "patch-manifest.json"));
+                CopyTree(prepared.ContentDirectory, staged, (done, total) => Report(810 + 40 * done / total));
                 Report(850);
             }
             Console.WriteLine("STAGE art");
@@ -245,7 +234,6 @@ internal static class InstallerEngine
         }
         finally
         {
-            Directory.SetCurrentDirectory(previousCwd);
             if (Directory.Exists(work)) Directory.Delete(work, recursive: true);
             if (Directory.Exists(staged)) Directory.Delete(staged, recursive: true);
         }
@@ -315,20 +303,6 @@ internal static class InstallerEngine
             progress?.Invoke(i + 1, files.Length);
         }
         if (files.Length == 0) progress?.Invoke(1, 1);
-    }
-
-    private static void Run(string executable, string cwd, string[] arguments, bool allowReportFailure = false)
-    {
-        var info = new ProcessStartInfo(executable) { WorkingDirectory = cwd, UseShellExecute = false,
-            RedirectStandardOutput = true, RedirectStandardError = true, CreateNoWindow = true };
-        foreach (var argument in arguments) info.ArgumentList.Add(argument);
-        using var process = Process.Start(info) ?? throw new IOException($"Could not start {executable}");
-        var output = process.StandardOutput.ReadToEnd();
-        var error = process.StandardError.ReadToEnd();
-        process.WaitForExit();
-        if (process.ExitCode != 0 && !(allowReportFailure && process.ExitCode == 1 && File.Exists(arguments[^1])))
-            throw new InvalidDataException($"{Path.GetFileName(executable)} failed: {error.Trim()}");
-        if (output.Length != 0) Console.Write(output);
     }
 
     private static bool SafeRelative(string path) => path.Length != 0 && !Path.IsPathRooted(path) &&
