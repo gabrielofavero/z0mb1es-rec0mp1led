@@ -84,6 +84,11 @@ public static class Program
         DesktopAchievements.Configure();
         var monitor = new MobileSession(game, type, !File.Exists(System.IO.Path.Combine(saveRoot, "savegame")));
         game.Components.Add(monitor);
+        DesktopDisplay.ReimportRequested = () => monitor.Enqueue(() =>
+        {
+            monitor.PauseForMenu();
+            GameUi.ShowAssetMenu(game, monitor);
+        });
         game.Activated += (_, _) => GameTrace.Write("application=active");
         game.Deactivated += (_, _) =>
         {
@@ -134,7 +139,6 @@ internal sealed class MobileSession(Game game, Type type, bool firstSave) : Draw
     private int updates;
     private bool readyLogged;
     private bool padsSet;
-    private bool uiAttached;
     public int Frames { get; private set; }
 
     public override void Initialize()
@@ -184,7 +188,6 @@ internal sealed class MobileSession(Game game, Type type, bool firstSave) : Draw
     {
         Frames++;
         if (Frames == 1) GameTrace.Write("original-game=first-frame");
-        if (!uiAttached) { uiAttached = true; GameUi.AttachMenu(Game, this); }
         base.Draw(time);
     }
 }

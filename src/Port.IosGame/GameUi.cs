@@ -11,7 +11,6 @@ namespace Port.IosGame;
 
 internal static class GameUi
 {
-    private static UIButton? menu;
     private static ImportController? importer;
     private static PhotoPicker? photos;
 
@@ -27,32 +26,11 @@ internal static class GameUi
     internal static UIViewController Root(Game game) => NativeWindow(game).RootViewController
         ?? throw new InvalidOperationException("SDL window has no view controller.");
 
-    internal static void AttachMenu(Game game, MobileSession session)
-    {
-        var view = Root(game).View!;
-        menu = new UIButton(UIButtonType.System) { TranslatesAutoresizingMaskIntoConstraints = false };
-        menu.SetTitle("•••", UIControlState.Normal);
-        menu.AccessibilityLabel = "Import, artwork, photos and logs";
-        menu.BackgroundColor = UIColor.SystemBackground.ColorWithAlpha(0.75f);
-        menu.Layer.CornerRadius = 12;
-        menu.TouchUpInside += (_, _) => session.Enqueue(() =>
-        {
-            session.PauseForMenu();
-            ShowMenu(game, session);
-        });
-        view.AddSubview(menu);
-        NSLayoutConstraint.ActivateConstraints([
-            menu.BottomAnchor.ConstraintEqualTo(view.SafeAreaLayoutGuide.BottomAnchor, -2),
-            menu.CenterXAnchor.ConstraintEqualTo(view.CenterXAnchor),
-            menu.WidthAnchor.ConstraintEqualTo(48), menu.HeightAnchor.ConstraintEqualTo(32)
-        ]);
-    }
-
-    private static void ShowMenu(Game game, MobileSession session)
+    internal static void ShowAssetMenu(Game game, MobileSession session)
     {
         var root = Root(game);
         if (root.PresentedViewController is not null) return;
-        var sheet = UIAlertController.Create("Z0MB1ES", null, UIAlertControllerStyle.ActionSheet);
+        var sheet = UIAlertController.Create("Manage assets", null, UIAlertControllerStyle.ActionSheet);
         sheet.AddAction(UIAlertAction.Create("Import / replace game or artwork", UIAlertActionStyle.Default, _ =>
         {
             GameData.RequestImport(true);
@@ -70,7 +48,7 @@ internal static class GameUi
         }
         sheet.AddAction(UIAlertAction.Create("Share game log", UIAlertActionStyle.Default, _ => Share(root)));
         sheet.AddAction(UIAlertAction.Create("Return to game", UIAlertActionStyle.Cancel, null));
-        Anchor(sheet, menu!);
+        Anchor(sheet, root.View!);
         root.PresentViewController(sheet, true, null);
     }
 

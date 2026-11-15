@@ -73,12 +73,14 @@ if (args is ["--bundled-ipa", var personalIpa])
             throw new Exception("Personal package lost " + name + "." + method);
     if (assembly.MainModule.Types.Any(t => t.Name is "ImportShell" or "ImportController"))
         throw new Exception("Personal build unexpectedly contains the importer interface.");
-    if (assembly.MainModule.GetType("Port.IosGame.GameUi").Methods.Any(m => m.Name is "AttachMenu" or "ShowMenu"))
+    if (assembly.MainModule.GetType("Port.IosGame.GameUi").Methods.Any(m => m.Name is "AttachMenu" or "ShowMenu" or "ShowAssetMenu"))
         throw new Exception("Personal build still contains the tools overlay.");
     var update = assembly.MainModule.GetType("Port.IosGame.MobileSession").Methods.Single(m => m.Name == "Update");
     if (!update.Body.Instructions.Any(i => i.Operand is MethodReference m && m.DeclaringType.FullName == "Port.Hooks.DesktopDisplay" && m.Name == "AttachSettingsMenu"))
         throw new Exception("Personal game does not install the shared Settings menu.");
     var original = assembly.MainModule.GetType("Port.IosGame.Program").Methods.Single(m => m.Name == "RunOriginal");
+    if (original.Body.Instructions.Any(i => i.Operand is MethodReference m && m.Name == "set_ReimportRequested"))
+        throw new Exception("Personal game unexpectedly enables asset replacement.");
     if (!original.Body.Instructions.Any(i => i.Operand is MethodReference method && method.Name == ".ctor" &&
             method.DeclaringType.FullName == "Port.IosGame.CaseMappedContentManager"))
         throw new Exception("Personal game does not use the case-mapped content manager.");
@@ -125,11 +127,15 @@ if (args is ["--game-bundle", var ipa])
     using var assembly = AssemblyDefinition.ReadAssembly(memory);
     VibrationPackageChecks.Run(assembly, "CreateOriginal");
     var original = assembly.MainModule.GetType("Port.IosGame.Program").Methods.Single(m => m.Name == "CreateOriginal");
+    if (!original.Body.Instructions.Any(i => i.Operand is MethodReference m && m.Name == "set_ReimportRequested"))
+        throw new Exception("Importer game does not enable asset management from Settings.");
+    if (assembly.MainModule.GetType("Port.IosGame.GameUi").Methods.Any(m => m.Name == "AttachMenu"))
+        throw new Exception("Importer game still contains the fixed tools button.");
     if (!original.Body.Instructions.Any(i => i.Operand is MethodReference m && m.Name == "set_NativeBackButtonEnabled"))
         throw new Exception("iOS game does not enable touch Back.");
     foreach (var (typeName, method) in new[] {
         ("Program", "NativeMain"), ("Program", "CreateOriginal"), ("ImportController", "ViewDidLoad"),
-        ("ImportController", "ViewDidAppear"), ("GameUi", "ShowImporter"), ("HostCoordinator", "Begin"),
+        ("ImportController", "ViewDidAppear"), ("GameUi", "ShowImporter"), ("GameUi", "ShowAssetMenu"), ("HostCoordinator", "Begin"),
         ("ImportController", "Pick"), ("MobileSession", "Update"), ("PhotoPicker", "DidFinishPicking") })
         if (assembly.MainModule.GetType("Port.IosGame." + typeName)?.Methods.Any(m => m.Name == method && m.HasBody) != true)
             throw new Exception("Packaged iOS host lost " + typeName + "." + method);

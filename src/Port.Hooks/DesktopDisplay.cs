@@ -89,7 +89,7 @@ public static partial class DesktopDisplay
     public static bool IsStaticPlayerNameLabel(object item) =>
         gameplayPage && gameplayItems is not null && ReferenceEquals(gameplayItems.GetValue(0), item);
     public static bool IsAssetPage => assetPage;
-    /// <summary>New hosts set this to leave the game and open the shared importer.</summary>
+    /// <summary>Hosts set this to open their asset import or management UI.</summary>
     public static Action? ReimportRequested { get; set; }
     internal static IntPtr GameWindowHandle => game?.Window.Handle ?? IntPtr.Zero;
 
@@ -278,9 +278,9 @@ public static partial class DesktopDisplay
             var row = DisplayRows[i];
             displayItems.SetValue(Item(displayLabels[row], 95 + i * (mobile ? 31 : 28), displayOffsets[row], 0.7f), i);
         }
-        assetItems = Array.CreateInstance(itemType, 5);
+        assetItems = Array.CreateInstance(itemType, AssetLabels.Length);
         var assetOffsets = new[] { -35f, 35f, -25f, 30f, -15f };
-        for (var i = 0; i < 5; i++)
+        for (var i = 0; i < assetItems.Length; i++)
             assetItems.SetValue(Item("BACK", 75 + i * 45, assetOffsets[i], 0.7f), i);
         settingsMenu = settings;
         previousInfos = null;
@@ -454,7 +454,9 @@ public static partial class DesktopDisplay
         if (assetPage)
         {
             if (text == "BACK") ReturnToGraphicsPage();
-            else if (text == "REIMPORT")
+            else if (text == "MANAGE ASSETS" && mobile && ReimportRequested is not null)
+                ReimportRequested();
+            else if (text == "REIMPORT" && !mobile)
             {
                 if (ReimportRequested is null) SetInfo("USE SETUP TO REIMPORT ON WINDOWS.");
                 else ReimportRequested();
@@ -687,6 +689,15 @@ public static partial class DesktopDisplay
         previousPad = pad;
     }
 
+    private static string[] AssetLabels =>
+    [
+        $"I MAED: {AssetChoices.NormalLabel}",
+        $"TIME VIKING: {AssetChoices.VikingLabel}",
+        $"ENDLESS: {AssetChoices.EndlessLabel}",
+        .. mobile && ReimportRequested is null ? Array.Empty<string>() : new[] { mobile ? "MANAGE ASSETS" : "REIMPORT" },
+        "BACK"
+    ];
+
     private static void RefreshLabels()
     {
         if (displayItems is null || assetItems is null || gameplayItems is null || touchpadItems is null || itemTextField is null) return;
@@ -706,12 +717,7 @@ public static partial class DesktopDisplay
         };
         for (var i = 0; i < DisplayRows.Length; i++)
             itemTextField.SetValue(displayItems.GetValue(i), displayLabels[DisplayRows[i]]);
-        var assetLabels = new[]
-        {
-            $"I MAED: {AssetChoices.NormalLabel}",
-            $"TIME VIKING: {AssetChoices.VikingLabel}",
-            $"ENDLESS: {AssetChoices.EndlessLabel}", "REIMPORT", "BACK"
-        };
+        var assetLabels = AssetLabels;
         for (var i = 0; i < assetLabels.Length; i++)
             itemTextField.SetValue(assetItems.GetValue(i), assetLabels[i]);
     }
