@@ -264,8 +264,7 @@ public static class DesktopInput
         UpdateCursorSource(native.Count > 0, mouse, keyboard, wheelDelta, inside && mode != 0);
         var backClick = inside && pointer is Vector2 backPosition && BackButtonVisible() &&
             BackButtonBounds(size).Contains(new Point((int)backPosition.X, (int)backPosition.Y));
-        var pauseHotspot = pointer is Vector2 point && point.X > size.X - 70 &&
-            point.X < size.X - 10 && point.Y >= 0 && point.Y < 60;
+        var pauseHotspot = pointer is Vector2 point && PauseHitTest(point, size);
         if (inside && (mouse.LeftButton == ButtonState.Pressed || mouse.RightButton == ButtonState.Pressed)) MouseSamples++;
         if (keyboard.IsKeyDown(Keys.W) || keyboard.IsKeyDown(Keys.A) || keyboard.IsKeyDown(Keys.S) ||
             keyboard.IsKeyDown(Keys.D) || keyboard.IsKeyDown(Keys.Enter) ||
@@ -518,7 +517,14 @@ public static class DesktopInput
     public static Vector2 VirtualStickCenter(Vector2 size, float viewScale, bool right)
     {
         var inset = 120f * viewScale;
-        return new Vector2(right ? size.X - inset : inset, size.Y - inset);
+        return right ? DesktopDisplay.SafeRightStickCenter(size.X - inset, size.Y - inset) :
+            DesktopDisplay.SafeLeftStickCenter(inset, size.Y - inset);
+    }
+
+    public static bool PauseHitTest(Vector2 point, Vector2 size)
+    {
+        var center = DesktopDisplay.SafePausePosition(size.X - 40f, 30f);
+        return MathF.Abs(point.X - center.X) < 30f && MathF.Abs(point.Y - center.Y) < 30f;
     }
 
     private static void MoveCarousel(int direction)

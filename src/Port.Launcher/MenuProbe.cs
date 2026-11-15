@@ -240,9 +240,10 @@ internal sealed class MenuProbe
                 throw new InvalidOperationException("Settings Graphics entry did not open.");
             var graphicsItems = (Array)baseType.GetField("item", Instance)!.GetValue(level)!;
             var graphicsText = graphicsItems.GetValue(1)!.GetType().GetField("text", Instance)!;
-            if (graphicsItems.Length != 6 ||
+            if (graphicsItems.Length != 7 ||
                 !((string?)graphicsText.GetValue(graphicsItems.GetValue(1)))!.StartsWith("RES0LUTI0N:", StringComparison.Ordinal) ||
-                (string?)graphicsText.GetValue(graphicsItems.GetValue(4)) != "ASSETS")
+                !((string?)graphicsText.GetValue(graphicsItems.GetValue(4)))!.StartsWith("SAFE AREA:", StringComparison.Ordinal) ||
+                (string?)graphicsText.GetValue(graphicsItems.GetValue(5)) != "ASSETS")
                 throw new InvalidOperationException("Graphics category rows differ.");
             var graphics = (GraphicsDeviceManager)game.Services.GetService(typeof(IGraphicsDeviceManager))!;
             var initialVSync = graphics.SynchronizeWithVerticalRetrace;
@@ -252,6 +253,15 @@ internal sealed class MenuProbe
             level.GetType().GetMethod("Click", Instance)!.Invoke(level, [initialVSync ? "VSYNC: OFF" : "VSYNC: ON"]);
             if (graphics.SynchronizeWithVerticalRetrace != initialVSync)
                 throw new InvalidOperationException("Settings VSync did not restore.");
+            var initialSafeArea = DesktopDisplay.SafeAreaEnabled;
+            level.GetType().GetMethod("Click", Instance)!.Invoke(level,
+                [initialSafeArea ? "SAFE AREA: ON" : "SAFE AREA: OFF"]);
+            if (DesktopDisplay.SafeAreaEnabled == initialSafeArea)
+                throw new InvalidOperationException("Safe Area did not toggle.");
+            level.GetType().GetMethod("Click", Instance)!.Invoke(level,
+                [initialSafeArea ? "SAFE AREA: OFF" : "SAFE AREA: ON"]);
+            if (DesktopDisplay.SafeAreaEnabled != initialSafeArea)
+                throw new InvalidOperationException("Safe Area did not restore.");
             var initialFlash = DesktopDisplay.ReduceFlashing;
             level.GetType().GetMethod("Click", Instance)!.Invoke(level,
                 [initialFlash ? "R3DUCE FLASH1NG: ON" : "R3DUCE FLASH1NG: OFF"]);

@@ -66,6 +66,7 @@ public static class GameplayPatcher
     private const string VikingPlayHash = "eb57c16e78c4c7e00a6b42d688ca93f171d03458ef52691ecc147008f899067e";
     private const string MapInitHash = "7ebf709bfc179137a64d31f9352ef699431a9cc641120a6e2020b25e1ca1989f";
     private const string ParticleInitHash = "7d93b83ca79874f59fdbcc044e5f3b38409179463404e57b098da5517dcd0803";
+    private const string SafeAreaHooksHash = "29e3f3888917bb57a8d7baea4419d67867068934e04eacaf944947be2e3c62c8";
     private const string MusicPlaybackHooksHash = "c7ae632d8ed2a850fd107edc9e3e4d5f28f24772e6a60c9cdd0e637b4a744bd6";
     private const string MusicUpdateHash = "5110787c8a586cec1eabe884d5f54e2ca9bfacae4092bcd92a5b36688e1065bc";
     private const int MethodToken = 0x06000152;
@@ -115,7 +116,7 @@ public static class GameplayPatcher
             prior.Patches.Any(patch => patch.Kind == "gameplay-call"))
             throw new PreparationException("Prepared DLL does not match its original guarded rewrite.");
         var hooksHash = Hash(hooksDll);
-        if (hooksHash is not (DebugHooksHash or ReleaseHooksHash or CurrentDebugHooksHash or CurrentReleaseHooksHash or LatestReleaseHooksHash or RestartReleaseHooksHash or EdgeArtReleaseHooksHash or VersionReleaseHooksHash or CreditsScrollHooksHash or PortCreditHooksHash or PictureButtonHooksHash or InstallerFoldersHooksHash or DocumentsSavesHooksHash or CenteredPicturesHooksHash or ReducedFlashFocusHooksHash or CreatorQualityHooksHash or ResolutionHooksHash or RowNavigationHooksHash or InlineResolutionHooksHash or SessionHooksHash or UpdatedReleaseHooksHash or PlatformHooksHash or ExplicitContentHooksHash or ImportDebugHooksHash or ImportReleaseHooksHash or LinuxPhotoDebugHooksHash or LinuxPhotoReleaseHooksHash or CurrentSourceHooksHash or MacHooksHash or CurrentMacHooksHash or StableMacHooksHash or TouchBackHooksHash or MobileSettingsHooksHash or VibrationHooksHash or MobileBackAreaHooksHash or NameInputHooksHash or MusicPlaybackHooksHash) ||
+        if (hooksHash is not (DebugHooksHash or ReleaseHooksHash or CurrentDebugHooksHash or CurrentReleaseHooksHash or LatestReleaseHooksHash or RestartReleaseHooksHash or EdgeArtReleaseHooksHash or VersionReleaseHooksHash or CreditsScrollHooksHash or PortCreditHooksHash or PictureButtonHooksHash or InstallerFoldersHooksHash or DocumentsSavesHooksHash or CenteredPicturesHooksHash or ReducedFlashFocusHooksHash or CreatorQualityHooksHash or ResolutionHooksHash or RowNavigationHooksHash or InlineResolutionHooksHash or SessionHooksHash or UpdatedReleaseHooksHash or PlatformHooksHash or ExplicitContentHooksHash or ImportDebugHooksHash or ImportReleaseHooksHash or LinuxPhotoDebugHooksHash or LinuxPhotoReleaseHooksHash or CurrentSourceHooksHash or MacHooksHash or CurrentMacHooksHash or StableMacHooksHash or TouchBackHooksHash or MobileSettingsHooksHash or VibrationHooksHash or MobileBackAreaHooksHash or NameInputHooksHash or MusicPlaybackHooksHash or SafeAreaHooksHash) ||
             System.Reflection.AssemblyName.GetAssemblyName(hooksDll).Name != "Port.Hooks")
             throw new PreparationException("Hook target assembly identity differs.");
 
@@ -165,6 +166,7 @@ public static class GameplayPatcher
                 SpaceAchievementList(module);
                 AddPortCredit(module, hooks);
                 DisableTouchPadsByDefault(module);
+                PatchSafeArea(module, hooks);
                 PatchTouchOverlays(module, hooks);
                 PatchDisplay(module, hooks);
                 PatchSpriteBatches(module, hooks);
@@ -215,6 +217,7 @@ public static class GameplayPatcher
                 VerifyAchievementListSpacing(check);
                 VerifyPortCredit(check);
                 VerifyTouchPadDefault(check);
+                VerifySafeArea(check);
                 VerifyTouchOverlays(check);
                 VerifyDisplay(check);
                 VerifySpriteBatches(check);
@@ -271,6 +274,11 @@ public static class GameplayPatcher
                         GameDrawHash + "/" + SettingsClickHash + "/" + SettingsCancelHash,
                         "draw on a full-resolution scene target through transformed SpriteBatch calls and route native Display page actions to Port.Hooks.DesktopDisplay",
                         "original game coordinates and Settings actions remain intact while imported art retains source detail"),
+                    new PatchRecord("gameplay-call", OriginalHash,
+                        "IMAK3Z0MB1EGAEM.hud.HUD::Draw; VikingHUD::DrawMoonHealthBox; ZombiesWP7.TouchMgr::Update/DrawThumbpads",
+                        OriginalHash,
+                        "apply the saved safe-area margins to the shared player HUD, moon health, fixed stick centers and pause draw/hit position",
+                        "mobile defaults on, desktop defaults off; relative touch origins and the gameplay viewport remain full-screen"),
                     new PatchRecord("gameplay-call", OriginalHash,
                         "IMAK3Z0MB1EGAEM.map.MapMan::DrawClassicMapOverlay(SpriteBatch)",
                         OriginalHash,
@@ -689,6 +697,73 @@ public static class GameplayPatcher
             .Methods.Single(method => method.MetadataToken.ToInt32() == 0x06000251);
         if (ctor.Body.Instructions.Single(item => item.Offset == 0x0001).OpCode != OpCodes.Ldc_I4_0)
             throw new PreparationException("Touch pad default postcondition failed.");
+    }
+
+    private static void PatchSafeArea(ModuleDefinition module, ModuleDefinition hooks)
+    {
+        var display = hooks.Types.Single(type => type.FullName == "Port.Hooks.DesktopDisplay");
+        MethodReference Target(string name) => module.ImportReference(display.Methods.Single(method => method.Name == name));
+        var touch = module.Types.Single(type => type.FullName == "ZombiesWP7.TouchMgr");
+        var update = touch.Methods.Single(method => method.Name == "Update");
+        var draw = touch.Methods.Single(method => method.Name == "DrawThumbpads");
+        // Same-size call replacements preserve the guarded TouchMgr.Update offsets.
+        // Only the fixed-control branch assigns these centers; relative origins stay native.
+        foreach (var (method, offset, hook) in new[]
+        {
+            (update, 0x0052, "SafeLeftStickCenter"), (update, 0x0088, "SafeRightStickCenter"),
+            (update, 0x07eb, "SafePausePosition"), (update, 0x0877, "SafePausePosition"),
+            (draw, 0x003c, "SafePausePosition")
+        })
+        {
+            var anchor = method.Body.Instructions.Single(item => item.Offset == offset);
+            if (anchor.OpCode != OpCodes.Newobj || anchor.Operand is not MethodReference ctor ||
+                ctor.FullName != "System.Void Microsoft.Xna.Framework.Vector2::.ctor(System.Single,System.Single)")
+                throw new PreparationException($"Safe area vector anchor differs at IL_{offset:x4}.");
+            anchor.OpCode = OpCodes.Call;
+            anchor.Operand = Target(hook);
+        }
+        // Both zombie modes and Viking share this player name/lives/score/ammo layout.
+        var hud = module.Types.Single(type => type.FullName == "IMAK3Z0MB1EGAEM.hud.HUD")
+            .Methods.Single(method => method.Name == "Draw");
+        foreach (var (offset, value, hook) in new[]
+        {
+            (0x00ca, 120f, "SafeHudLeft"), (0x02a4, 120f, "SafeHudLeft"),
+            (0x00d0, -25f, "SafeHudTop"), (0x02aa, -25f, "SafeHudTop")
+        })
+        {
+            var anchor = hud.Body.Instructions.Single(item => item.Offset == offset);
+            if (anchor.OpCode != OpCodes.Ldc_R4 || anchor.Operand is not float found || found != value)
+                throw new PreparationException($"Safe area HUD anchor differs at IL_{offset:x4}.");
+            hud.Body.GetILProcessor().InsertAfter(anchor, Instruction.Create(OpCodes.Call, Target(hook)));
+        }
+        var moon = module.Types.Single(type => type.FullName == "Viking_x86.vikinggame.hud.VikingHUD")
+            .Methods.Single(method => method.Name == "DrawMoonHealthBox");
+        var bottomEdges = moon.Body.Instructions.Where(item => item.OpCode == OpCodes.Ldfld &&
+            item.Operand is FieldReference field && field.FullName == "System.Single Microsoft.Xna.Framework.Vector2::Y").ToArray();
+        if (bottomEdges.Length != 6)
+            throw new PreparationException("Safe area moon health anchors differ.");
+        foreach (var edge in bottomEdges)
+            moon.Body.GetILProcessor().InsertAfter(edge, Instruction.Create(OpCodes.Call, Target("SafeHudBottom")));
+    }
+
+    private static void VerifySafeArea(ModuleDefinition module)
+    {
+        foreach (var (type, method, hook, count) in new[]
+        {
+            ("ZombiesWP7.TouchMgr", "Update", "SafeLeftStickCenter", 1),
+            ("ZombiesWP7.TouchMgr", "Update", "SafeRightStickCenter", 1),
+            ("ZombiesWP7.TouchMgr", "Update", "SafePausePosition", 2),
+            ("ZombiesWP7.TouchMgr", "DrawThumbpads", "SafePausePosition", 1),
+            ("IMAK3Z0MB1EGAEM.hud.HUD", "Draw", "SafeHudLeft", 2),
+            ("IMAK3Z0MB1EGAEM.hud.HUD", "Draw", "SafeHudTop", 2),
+            ("Viking_x86.vikinggame.hud.VikingHUD", "DrawMoonHealthBox", "SafeHudBottom", 6)
+        })
+        {
+            var body = module.Types.Single(item => item.FullName == type).Methods.Single(item => item.Name == method).Body;
+            if (body.Instructions.Count(item => item.Operand is MethodReference call &&
+                    call.DeclaringType.FullName == "Port.Hooks.DesktopDisplay" && call.Name == hook) != count)
+                throw new PreparationException($"Safe area {type}.{method}/{hook} postcondition failed.");
+        }
     }
 
     private static void PatchTouchOverlays(ModuleDefinition module, ModuleDefinition hooks)

@@ -138,6 +138,7 @@ public static class DesktopDisplay
         previousInfos = null;
         displayPage = touchPage = touchpadPage = gameplayPage = audioPage = assetPage = captureInput = false;
         editing = -1;
+        preferences = new("Fullscreen", 600, 360);
         preferences = MobilePreferences(Load());
         nameText = PlayerIdentity.Name;
     }
@@ -226,12 +227,12 @@ public static class DesktopDisplay
         touchpadItems.SetValue(Item("TOUCHPAD SIZE: ORIGINAL", 190, -65, 0.7f), 2);
         touchpadItems.SetValue(Item("BACK", 235), 3);
         displayItems = Array.CreateInstance(itemType, DisplayRows.Length);
-        var displayLabels = new[] { "M0DE", "RES0LUTI0N", "VSYNC", "R3DUCE FLASH1NG", "ASSETS", "BACK" };
-        var displayOffsets = new[] { -60f, 40f, -45f, 50f, -55f, 10f };
+        var displayLabels = new[] { "M0DE", "RES0LUTI0N", "VSYNC", "R3DUCE FLASH1NG", "SAFE AREA", "ASSETS", "BACK" };
+        var displayOffsets = new[] { -60f, 40f, -45f, 50f, -35f, -55f, 10f };
         for (var i = 0; i < DisplayRows.Length; i++)
         {
             var row = DisplayRows[i];
-            displayItems.SetValue(Item(displayLabels[row], 95 + i * 34, displayOffsets[row], 0.7f), i);
+            displayItems.SetValue(Item(displayLabels[row], 95 + i * (mobile ? 34 : 28), displayOffsets[row], 0.7f), i);
         }
         assetItems = Array.CreateInstance(itemType, 5);
         var assetOffsets = new[] { -35f, 35f, -25f, 30f, 0f };
@@ -442,6 +443,11 @@ public static class DesktopDisplay
         }
         else if (text.StartsWith("VSYNC:", StringComparison.Ordinal))
             Apply(preferences with { VSync = !preferences.VSync }, save: true);
+        else if (text.StartsWith("SAFE AREA:", StringComparison.Ordinal))
+        {
+            preferences = preferences with { SafeArea = !SafeAreaEnabled };
+            Save();
+        }
         else if (text == "ASSETS") ShowAssetPage();
         else if (text.StartsWith("R3DUCE FLASH1NG:", StringComparison.Ordinal))
         {
@@ -634,6 +640,7 @@ public static class DesktopDisplay
             preferences.Auto ? "RES0LUTI0N: AUTO" : $"RES0LUTI0N: {preferences.Width} X {preferences.Height}",
             $"VSYNC: {(preferences.VSync ? "ON" : "OFF")}",
             $"R3DUCE FLASH1NG: {(preferences.ReduceFlashing ? "ON" : "OFF")}",
+            $"SAFE AREA: {(SafeAreaEnabled ? "ON" : "OFF")}",
             "ASSETS", "BACK"
         };
         for (var i = 0; i < DisplayRows.Length; i++)
@@ -909,7 +916,7 @@ public static class DesktopDisplay
             desktopSize.Width, desktopSize.Height);
 
     // Keep each visible row's original horizontal stagger on both hosts.
-    private static ReadOnlySpan<int> DisplayRows => mobile ? [0, 3, 4, 5] : [0, 1, 2, 3, 4, 5];
+    private static ReadOnlySpan<int> DisplayRows => mobile ? [0, 3, 4, 5, 6] : [0, 1, 2, 3, 4, 5, 6];
 
     private static DisplayPreferences MobilePreferences(DisplayPreferences requested) =>
         mobile ? requested with { Auto = true, VSync = true } : requested;
@@ -1007,8 +1014,21 @@ public static class DesktopDisplay
         public bool Auto { get; init; } = true;
         public bool VSync { get; init; } = true;
         public bool ReduceFlashing { get; init; } = false;
+        // Missing in older saves: use the host default until explicitly changed.
+        public bool? SafeArea { get; init; }
         public string TouchpadSize { get; init; } = "Original";
     }
+
+    public static bool SafeAreaEnabled => preferences.SafeArea ?? mobile;
+
+    // Logical scene units, scaled with the HUD at every render resolution.
+    public static Vector2 HudMargin => SafeAreaEnabled ? new Vector2(24f, 12f) : Vector2.Zero;
+    public static float SafeHudLeft(float x) => x + HudMargin.X;
+    public static float SafeHudTop(float y) => y + HudMargin.Y;
+    public static float SafeHudBottom(float y) => y - HudMargin.Y;
+    public static Vector2 SafePausePosition(float x, float y) => new(x - HudMargin.X, y + HudMargin.Y);
+    public static Vector2 SafeLeftStickCenter(float x, float y) => new(x + HudMargin.X, y - HudMargin.Y);
+    public static Vector2 SafeRightStickCenter(float x, float y) => new(x - HudMargin.X, y - HudMargin.Y);
 
     public static float ScaleTouchpad(float original) => original * (preferences.TouchpadSize switch
     {

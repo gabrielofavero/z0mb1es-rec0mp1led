@@ -12,6 +12,18 @@ internal static class MobileMenuChecks
 {
     internal static void Run(string gamePath)
     {
+        var directory = Path.Combine(Path.GetTempPath(), "z0mb1es-mobile-menu-" + Guid.NewGuid().ToString("N"));
+        DesktopStorage.Configure(directory);
+        try { RunChecks(gamePath); }
+        finally
+        {
+            DesktopStorage.Configure(null);
+            if (Directory.Exists(directory)) Directory.Delete(directory, true);
+        }
+    }
+
+    private static void RunChecks(string gamePath)
+    {
         if (DesktopInput.NativeBackButtonEnabled) throw new Exception("Native back must be opt-in.");
         var back = new TouchBackButton();
         var size = new Vector2(783, 360);
@@ -81,6 +93,7 @@ internal static class MobileMenuChecks
         var hooks = typeof(DesktopDisplay);
         void Set(string name, object? value) => hooks.GetField(name, statics)!.SetValue(null, value);
         void Invoke(string name) => hooks.GetMethod(name, statics)!.Invoke(null, null);
+        CheckSafeArea();
         Set("mobile", true);
         Set("menuScaleField", Type("ZombiesWP7.Game1").GetField("MENUSCALE", statics));
         hooks.GetMethod("AttachSettingsMenu", statics, [typeof(Assembly)])!.Invoke(null, [assembly]);
@@ -109,8 +122,12 @@ internal static class MobileMenuChecks
             }
             Click("GRAPH1CS");
             var labels = Labels();
-            Assert(labels.Length == 4 && labels[0].StartsWith("M0DE:") && labels[1].StartsWith("R3DUCE FLASH1NG:") && labels[2] == "ASSETS" && labels[3] == "BACK", "Mobile Graphics rows differ.");
-            var offsets = new[] { -60f, 50f, -55f, 10f };
+            Assert(labels.Length == 5 && labels[0].StartsWith("M0DE:") && labels[1].StartsWith("R3DUCE FLASH1NG:") && labels[2] == "SAFE AREA: ON" && labels[3] == "ASSETS" && labels[4] == "BACK", "Mobile Graphics rows differ.");
+            Click("SAFE AREA: ON");
+            Assert(!DesktopDisplay.SafeAreaEnabled && Labels()[2] == "SAFE AREA: OFF", "Mobile safe area toggle failed.");
+            Click("SAFE AREA: OFF");
+            Assert(DesktopDisplay.SafeAreaEnabled && Labels().SequenceEqual(labels), "Safe area did not restore immediately.");
+            var offsets = new[] { -60f, 50f, -35f, -55f, 10f };
             for (var i = 0; i < offsets.Length; i++)
             {
                 var item = Items()[i];
@@ -147,13 +164,80 @@ internal static class MobileMenuChecks
                (bool)preferenceType.GetProperty("VSync")!.GetValue(normalized)!, "Mobile did not force Auto resolution and VSync.");
         Set("mobile", false);
         Assert(ReferenceEquals(preferences, hooks.GetMethod("MobilePreferences", statics)!.Invoke(null, [preferences])), "Desktop preferences changed.");
-        // Recreate Settings to verify the desktop still exposes all six Graphics rows.
+        // Recreate Settings to verify the desktop exposes all seven Graphics rows.
         levels[5] = Activator.CreateInstance(Type("IMAK3Z0MB1EGAEM.menu.Settings"))!;
         settings = levels[5]!;
         hooks.GetMethod("AttachSettingsMenu", statics, [typeof(Assembly)])!.Invoke(null, [assembly]);
         Click("GRAPH1CS");
-        Assert(Labels().Length == 6 && Labels().Any(label => label.StartsWith("RES0LUTI0N:")) && Labels().Any(label => label.StartsWith("VSYNC:")), "Desktop display controls missing.");
+        Assert(Labels().Length == 7 && Labels().Any(label => label.StartsWith("RES0LUTI0N:")) && Labels().Any(label => label.StartsWith("VSYNC:")) && Labels().Contains("SAFE AREA: ON"), "Desktop display controls missing.");
+        var desktopOffsets = new[] { -60f, 40f, -45f, 50f, -35f, -55f, 10f };
+        for (var i = 0; i < desktopOffsets.Length; i++)
+        {
+            var position = (Vector2)location.GetValue(Items()[i])!;
+            Assert(Math.Abs(position.X - (783 / (2f * scale) + desktopOffsets[i])) < 0.001f,
+                "Desktop Graphics lost its stagger.");
+            Assert(position.Y * scale < 340, "Desktop Graphics row extends below the viewport.");
+        }
         Console.WriteLine("IOS_MENU_OK; shared Settings; mobile Graphics constraints; staggered rows across widths; subpage navigation; desktop controls; touch Back capture");
+    }
+
+    private static void CheckSafeArea()
+    {
+        const BindingFlags statics = BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
+        var hooks = typeof(DesktopDisplay);
+        var preferences = hooks.GetField("preferences", statics)!;
+        var mobile = hooks.GetField("mobile", statics)!;
+        var preferenceType = preferences.GetValue(null)!.GetType();
+        object Fresh() => Activator.CreateInstance(preferenceType, ["Fullscreen", 600, 360])!;
+        void Load(bool onMobile)
+        {
+            mobile.SetValue(null, onMobile);
+            preferences.SetValue(null, Fresh());
+            preferences.SetValue(null, hooks.GetMethod("Load", statics)!.Invoke(null, null));
+        }
+        void Assert(bool condition, string message) { if (!condition) throw new Exception(message); }
+        var path = Path.Combine(DesktopStorage.SaveDirectory, "display.json");
+        Load(false);
+        Assert(!DesktopDisplay.SafeAreaEnabled && DesktopDisplay.HudMargin == Vector2.Zero, "Fresh desktop safe area should be off.");
+        Load(true);
+        Assert(DesktopDisplay.SafeAreaEnabled, "Fresh mobile safe area should be on.");
+        Directory.CreateDirectory(DesktopStorage.SaveDirectory);
+        File.WriteAllText(path, "{\"Mode\":\"Fullscreen\",\"Width\":600,\"Height\":360}");
+        Load(false);
+        Assert(!DesktopDisplay.SafeAreaEnabled, "Legacy desktop save should default safe area off.");
+        Load(true);
+        Assert(DesktopDisplay.SafeAreaEnabled, "Legacy mobile save should default safe area on.");
+        var margin = DesktopDisplay.HudMargin;
+        Assert(margin.X > 0 && margin.Y > 0, "Safe area needs both horizontal and vertical margins.");
+        foreach (var size in new[] { new Vector2(600, 360), new Vector2(783, 360), new Vector2(600, 450), new Vector2(900, 360) })
+        {
+            var pause = DesktopDisplay.SafePausePosition(size.X - 40, 30);
+            Assert(pause == new Vector2(size.X - 40 - margin.X, 30 + margin.Y) && DesktopInput.PauseHitTest(pause, size), "Inset pause glyph and hitbox differ.");
+            Assert(!DesktopInput.PauseHitTest(new Vector2(size.X - 11, 1), size), "Old pause edge still receives taps.");
+            Assert(DesktopInput.VirtualStickCenter(size, 0.75f, false) == new Vector2(90, size.Y - 90) + new Vector2(margin.X, -margin.Y) &&
+                DesktopInput.VirtualStickCenter(size, 0.75f, true) == new Vector2(size.X - 90, size.Y - 90) - margin, "Fixed input and overlay centers differ.");
+            Assert(DesktopDisplay.SafeHudLeft(120) == 120 + margin.X && DesktopDisplay.SafeHudTop(-25) == -25 + margin.Y &&
+                DesktopDisplay.SafeHudBottom(size.Y) == size.Y - margin.Y, "Player or moon HUD margin differs.");
+            Assert(DesktopDisplay.MapPointer(0, 0, new Rectangle(0, 0, (int)size.X, (int)size.Y), ((int)size.X, (int)size.Y)) == Vector2.Zero,
+                "Safe area restricted full-screen relative input.");
+        }
+        // Save explicit choices and reload on each host, including a mobile opt-out.
+        foreach (var enabled in new[] { false, true })
+        {
+            preferenceType.GetProperty("SafeArea")!.SetValue(preferences.GetValue(null), enabled);
+            hooks.GetMethod("Save", statics)!.Invoke(null, null);
+            foreach (var onMobile in new[] { false, true })
+            {
+                Load(onMobile);
+                Assert(DesktopDisplay.SafeAreaEnabled == enabled, "Saved safe area choice did not survive restart.");
+            }
+        }
+        File.Delete(path);
+        Load(true);
+        mobile.SetValue(null, false);
+        Assert(DesktopDisplay.SafePausePosition(560, 30) == new Vector2(560, 30) &&
+            DesktopInput.VirtualStickCenter(new Vector2(600, 360), 0.75f, false) == new Vector2(90, 270), "Disabled safe area changed layout.");
+        Console.WriteLine("SAFE_AREA_OK; host defaults; legacy save migration; explicit choice persistence; HUD/overlay/input margins; full-screen pointer input");
     }
 
     private static void CheckPlayerName(Assembly assembly)
