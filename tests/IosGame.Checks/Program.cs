@@ -112,6 +112,9 @@ if (args is ["--game-bundle", var ipa])
     memory.Position = 0;
     using var assembly = AssemblyDefinition.ReadAssembly(memory);
     VibrationPackageChecks.Run(assembly, "CreateOriginal");
+    var original = assembly.MainModule.GetType("Port.IosGame.Program").Methods.Single(m => m.Name == "CreateOriginal");
+    if (!original.Body.Instructions.Any(i => i.Operand is MethodReference m && m.Name == "set_NativeBackButtonEnabled"))
+        throw new Exception("iOS game does not enable touch Back.");
     foreach (var (typeName, method) in new[] {
         ("Program", "NativeMain"), ("Program", "CreateOriginal"), ("ImportController", "ViewDidLoad"),
         ("ImportController", "ViewDidAppear"), ("GameUi", "ShowImporter"), ("HostCoordinator", "Begin"),

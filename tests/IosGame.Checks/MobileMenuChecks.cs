@@ -12,23 +12,48 @@ internal static class MobileMenuChecks
         if (DesktopInput.NativeBackButtonEnabled) throw new Exception("Native back must be opt-in.");
         var back = new TouchBackButton();
         var size = new Vector2(783, 360);
-        var bounds = DesktopInput.BackButtonBounds(size);
-        var center = new Vector2(bounds.Center.X, bounds.Center.Y);
+        // Exercise the padding beyond the desktop rectangle, not just the glyph.
+        var center = new Vector2(8, 270);
+        foreach (var width in new[] { 600, 783, 900 })
+        {
+            var viewport = new Vector2(width, 360);
+            if (!TouchBackButton.HitTest(new Vector2(0, 324), viewport) ||
+                !TouchBackButton.HitTest(new Vector2(8, 270), viewport) ||
+                !TouchBackButton.HitTest(new Vector2(65, 324), viewport) ||
+                !TouchBackButton.HitTest(new Vector2(width * 0.075f + 12, 336), viewport))
+                throw new Exception("Mobile Back misses the screen edge, finger padding, or animated arrow.");
+            if (TouchBackButton.HitTest(new Vector2(70, 260), viewport) ||
+                TouchBackButton.HitTest(new Vector2(100, 324), viewport) ||
+                TouchBackButton.HitTest(new Vector2(-1, 324), viewport) ||
+                TouchBackButton.HitTest(new Vector2(0, 360), viewport))
+                throw new Exception("Mobile Back accepts a circle corner or off-screen contact.");
+        }
         TouchCollection Contacts(params TouchLocation[] touches) => new(touches);
         TouchLocation Contact(int id, TouchLocationState state, Vector2? position = null) => new(id, state, position ?? center);
         void Assert(bool condition, string message) { if (!condition) throw new Exception(message); }
-        Assert(!back.Sample(Contacts(Contact(1, TouchLocationState.Pressed)), bounds, false), "Hidden arrow accepted a tap.");
+        Assert(!back.Sample(Contacts(Contact(1, TouchLocationState.Pressed)), size, false), "Hidden arrow accepted a tap.");
         Assert(!back.Consumes(1), "Hidden arrow swallowed a gameplay touch.");
-        Assert(back.Sample(Contacts(Contact(2, TouchLocationState.Pressed)), bounds, true), "Back tap not accepted.");
+        Assert(back.Sample(Contacts(Contact(2, TouchLocationState.Pressed)), size, true), "Back tap not accepted.");
         Assert(back.Consumes(2), "Back press leaked to the game.");
-        Assert(!back.Sample(Contacts(Contact(2, TouchLocationState.Pressed)), bounds, true), "Repeated fixed update repeated Back.");
-        Assert(!back.Sample(Contacts(Contact(2, TouchLocationState.Moved, new Vector2(400, 200))), bounds, false), "Held back repeated after the menu changed.");
+        Assert(!back.Sample(Contacts(Contact(2, TouchLocationState.Pressed)), size, true), "Repeated fixed update repeated Back.");
+        Assert(!back.Sample(Contacts(Contact(2, TouchLocationState.Moved, new Vector2(400, 200))), size, false), "Held back repeated after the menu changed.");
         Assert(back.Consumes(2), "Dragging a captured back contact leaked to the game.");
-        Assert(!back.Sample(Contacts(Contact(2, TouchLocationState.Released)), bounds, false) && back.Consumes(2), "Back release leaked or repeated.");
+        Assert(!back.Sample(Contacts(Contact(2, TouchLocationState.Released)), size, false) && back.Consumes(2), "Back release leaked or repeated.");
+        Assert(!back.Sample(Contacts(Contact(2, TouchLocationState.Released)), size, false) && back.Consumes(2), "Repeated release leaked to tap-to-start.");
+        Assert(!back.Sample(Contacts(), size, false), "Empty update repeated Back.");
         Assert(back.Consumes(new GestureSample(GestureType.Tap, TimeSpan.Zero, center, Vector2.Zero, Vector2.Zero, Vector2.Zero)), "Back tap leaked a selection gesture.");
-        Assert(!back.Sample(Contacts(Contact(3, TouchLocationState.Pressed, new Vector2(400, 200))), bounds, true), "Menu item became Back.");
+        Assert(!back.Sample(Contacts(Contact(3, TouchLocationState.Pressed, new Vector2(400, 200))), size, true), "Menu item became Back.");
         Assert(!back.Consumes(3) && !back.Consumes(default(GestureSample)), "Ordinary menu input was swallowed.");
-        Assert(back.Sample(Contacts(Contact(4, TouchLocationState.Pressed)), bounds, true), "Second distinct tap was lost.");
+        Assert(back.Sample(Contacts(Contact(4, TouchLocationState.Pressed)), size, true), "Second distinct tap was lost.");
+        Assert(!back.Sample(Contacts(
+            Contact(5, TouchLocationState.Pressed, new Vector2(400, 200)),
+            Contact(4, TouchLocationState.Released)), size, false), "Concurrent menu press repeated Back.");
+        Assert(back.Consumes(4) && !back.Consumes(5), "Concurrent press lost Back ownership or swallowed another contact.");
+        Assert(back.Consumes(default(GestureSample)), "Concurrent press leaked a captured Back gesture after navigation.");
+        back.Reset();
+        back.Sample(Contacts(Contact(6, TouchLocationState.Pressed, new Vector2(400, 200))), size, true);
+        Assert(back.Consumes(new GestureSample(GestureType.Tap, TimeSpan.Zero, center, Vector2.Zero, Vector2.Zero, Vector2.Zero)), "Back area accepted a delayed selection gesture.");
+        Assert(!back.Consumes(new GestureSample(GestureType.Tap, TimeSpan.Zero, new Vector2(400, 200), Vector2.Zero, Vector2.Zero, Vector2.Zero)), "Back area swallowed an ordinary selection gesture.");
         back.Reset();
         Assert(!back.Consumes(4) && !back.Consumes(default(GestureSample)), "Input capture survived reset.");
 

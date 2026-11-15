@@ -45,6 +45,7 @@ public static class GameplayPatcher
     private const string StableMacHooksHash = "4bc50ba5f9456fe7948fc68cf4eb6c9970a27edb3c64508cea7103cb87a3239a";
     private const string MobileSettingsHooksHash = "705c719202c5d431527ea50381b37e5fffab95135a64e6dc7a45a751e83717f5";
     private const string VibrationHooksHash = "4ace25ae9aef68413321a0fed550d8180eed3b3b7894d00bb8fe250c4dcb9ab0";
+    private const string MobileBackAreaHooksHash = "8b69a4f95be49f8a277358e138502784af531322ded6b8baa514223d0433e7c3";
     private const string TouchBackHooksHash = "bc620bd6ce7237549164b1059d40ed1fb6bdcda33b3960dd1b135a7ba1eb4761";
     private const string MacHooksHash = "377391ef67c65c17b4d1b741f84cc63bd219e896811429abbbadd454d1ce768d";
     private const string OriginalMethodBodyHash = "54407b733f8c2d7cdc67534f66899e99191731e2e0beeed8481bc673ff54f425";
@@ -110,7 +111,7 @@ public static class GameplayPatcher
             prior.Patches.Any(patch => patch.Kind == "gameplay-call"))
             throw new PreparationException("Prepared DLL does not match its original guarded rewrite.");
         var hooksHash = Hash(hooksDll);
-        if (hooksHash is not (DebugHooksHash or ReleaseHooksHash or CurrentDebugHooksHash or CurrentReleaseHooksHash or LatestReleaseHooksHash or RestartReleaseHooksHash or EdgeArtReleaseHooksHash or VersionReleaseHooksHash or CreditsScrollHooksHash or PortCreditHooksHash or PictureButtonHooksHash or InstallerFoldersHooksHash or DocumentsSavesHooksHash or CenteredPicturesHooksHash or ReducedFlashFocusHooksHash or CreatorQualityHooksHash or ResolutionHooksHash or RowNavigationHooksHash or InlineResolutionHooksHash or SessionHooksHash or UpdatedReleaseHooksHash or PlatformHooksHash or ExplicitContentHooksHash or ImportDebugHooksHash or ImportReleaseHooksHash or LinuxPhotoDebugHooksHash or LinuxPhotoReleaseHooksHash or CurrentSourceHooksHash or MacHooksHash or CurrentMacHooksHash or StableMacHooksHash or TouchBackHooksHash or MobileSettingsHooksHash or VibrationHooksHash) ||
+        if (hooksHash is not (DebugHooksHash or ReleaseHooksHash or CurrentDebugHooksHash or CurrentReleaseHooksHash or LatestReleaseHooksHash or RestartReleaseHooksHash or EdgeArtReleaseHooksHash or VersionReleaseHooksHash or CreditsScrollHooksHash or PortCreditHooksHash or PictureButtonHooksHash or InstallerFoldersHooksHash or DocumentsSavesHooksHash or CenteredPicturesHooksHash or ReducedFlashFocusHooksHash or CreatorQualityHooksHash or ResolutionHooksHash or RowNavigationHooksHash or InlineResolutionHooksHash or SessionHooksHash or UpdatedReleaseHooksHash or PlatformHooksHash or ExplicitContentHooksHash or ImportDebugHooksHash or ImportReleaseHooksHash or LinuxPhotoDebugHooksHash or LinuxPhotoReleaseHooksHash or CurrentSourceHooksHash or MacHooksHash or CurrentMacHooksHash or StableMacHooksHash or TouchBackHooksHash or MobileSettingsHooksHash or VibrationHooksHash or MobileBackAreaHooksHash) ||
             System.Reflection.AssemblyName.GetAssemblyName(hooksDll).Name != "Port.Hooks")
             throw new PreparationException("Hook target assembly identity differs.");
 

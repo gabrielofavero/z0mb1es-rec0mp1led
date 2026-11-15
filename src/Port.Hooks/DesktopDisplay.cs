@@ -693,7 +693,7 @@ public static class DesktopDisplay
                 phase -= 0.25f;
                 var brightness = (0.25f - MathF.Abs(phase)) * 4f;
                 var position = SceneSize * new Vector2(0.05f - phase * 0.1f, 0.9f);
-                drawArrowText!.Invoke(null, [batch, "<", position, 2f,
+                drawArrowText!.Invoke(null, [batch, "<", position, mobile ? TouchBackButton.ArrowScale : 2f,
                     new Color(brightness, brightness, brightness, 1f), arrowCenter!]);
             }
             batch.End();

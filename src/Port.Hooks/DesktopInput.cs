@@ -201,7 +201,7 @@ public static class DesktopInput
                  : state.Buttons.B == ButtonState.Pressed ||
                    state.Buttons.Back == ButtonState.Pressed));
         var nativeBack = NativeBackButtonEnabled && player == PlayerIndex.One &&
-            touchBack.Sample(TouchPanel.GetState(), BackButtonBounds(DesktopDisplay.SceneSize),
+            touchBack.Sample(TouchPanel.GetState(), DesktopDisplay.SceneSize,
                 game?.IsActive == true && BackButtonVisible());
         if (nativeBack)
         {

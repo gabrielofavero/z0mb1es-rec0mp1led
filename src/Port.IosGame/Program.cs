@@ -79,6 +79,7 @@ public static class Program
         DesktopDisplay.Configure(game, mobile: true);
         DeviceVibration.Configure();
         DesktopInput.Configure(game);
+        DesktopInput.NativeBackButtonEnabled = true;
         DesktopAchievements.Configure();
         var monitor = new MobileSession(game, type, !File.Exists(System.IO.Path.Combine(saveRoot, "savegame")));
         game.Components.Add(monitor);
