@@ -422,6 +422,9 @@ public static class DesktopInput
 
     public static bool ShouldShowTouchPause() => cursorSource == CursorSource.Touch;
 
+    public static bool NeedsScreenKeyboard(bool mobile, bool hasKeyboard) =>
+        mobile || cursorSource == CursorSource.Touch || !hasKeyboard;
+
     private static void UpdateCursorSource(bool touchActive, MouseState mouse,
         KeyboardState keyboard, int wheelDelta, bool inside)
     {

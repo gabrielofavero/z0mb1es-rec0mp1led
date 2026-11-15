@@ -7,6 +7,7 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using Port.Bridge;
+using SDL3;
 
 namespace Port.Hooks;
 
@@ -31,6 +32,7 @@ public static class DesktopDisplay
     private static object? arrowCenter;
     private static FieldInfo? viewportField;
     private static FieldInfo? gameFontField;
+    private static FieldInfo? gamerNameField;
     private static FieldInfo? zombieScreenField;
     private static FieldInfo? vikingScreenField;
     private static (int Width, int Height) sceneSize = (LogicalWidth, LogicalHeight);
@@ -67,6 +69,11 @@ public static class DesktopDisplay
     private static KeyboardState previousKeyboard;
     private static GamePadState previousPad;
     private static string nameText = PlayerIdentity.DefaultName;
+    private static bool saveNameRequested;
+    private static bool cancelNameRequested;
+    private static bool nameInputActive;
+    private static string? previousScreenKeyboardHint;
+    private static Action? dismissSystemKeyboard;
 
     public static bool CapturesInput => captureInput;
     public static Vector2 SceneSize => new(sceneSize.Width, sceneSize.Height);
@@ -87,8 +94,11 @@ public static class DesktopDisplay
 
     public static void Configure(Game runningGame, bool mobile = false)
     {
+        StopEditingName();
+        if (game is not null) game.Exiting -= OnGameExiting;
         DesktopDisplay.mobile = mobile;
         game = runningGame;
+        game.Exiting += OnGameExiting;
         graphics = (GraphicsDeviceManager?)runningGame.Services.GetService(typeof(IGraphicsDeviceManager))
             ?? throw new InvalidOperationException("Game has no graphics manager.");
         scene?.Dispose();
@@ -109,6 +119,8 @@ public static class DesktopDisplay
             ?? throw new MissingFieldException("Game1.VIEWPORT");
         gameFontField = runningGame.GetType().GetField("arial", staticFields)
             ?? throw new MissingFieldException("Game1.arial");
+        gamerNameField = runningGame.GetType().GetField("gamerName", staticFields)
+            ?? throw new MissingFieldException("Game1.gamerName");
         menuScaleField = runningGame.GetType().GetField("MENUSCALE", staticFields)
             ?? throw new MissingFieldException("Game1.MENUSCALE");
         zombieScreenField = assembly.GetType("IMAK3Z0MB1EGAEM.ScrollMan", true)!
@@ -497,16 +509,33 @@ public static class DesktopDisplay
 
     private static void StartEditingName()
     {
+        if (editing == 1) return;
         editing = 1;
         captureInput = true;
         nameText = "";
+        saveNameRequested = cancelNameRequested = false;
         previousKeyboard = Keyboard.GetState();
         previousPad = GamePad.GetState(PlayerIndex.One);
         TextInputEXT.TextInput += OnNameTextInput;
         var bounds = game!.Window.ClientBounds;
+        TextInputEXT.WindowHandle = game.Window.Handle;
         TextInputEXT.SetInputRectangle(new Rectangle(bounds.Width / 4, bounds.Height / 3,
             bounds.Width / 2, 36));
-        TextInputEXT.StartTextInput();
+        previousScreenKeyboardHint = SDL.SDL_GetHint(SDL.SDL_HINT_ENABLE_SCREEN_KEYBOARD);
+        var showKeyboard = DesktopInput.NeedsScreenKeyboard(mobile, SDL.SDL_HasKeyboard());
+        SDL.SDL_SetHint(SDL.SDL_HINT_ENABLE_SCREEN_KEYBOARD, showKeyboard ? "1" : "0");
+        // A single-line field makes the software keyboard's Return key submit.
+        var properties = SDL.SDL_CreateProperties();
+        try
+        {
+            SDL.SDL_SetBooleanProperty(properties, SDL.SDL_PROP_TEXTINPUT_MULTILINE_BOOLEAN, false);
+            SDL.SDL_SetBooleanProperty(properties, SDL.SDL_PROP_TEXTINPUT_AUTOCORRECT_BOOLEAN, false);
+            SDL.SDL_StartTextInputWithProperties(game.Window.Handle, properties);
+            nameInputActive = true;
+        }
+        finally { SDL.SDL_DestroyProperties(properties); }
+        if (showKeyboard && !SDL.SDL_HasScreenKeyboardSupport())
+            dismissSystemKeyboard = SystemScreenKeyboard.Show();
         SetInfo("ENTER/A TO SAVE, ESC/B TO CANCEL. MAX 16 CHARACTERS.");
         RefreshLabels();
     }
@@ -515,16 +544,30 @@ public static class DesktopDisplay
     {
         if (editing != 1) return;
         TextInputEXT.TextInput -= OnNameTextInput;
-        TextInputEXT.StopTextInput();
+        if (nameInputActive)
+        {
+            TextInputEXT.StopTextInput();
+            if (previousScreenKeyboardHint is null) SDL.SDL_ResetHint(SDL.SDL_HINT_ENABLE_SCREEN_KEYBOARD);
+            else SDL.SDL_SetHint(SDL.SDL_HINT_ENABLE_SCREEN_KEYBOARD, previousScreenKeyboardHint);
+            nameInputActive = false;
+        }
+        dismissSystemKeyboard?.Invoke();
+        dismissSystemKeyboard = null;
+        saveNameRequested = cancelNameRequested = false;
         nameText = PlayerIdentity.Name;
         editing = -1;
         if (settingsMenu is not null) infosField!.SetValue(settingsMenu, null);
         RefreshLabels();
     }
 
+    private static void OnGameExiting(object? sender, EventArgs args) => StopEditingName();
+
     private static void OnNameTextInput(char character)
     {
         if (editing != 1) return;
+        if (character is '\r' or '\n') { saveNameRequested = true; return; }
+        if (character == '\u001b') { cancelNameRequested = true; return; }
+        if (saveNameRequested || cancelNameRequested) return;
         if (character == '\b' && nameText.Length > 0) nameText = nameText[..^1];
         else if (nameText.Length < PlayerIdentity.MaxLength &&
             (char.IsAsciiLetterOrDigit(character) || character is ' ' or '-' or '_' or '\''))
@@ -539,17 +582,31 @@ public static class DesktopDisplay
         if (!captureInput || game is null || !game.IsActive) return;
         var keyboard = Keyboard.GetState();
         var pad = GamePad.GetState(PlayerIndex.One);
+        UpdateNameInput(keyboard, pad);
+    }
+
+    private static void UpdateNameInput(KeyboardState keyboard, GamePadState pad)
+    {
         bool Pressed(Keys key) => keyboard.IsKeyDown(key) && !previousKeyboard.IsKeyDown(key);
         bool PadPressed(Buttons button) => pad.IsButtonDown(button) && !previousPad.IsButtonDown(button);
         if (editing == 1)
         {
-            if (Pressed(Keys.Escape) || PadPressed(Buttons.B)) StopEditingName();
-            else if (Pressed(Keys.Enter) || PadPressed(Buttons.A))
+            if (cancelNameRequested || Pressed(Keys.Escape) || PadPressed(Buttons.B)) StopEditingName();
+            else if (saveNameRequested || Pressed(Keys.Enter) || PadPressed(Buttons.A))
             {
+                saveNameRequested = false;
                 var candidate = nameText.Trim();
                 if (PlayerIdentity.IsValid(candidate))
                 {
-                    if (PlayerIdentity.TrySetName(candidate)) StopEditingName();
+                    if (PlayerIdentity.TrySetName(candidate))
+                    {
+                        // Game1 only reads Gamertag once. Update its shared builder
+                        // in place so every mode and any retained reference sees it.
+                        if (gamerNameField?.GetValue(null) is StringBuilder cached)
+                            cached.Clear().Append(PlayerIdentity.Name);
+                        else gamerNameField?.SetValue(null, new StringBuilder(PlayerIdentity.Name));
+                        StopEditingName();
+                    }
                     else SetInfo("COULD NOT SAVE PLAYER NAME.");
                 }
                 else SetInfo("TYPE A NAME (1-16 CHARACTERS).");

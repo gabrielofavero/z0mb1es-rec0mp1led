@@ -20,6 +20,19 @@ if (DesktopInput.MapPointer(10, 250, new Rectangle(0, 0, 1000, 500), target) is 
     throw new Exception("Legacy input mapping accepted a margin or empty window.");
 Console.WriteLine("INPUT_MAP_OK");
 
+var cursorField = typeof(DesktopInput).GetField("cursorSource",
+    System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!;
+foreach (var source in new[] { "Mouse", "Keyboard", "Controller", "Touch" })
+{
+    cursorField.SetValue(null, Enum.Parse(cursorField.FieldType, source));
+    if (!DesktopInput.NeedsScreenKeyboard(true, true) ||
+        !DesktopInput.NeedsScreenKeyboard(false, false) ||
+        DesktopInput.NeedsScreenKeyboard(false, true) != (source == "Touch"))
+        throw new Exception("Screen keyboard policy differs for mobile, touch, or a missing physical keyboard.");
+}
+cursorField.SetValue(null, Enum.Parse(cursorField.FieldType, "None"));
+Console.WriteLine("INPUT_SCREEN_KEYBOARD_OK");
+
 foreach (var (width, height) in new[] { (266, 400), (400, 266), (400, 400) })
 foreach (var size in new[] { 0f, 0.2f, 0.5f })
 {

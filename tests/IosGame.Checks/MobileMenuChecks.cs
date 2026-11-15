@@ -1,5 +1,8 @@
 using System.Collections;
 using System.Reflection;
+using System.Text;
+using Microsoft.Xna.Framework.Input;
+using Port.Bridge;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input.Touch;
 using Port.Hooks;
@@ -133,6 +136,7 @@ internal static class MobileMenuChecks
             Assert(Labels().Contains("BACK"), "Audio Back missing.");
             Assert(DesktopDisplay.HandleSettingsCancel(settings), "Audio Back failed.");
         }
+        CheckPlayerName(assembly);
         // Verify stale desktop preferences cannot override mobile display constraints.
         var preferences = hooks.GetField("preferences", statics)!.GetValue(null)!;
         var preferenceType = preferences.GetType();
@@ -151,4 +155,82 @@ internal static class MobileMenuChecks
         Assert(Labels().Length == 6 && Labels().Any(label => label.StartsWith("RES0LUTI0N:")) && Labels().Any(label => label.StartsWith("VSYNC:")), "Desktop display controls missing.");
         Console.WriteLine("IOS_MENU_OK; shared Settings; mobile Graphics constraints; staggered rows across widths; subpage navigation; desktop controls; touch Back capture");
     }
+
+    private static void CheckPlayerName(Assembly assembly)
+    {
+        const BindingFlags statics = BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
+        var hooks = typeof(DesktopDisplay);
+        var gameName = assembly.GetType("ZombiesWP7.Game1", true)!.GetField("gamerName", statics)!;
+        var previousName = gameName.GetValue(null);
+        var directory = Path.Combine(Path.GetTempPath(), "z0mb1es-name-edit-" + Guid.NewGuid().ToString("N"));
+        void Set(string field, object? value) => hooks.GetField(field, statics)!.SetValue(null, value);
+        object? Get(string field) => hooks.GetField(field, statics)!.GetValue(null);
+        void Input(string text)
+        {
+            foreach (var character in text)
+                hooks.GetMethod("OnNameTextInput", statics)!.Invoke(null, [character]);
+        }
+        void Update() => hooks.GetMethod("UpdateNameInput", statics)!.Invoke(null,
+            [default(KeyboardState), default(GamePadState)]);
+        void Begin()
+        {
+            Set("editing", 1);
+            Set("nameText", "");
+            Set("saveNameRequested", false);
+            Set("cancelNameRequested", false);
+        }
+        try
+        {
+            PlayerIdentity.Configure(directory);
+            Set("gamerNameField", gameName);
+            var cached = new StringBuilder(PlayerIdentity.DefaultName);
+            gameName.SetValue(null, cached);
+            Begin();
+            Input("Pause Hero\r\n");
+            Update(); // Software Return was pressed and released between frames.
+            if (PlayerIdentity.Name != "Pause Hero" || cached.ToString() != "Pause Hero" ||
+                !ReferenceEquals(gameName.GetValue(null), cached) || (int)Get("editing")! != -1 ||
+                (string)Get("nameText")! != "Pause Hero")
+                throw new Exception("Software Return did not save and hot-apply the name to the game's shared builder.");
+            PlayerIdentity.Configure(directory); // Restart with the same save root.
+            if (PlayerIdentity.Name != "Pause Hero" ||
+                Microsoft.Xna.Framework.GamerServices.Gamer.SignedInGamers[PlayerIndex.One].Gamertag != "Pause Hero")
+                throw new Exception("Name from the pause editor did not survive restart.");
+            Begin();
+            Input("Discarded\u001b");
+            Update();
+            if (PlayerIdentity.Name != "Pause Hero" || cached.ToString() != "Pause Hero")
+                throw new Exception("Cancelling a name edit changed the saved or displayed name.");
+            Begin();
+            Input("\r");
+            Update();
+            if ((int)Get("editing")! != 1 || PlayerIdentity.Name != "Pause Hero")
+                throw new Exception("Blank name was saved or closed the editor.");
+            Input("New Hero\n");
+            Update();
+            if (PlayerIdentity.Name != "New Hero" || cached.ToString() != "New Hero")
+                throw new Exception("Correcting an invalid name did not submit through software Return.");
+            // A failed disk write must keep the old identity and the editor open.
+            var blocked = Path.Combine(directory, "blocked");
+            File.WriteAllText(blocked, "not a directory");
+            PlayerIdentity.Configure(blocked);
+            Begin();
+            Input("Unsaved\r");
+            Update();
+            if ((int)Get("editing")! != 1 || PlayerIdentity.Name != PlayerIdentity.DefaultName ||
+                cached.ToString() != "New Hero")
+                throw new Exception("A failed name save changed the identity or closed the editor.");
+            Input("\u001b");
+            Update();
+            Console.WriteLine("PLAYER_NAME_EDIT_OK; software Return; immediate shared-name refresh; restart persistence; cancel; invalid input; failed save");
+        }
+        finally
+        {
+            gameName.SetValue(null, previousName);
+            PlayerIdentity.Configure(Path.Combine(directory, "empty"));
+            Set("nameText", PlayerIdentity.Name);
+            if (Directory.Exists(directory)) Directory.Delete(directory, true);
+        }
+    }
+
 }
