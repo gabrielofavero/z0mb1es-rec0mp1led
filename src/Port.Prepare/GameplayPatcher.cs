@@ -66,6 +66,8 @@ public static class GameplayPatcher
     private const string VikingPlayHash = "eb57c16e78c4c7e00a6b42d688ca93f171d03458ef52691ecc147008f899067e";
     private const string MapInitHash = "7ebf709bfc179137a64d31f9352ef699431a9cc641120a6e2020b25e1ca1989f";
     private const string ParticleInitHash = "7d93b83ca79874f59fdbcc044e5f3b38409179463404e57b098da5517dcd0803";
+    private const string MusicPlaybackHooksHash = "c7ae632d8ed2a850fd107edc9e3e4d5f28f24772e6a60c9cdd0e637b4a744bd6";
+    private const string MusicUpdateHash = "5110787c8a586cec1eabe884d5f54e2ca9bfacae4092bcd92a5b36688e1065bc";
     private const int MethodToken = 0x06000152;
     private const int TouchMethodToken = 0x0600007a;
     private const int CallOffset = 0x0015;
@@ -102,6 +104,7 @@ public static class GameplayPatcher
             VerifyBody(pe, 0x0600002f, VikingPlayHash);
             VerifyBody(pe, 0x06000091, MapInitHash);
             VerifyBody(pe, 0x060002a1, ParticleInitHash);
+            VerifyBody(pe, 0x06000318, MusicUpdateHash);
         }
         var priorManifest = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(preparedDll))!, "patch-manifest.json");
         var prior = JsonSerializer.Deserialize<PatchManifest>(File.ReadAllText(priorManifest),
@@ -112,7 +115,7 @@ public static class GameplayPatcher
             prior.Patches.Any(patch => patch.Kind == "gameplay-call"))
             throw new PreparationException("Prepared DLL does not match its original guarded rewrite.");
         var hooksHash = Hash(hooksDll);
-        if (hooksHash is not (DebugHooksHash or ReleaseHooksHash or CurrentDebugHooksHash or CurrentReleaseHooksHash or LatestReleaseHooksHash or RestartReleaseHooksHash or EdgeArtReleaseHooksHash or VersionReleaseHooksHash or CreditsScrollHooksHash or PortCreditHooksHash or PictureButtonHooksHash or InstallerFoldersHooksHash or DocumentsSavesHooksHash or CenteredPicturesHooksHash or ReducedFlashFocusHooksHash or CreatorQualityHooksHash or ResolutionHooksHash or RowNavigationHooksHash or InlineResolutionHooksHash or SessionHooksHash or UpdatedReleaseHooksHash or PlatformHooksHash or ExplicitContentHooksHash or ImportDebugHooksHash or ImportReleaseHooksHash or LinuxPhotoDebugHooksHash or LinuxPhotoReleaseHooksHash or CurrentSourceHooksHash or MacHooksHash or CurrentMacHooksHash or StableMacHooksHash or TouchBackHooksHash or MobileSettingsHooksHash or VibrationHooksHash or MobileBackAreaHooksHash or NameInputHooksHash) ||
+        if (hooksHash is not (DebugHooksHash or ReleaseHooksHash or CurrentDebugHooksHash or CurrentReleaseHooksHash or LatestReleaseHooksHash or RestartReleaseHooksHash or EdgeArtReleaseHooksHash or VersionReleaseHooksHash or CreditsScrollHooksHash or PortCreditHooksHash or PictureButtonHooksHash or InstallerFoldersHooksHash or DocumentsSavesHooksHash or CenteredPicturesHooksHash or ReducedFlashFocusHooksHash or CreatorQualityHooksHash or ResolutionHooksHash or RowNavigationHooksHash or InlineResolutionHooksHash or SessionHooksHash or UpdatedReleaseHooksHash or PlatformHooksHash or ExplicitContentHooksHash or ImportDebugHooksHash or ImportReleaseHooksHash or LinuxPhotoDebugHooksHash or LinuxPhotoReleaseHooksHash or CurrentSourceHooksHash or MacHooksHash or CurrentMacHooksHash or StableMacHooksHash or TouchBackHooksHash or MobileSettingsHooksHash or VibrationHooksHash or MobileBackAreaHooksHash or NameInputHooksHash or MusicPlaybackHooksHash) ||
             System.Reflection.AssemblyName.GetAssemblyName(hooksDll).Name != "Port.Hooks")
             throw new PreparationException("Hook target assembly identity differs.");
 
@@ -172,6 +175,7 @@ public static class GameplayPatcher
                 PatchHelpAndOptionsInfo(module, hooks);
                 PatchAssetDraw(module, hooks);
                 PatchRunRestart(module);
+                PatchMusicCompletion(module, hooks);
                 module.Write(stageDll, new WriterParameters { WriteSymbols = false });
             }
             using (var check = ModuleDefinition.ReadModule(stageDll))
@@ -221,6 +225,7 @@ public static class GameplayPatcher
                 VerifyHelpAndOptionsInfo(check);
                 VerifyAssetDraw(check);
                 VerifyRunRestart(check);
+                VerifyMusicCompletion(check);
                 VerifyTitlePaths(check);
             }
             var outputHash = Hash(stageDll);
@@ -311,6 +316,10 @@ public static class GameplayPatcher
                         OriginalHash,
                         "route phone texture paths and source rectangles through Port.Hooks.AssetDraw",
                         "phone logical geometry and Original fallback remain in effect"),
+                    new PatchRecord("gameplay-call", OriginalHash,
+                        "0x06000318 IMAK3Z0MB1EGAEM.audio.Music::Update(int)", MusicUpdateHash,
+                        "route playback state through Port.Hooks.MusicPlayback.GetState",
+                        "expired tracks complete even when the backend misses EOF; original Endless replay and pause timing remain"),
                     new PatchRecord("gameplay-call", OriginalHash,
                         "four pinned TitleContainer.OpenStream call sites", OriginalHash,
                         "route custom non-XNB files through Port.Hooks.GameContent.OpenStream",
@@ -1227,6 +1236,41 @@ public static class GameplayPatcher
                 generic.GenericArguments.Count == 1 &&
                 generic.GenericArguments[0].FullName == "Microsoft.Xna.Framework.Graphics.Texture2D"))
             throw new PreparationException($"Art draw hook postcondition failed: loads={loads} draws={draws}.");
+    }
+
+    private static void PatchMusicCompletion(ModuleDefinition module, ModuleDefinition hooks)
+    {
+        var update = module.Types.Single(type => type.FullName == "IMAK3Z0MB1EGAEM.audio.Music")
+            .Methods.Single(method => method.Name == "Update" && method.Parameters.Count == 1);
+        var call = update.Body.Instructions.Single(instruction => instruction.Operand is MethodReference target &&
+            target.DeclaringType.FullName == "Microsoft.Xna.Framework.Media.MediaPlayer" && target.Name == "get_State");
+        if (update.MetadataToken.ToInt32() != 0x06000318 || call.Offset != 0x0023 || call.OpCode != OpCodes.Call)
+            throw new PreparationException("Music completion state anchor differs.");
+        var target = module.ImportReference(hooks.Types.Single(type => type.FullName == "Port.Hooks.MusicPlayback")
+            .Methods.Single(method => method.Name == "GetState" && method.IsStatic && method.Parameters.Count == 1));
+        // Keep the original instruction as the branch target, now loading the
+        // game's Song (the queue clone has no duration on its first playback).
+        call.OpCode = OpCodes.Ldsfld;
+        call.Operand = update.DeclaringType.Fields.Single(field => field.Name == "bank");
+        var il = update.Body.GetILProcessor();
+        var index = Instruction.Create(OpCodes.Ldsfld, update.DeclaringType.Fields.Single(field => field.Name == "song"));
+        var song = Instruction.Create(OpCodes.Ldelem_Ref);
+        il.InsertAfter(call, index);
+        il.InsertAfter(index, song);
+        il.InsertAfter(song, Instruction.Create(OpCodes.Call, target));
+    }
+
+    private static void VerifyMusicCompletion(ModuleDefinition module)
+    {
+        var update = module.Types.Single(type => type.FullName == "IMAK3Z0MB1EGAEM.audio.Music")
+            .Methods.Single(method => method.Name == "Update" && method.Parameters.Count == 1);
+        var call = update.Body.Instructions.Single(instruction => instruction.Offset == 0x0023);
+        if (call.OpCode != OpCodes.Ldsfld || call.Operand is not FieldReference bank || bank.Name != "bank" ||
+            call.Next.OpCode != OpCodes.Ldsfld || call.Next.Operand is not FieldReference index || index.Name != "song" ||
+            call.Next.Next.OpCode != OpCodes.Ldelem_Ref || call.Next.Next.Next.OpCode != OpCodes.Call ||
+            call.Next.Next.Next.Operand is not MethodReference target ||
+            target.DeclaringType.FullName != "Port.Hooks.MusicPlayback" || target.Name != "GetState")
+            throw new PreparationException("Music completion postcondition failed.");
     }
 
     private static void PatchRunRestart(ModuleDefinition module)

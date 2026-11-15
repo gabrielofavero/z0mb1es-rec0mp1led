@@ -1,6 +1,19 @@
 # Media and phone-only behavior (Prompt 11)
 
-The supported original DLL calls `Music.LoadSong`, `Music.Start`, `Music.Update`, `Music.Stop`, `Music.Pause`, and `Music.Resume` around its `MediaPlayer` operations. `BaseTimeMgr.Pause` and `UnPause` call the original music methods. `Sound.Init` loads 19 `sfx/fx/` keys into a dictionary; `Sound.Play`, `PlayExplode`, `PlaySword`, and `PlayHit` call `SoundEffect.Play`. The port leaves those game methods intact. The content preparer supplies local Ogg companions for the original three WMA songs; all other sound XNBs are unchanged. Media playback therefore follows the original calls through FNA.
+The supported original DLL calls `Music.LoadSong`, `Music.Start`, `Music.Update`, `Music.Stop`, `Music.Pause`, and `Music.Resume` around its `MediaPlayer` operations. `BaseTimeMgr.Pause` and `UnPause` call the original music methods. `Sound.Init` loads 19 `sfx/fx/` keys into a dictionary; `Sound.Play`, `PlayExplode`, `PlaySword`, and `PlayHit` call `SoundEffect.Play`. The content preparer supplies local Ogg companions for the original three WMA songs; all other sound XNBs are unchanged. Media playback follows the original calls through FNA, with the completion adaptation below.
+
+Endless selects only `sfx/music/endless` (about 302 seconds). The original `Music.Update(2)` resets its play counter when playback stops, then starts the same song on the following update. It does not alternate tracks. Normal Zombies and Time Viking keep their original finite-song behavior.
+
+The local Vorbis decoder audit found that `endless.ogg` declares 13,322,194 samples but supplies 13,320,192 decoded samples. The bundled FAudio implementation marks the final buffer only when the decoded count reaches the declared length, so it can exhaust its audio while continuing to report `Playing`. A 0.25-second local clip reproduced the missing completion and absent replay. The guarded `Music.Update` state read now calls `Port.Hooks.MusicPlayback.GetState(Song)`: if playback is still `Playing` 250 ms beyond the loaded song's duration, it stops the player and lets the original mode logic handle completion. FNA's playback position excludes paused time and resets on Stop. Paused/stopped states and unknown durations bypass the fallback. The loaded song is passed explicitly because FNA's queue clone initially has a zero duration.
+
+The regression check exercises three Endless replays, a pause longer than the clip, resume, explicit stop, both finite modes, and disabled BGM through the prepared game's actual music methods. After building, create a short local clip and run it on macOS (use the corresponding native directory and loader path on other hosts):
+
+```sh
+private/macos-inputs/ffmpeg -i private/run/current/Content/sfx/music/endless.ogg -t 0.25 -c:a libvorbis -y private/music-investigation/short.ogg
+DYLD_LIBRARY_PATH="$PWD/out/deps/native/osx-arm64" dotnet run --project tests/IosGame.Checks -c Release -- --music-playback-check private/run/current/ZombiesWP7.dll private/music-investigation/short.ogg out/deps/native/osx-arm64
+```
+
+The clip and diagnostics remain in ignored `private/`; create `private/music-investigation/` before running the conversion. This accelerated check does not establish audible quality or a full-length device run.
 
 The [audio portability audit](audio-portability.md) records the embedded PCM formats, Ogg Vorbis headers, and non-Windows preparation requirements.
 
