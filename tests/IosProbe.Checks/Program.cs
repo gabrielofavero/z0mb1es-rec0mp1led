@@ -1,7 +1,43 @@
 using System.Runtime.InteropServices;
 using System.Text;
+using System.IO.Compression;
+using Mono.Cecil;
 using Port.Content;
 using Port.IosProbe;
+
+if (args is ["--bundle", var ipa])
+{
+    // Check the shipped IL, not only the pre-link build. The initial device IPA
+    // lost scene callbacks and experiment dependencies despite TrimMode=copy.
+    using var archive = ZipFile.OpenRead(ipa);
+    var entry = archive.Entries.Single(e => e.FullName.EndsWith(".app/Port.IosProbe.dll", StringComparison.Ordinal));
+    var prefix = entry.FullName[..^"Port.IosProbe.dll".Length];
+    foreach (var dependency in new[] { "Port.Prepare.dll", "Port.Content.dll", "Mono.Cecil.dll" })
+        if (archive.GetEntry(prefix + dependency) is null)
+            throw new InvalidDataException($"Missing packaged experiment dependency: {dependency}");
+    using var input = entry.Open();
+    using var buffer = new MemoryStream();
+    input.CopyTo(buffer);
+    buffer.Position = 0;
+    using var assembly = AssemblyDefinition.ReadAssembly(buffer);
+    foreach (var (typeName, methods) in new (string, string[])[]
+    {
+        ("AppDelegate", ["FinishedLaunching", "GetConfiguration"]),
+        ("SceneDelegate", ["WillConnect", "get_Window", "set_Window"]),
+        ("ProbeController", ["ViewDidLoad", "ViewDidAppear"]),
+        ("ExecutionProbe", ["RunGeneratedIl", "ResumeGeneratedIl", "ImportXap", "ResumeImport"]),
+        ("NativeAudioConverter", ["Convert"])
+    })
+    {
+        var type = assembly.MainModule.GetType("Port.IosProbe." + typeName)
+            ?? throw new InvalidDataException($"Packaged probe lost {typeName}.");
+        foreach (var name in methods)
+            if (!type.Methods.Any(m => m.Name == name && m.HasBody && m.Body.Instructions.Count > 0))
+                throw new InvalidDataException($"Packaged probe lost {typeName}.{name}.");
+    }
+    Console.WriteLine("packaged-ui-callbacks-and-experiments=preserved; device-execution=unproven");
+    return;
+}
 
 if (args is ["--resume", var persistent])
 {

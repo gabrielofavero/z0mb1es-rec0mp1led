@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "dotnetSdk": "10.0.302",
+  "dotnetRuntime": "10.0.10",
+  "iosWorkload": "26.0.11017",
+  "xcodeVersion": "26.0.1",
+  "nativeArchive": "out/deps/cache/fnalibs-apple-2026-11-06.zip",
+  "nativeArchiveSha256": "c40a5992fd660858d19ee4b2284ba1a1d6551d3e2fbf5415bd5428af96f6eaff",
+  "nativeLibraries": {
+    "libSDL3.a": "e46433ec4741a543eb22896022c662ce7128d80aef265e5bbab38b678ee0019d",
+    "libFNA3D.a": "412e12e01b128651f6c33ee5ad35f85b1f0136ac71a2151c1047caa9ce466bf7",
+    "libFAudio.a": "46ed32ed9de3237465e25ed23e408dec716cc068768d5590886f49248123d08a",
+    "libmojoshader.a": "c07b660d0efa222a5f1335afc7b6429895aa903a8942c419e0878a14820f77e7",
+    "libtheorafile.a": "36d0a51b4e9104ca90a5d2982f6b8ce5a721cab5295b5e6ff5a62e1670387546"
+  },
+  "preparationAssemblies": {
+    "FNA.dll": "5c9ae37965b3d5510c5dec4377bc7a24808c552cacbeb9e41aaf7c88e36babe6",
+    "Port.Bridge.dll": "9ad015606cb0d400fa718515bfe022bdcd48e06c19682fe98ed2e846163390b1",
+    "Port.Hooks.dll": "bc620bd6ce7237549164b1059d40ed1fb6bdcda33b3960dd1b135a7ba1eb4761"
+  },
+  "runtimeCatalogSha256": "9a86961dec1b4e8f7ec92c8b2804ed506793975230d1c1fdd955d61cf2f236bc"
+}

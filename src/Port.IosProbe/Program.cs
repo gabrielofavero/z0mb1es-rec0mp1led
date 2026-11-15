@@ -8,17 +8,48 @@ namespace Port.IosProbe;
 
 public static class Program
 {
-    public static void Main(string[] args) => UIApplication.Main(args, null, typeof(AppDelegate));
+    public static void Main(string[] args)
+    {
+        StartupTrace("managed-main=entered build=2");
+        UIApplication.Main(args, null, typeof(AppDelegate));
+    }
+
+    internal static string DataRoot => Path.Combine(NSFileManager.DefaultManager.GetUrls(
+        NSSearchPathDirectory.ApplicationSupportDirectory, NSSearchPathDomain.User)[0].Path!,
+        "Z0MB1ES-execution-probe");
+
+    internal static void StartupTrace(string message)
+    {
+        Console.WriteLine(message);
+        try
+        {
+            Directory.CreateDirectory(DataRoot);
+            File.AppendAllText(Path.Combine(DataRoot, "device-trace.txt"), $"{DateTime.UtcNow:O} {message}\n");
+        }
+        catch (Exception error) { Console.WriteLine($"startup-trace=unavailable {error.Message}"); }
+    }
 }
 
 [Register("AppDelegate")]
 public sealed class AppDelegate : UIApplicationDelegate
 {
-    public override bool FinishedLaunching(UIApplication application, NSDictionary? launchOptions) => true;
+    public override bool FinishedLaunching(UIApplication application, NSDictionary? launchOptions)
+    {
+        Program.StartupTrace("application=finished-launching");
+        return true;
+    }
 
     public override UISceneConfiguration GetConfiguration(UIApplication application,
-        UISceneSession connectingSceneSession, UISceneConnectionOptions options) =>
-        new("Probe", connectingSceneSession.Role);
+        UISceneSession connectingSceneSession, UISceneConnectionOptions options)
+    {
+        Program.StartupTrace("scene=configuration-requested");
+        return new("Probe", connectingSceneSession.Role)
+        {
+            // Keep the native scene delegate reachable from managed startup too.
+            // A plist class name alone does not root its managed registration.
+            DelegateType = typeof(SceneDelegate)
+        };
+    }
 }
 
 [Register("SceneDelegate")]
@@ -30,6 +61,7 @@ public sealed class SceneDelegate : UIResponder, IUIWindowSceneDelegate
     [Export("scene:willConnectToSession:options:")]
     public void WillConnect(UIScene scene, UISceneSession session, UISceneConnectionOptions options)
     {
+        Program.StartupTrace("scene=connecting");
         if (scene is not UIWindowScene windowScene) return;
         Window = new UIWindow(windowScene) { RootViewController = new ProbeController() };
         Window.MakeKeyAndVisible();
@@ -51,9 +83,8 @@ public sealed class ProbeController : UIViewController
     {
         base.ViewDidLoad();
         View!.BackgroundColor = UIColor.SystemBackground;
-        root = Path.Combine(NSFileManager.DefaultManager.GetUrls(
-            NSSearchPathDirectory.ApplicationSupportDirectory, NSSearchPathDomain.User)[0].Path!,
-            "Z0MB1ES-execution-probe");
+        Program.StartupTrace("view=loading");
+        root = Program.DataRoot;
         Directory.CreateDirectory(root);
         trace = Path.Combine(root, "device-trace.txt");
         var title = new UILabel
@@ -93,7 +124,7 @@ public sealed class ProbeController : UIViewController
         Log($"launch utc={DateTime.UtcNow:O} device={UIDevice.CurrentDevice.Model} " +
             $"ios={UIDevice.CurrentDevice.SystemVersion} runtime={RuntimeInformation.FrameworkDescription} " +
             $"arch={RuntimeInformation.ProcessArchitecture} dynamicCodeCompiled={RuntimeFeature.IsDynamicCodeCompiled}");
-        Log("Expected build: Release ios-arm64 Mono UseInterpreter=true TrimMode=copy; signing by AltStore. " +
+        Log("Expected build: 2 Release ios-arm64 Mono UseInterpreter=true MtouchLink=None; " +
             "Record launch/JIT conditions separately; runtime flags alone do not prove interpreter use.");
         await Run(() =>
         {

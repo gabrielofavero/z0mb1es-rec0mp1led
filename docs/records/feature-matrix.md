@@ -127,9 +127,19 @@ The macOS launcher and unsigned `.app`/`.pkg` use the shared import/Reimport tra
 
 | Path | Evidence | Remaining gate |
 | --- | --- | --- |
-| Generated IL, Cecil rewrite, reflection and delegate invocation | Desktop checks and a separate-process reload passed; corrupted payload rejected. | Run the Release interpreter IPA from AltStore after reboot without enabling JIT. |
-| XAP import and persistent data | Pinned XAP extraction, real-game metadata roundtrip, 221 persisted-file hashes, failed-repeat preservation and corrupt-output rejection passed on macOS. | Test the system picker and source-free restart on iPhone. The metadata-roundtrip DLL is not an executable game preparation. |
-| Three-song conversion | Static libav/libvorbis bridge converted all three tracks in-process on macOS; full decode and durations matched the sources. | Build/link iOS static libraries, measure device conversion and memory, then verify actual game playback/timing. |
-| IPA / game execution | UI source compiled against iOS 26.0.11017 references. Local build/audit source exists. | This Ventura Mac lacks full Xcode; no IPA or device trace exists. All three game modes remain unproven on iOS. |
+| Generated IL, Cecil rewrite, reflection and delegate invocation | Build-2 iPhone trace shows two generated payloads passed. User confirmed no JIT and `persistent-il=passed` in response to the reboot/Home Screen procedure. Desktop corruption rejection also passed. | Initial no-JIT probe accepted. Actual game generics/reflection/native callbacks and performance remain to prove. |
+| XAP import and persistent data | Device trace shows exact XAP extraction, 163-type metadata roundtrip and picker cancellation. User confirmed `persistent-import=passed` after the restart procedure. Desktop failed-repeat and corruption checks also passed. | Still test deletion of a disposable source, corrupt input and failed-repeat preservation on the device. The metadata-roundtrip DLL is not an executable game preparation. |
+| Three-song conversion | Build-2 device trace shows all three in-process conversions passed. Full decode and duration comparisons previously passed on macOS. | Measure device memory and verify original-game playback, progression and song-clock timing. |
+| IPA / game execution | Build 2 passed payload and packaged-code audits. User trace confirms the UI and experiments now run on iPhone 16 Pro / iOS 26.7.1 after repairing build 1's packaging defect. | Initial feasibility probe accepted; no FNA host or prepared-game execution exists. All three game modes remain unproven on iOS. |
 
-The user confirmed AltStore setup on 2026-11-10. The [execution decision and contingent fallback](../runtime/ios-execution.md) preserve the open gate; no mobile release or all-mode acceptance is claimed.
+The user confirmed AltStore setup and used the local sideloading route for the probe. Sideloadly 0.72 is installed locally; exact signing options and refresh/update acceptance remain unrecorded. The [execution decision and contingent fallback](../runtime/ios-execution.md) preserve the open all-mode gate; no mobile release is claimed.
+
+## iOS build 4 (player candidate)
+
+| Path | Current evidence | Remaining check |
+| --- | --- | --- |
+| FNA/original game host | Release device IPA builds, packaged methods/dependencies survive, static native exports and content-free payload audit pass. | Original-game graphics, all modes, timing/performance on iPhone; the user declined further diagnostic installations. |
+| In-process import | Exact iOS ABI and complete preparation pass locally; invalid XAP, cancellation and changed catalog preserve assets/saves. | Native picker, source-free restart, repair and import pressure on this host/device. |
+| Optional artwork | Independent source selections, pinned in-process Steam/360 importer and existing Original/Enhanced preferences are implemented. All 68 phone textures/padded PNGs match the independent desktop decoder. | Real Steam/LIVE source preparation on the portable importer and device; source packages were unavailable for a fresh local run. |
+| Creator and system UI | PHPicker/ImageIO thumbnail adapter, graphics-thread upload, original pause integration and Files/share logs are packaged. | Device photo/color/orientation/save persistence, background/resume, safe areas and iPad layout. |
+| Icon/signing | Opaque black square source, iPhone/iPad PNGs and bundle declarations audited; existing app identity retained. | Player install/update and signing-renewal preservation for build 4. |

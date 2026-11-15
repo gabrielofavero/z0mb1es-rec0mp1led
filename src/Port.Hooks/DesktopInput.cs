@@ -10,6 +10,10 @@ namespace Port.Hooks;
 /// <summary>Supplies desktop contacts at the original TouchMgr input boundary.</summary>
 public static class DesktopInput
 {
+    // Opted into by the iOS host only; desktop/native touch behavior stays unchanged.
+    public static bool NativeBackButtonEnabled { get; set; }
+    private static readonly TouchBackButton touchBack = new();
+    private static readonly Queue<GestureSample> nativeGestures = new();
     private static Game? game;
     private static readonly Queue<GestureSample> gestures = new();
     private static readonly Contact[] contacts = [new(100), new(101), new(102), new(103)];
@@ -71,6 +75,9 @@ public static class DesktopInput
     public static void Configure(Game runningGame)
     {
         game = runningGame;
+        NativeBackButtonEnabled = false;
+        touchBack.Reset();
+        nativeGestures.Clear();
         gestures.Clear();
         foreach (var contact in contacts) contact.Reset();
         previousAccept = previousBack = false;
@@ -183,7 +190,16 @@ public static class DesktopInput
                                      state.Buttons.Back == ButtonState.Pressed))
                  : state.Buttons.B == ButtonState.Pressed ||
                    state.Buttons.Back == ButtonState.Pressed));
-        var pressed = (back && !previousBack) || mouseBack;
+        var nativeBack = NativeBackButtonEnabled && player == PlayerIndex.One &&
+            touchBack.Sample(TouchPanel.GetState(), BackButtonBounds(DesktopDisplay.SceneSize),
+                game?.IsActive == true && BackButtonVisible());
+        if (nativeBack)
+        {
+            nativeGestures.Clear();
+            gestures.Clear();
+            Console.WriteLine("native-back=pressed");
+        }
+        var pressed = (back && !previousBack) || mouseBack || nativeBack;
         previousBack = back;
         return pressed ? new GamePadState(Vector2.Zero, Vector2.Zero, 0, 0, Buttons.Back) :
             state.Buttons.Back == ButtonState.Pressed ?
@@ -208,7 +224,8 @@ public static class DesktopInput
         var native = TouchPanel.GetState();
         if (game is null) return native;
         var touches = new List<TouchLocation>(native.Count + contacts.Length);
-        foreach (var touch in native) touches.Add(touch);
+        foreach (var touch in native)
+            if (!NativeBackButtonEnabled || !touchBack.Consumes(touch.Id)) touches.Add(touch);
 
         var active = game.IsActive;
         if (active) ActiveSamples++;
@@ -364,10 +381,24 @@ public static class DesktopInput
         return new TouchCollection(touches.ToArray());
     }
 
-    public static bool IsGestureAvailable => !DesktopDisplay.CapturesInput &&
-        (TouchPanel.IsGestureAvailable || gestures.Count > 0);
+    public static bool IsGestureAvailable
+    {
+        get
+        {
+            if (DesktopDisplay.CapturesInput) return false;
+            if (!NativeBackButtonEnabled) return TouchPanel.IsGestureAvailable || gestures.Count > 0;
+            while (TouchPanel.IsGestureAvailable)
+            {
+                var gesture = TouchPanel.ReadGesture();
+                if (!touchBack.Consumes(gesture)) nativeGestures.Enqueue(gesture);
+            }
+            return nativeGestures.Count > 0 || gestures.Count > 0;
+        }
+    }
 
-    public static GestureSample ReadGesture() => TouchPanel.IsGestureAvailable
+    public static GestureSample ReadGesture() => NativeBackButtonEnabled
+        ? nativeGestures.Count > 0 ? nativeGestures.Dequeue() : gestures.Dequeue()
+        : TouchPanel.IsGestureAvailable
         ? TouchPanel.ReadGesture()
         : gestures.Dequeue();
 

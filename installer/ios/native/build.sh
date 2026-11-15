@@ -4,7 +4,8 @@ set -eu
 repo=$(CDPATH= cd -- "$(dirname -- "$0")/../../.." && pwd)
 target=${1:-ios-arm64}
 case "$target" in
-  ios-arm64) sdk=iphoneos; minimum=15.0; triple=arm64-apple-ios$minimum; platform=ios ;;
+  # FFmpeg calls all Apple targets "darwin"; the SDK and compiler triple select iOS.
+  ios-arm64) sdk=iphoneos; minimum=15.0; triple=arm64-apple-ios$minimum; platform=darwin ;;
   osx-arm64) sdk=macosx; minimum=13.0; triple=arm64-apple-macos$minimum; platform=darwin ;;
   *) echo 'Expected ios-arm64 or osx-arm64' >&2; exit 1 ;;
 esac
@@ -32,12 +33,18 @@ for archive in libogg-1.3.6.tar.gz libvorbis-1.3.7.tar.xz ffmpeg-239f2c733d.tar.
 done
 cd libogg-1.3.6
 ./configure --host=aarch64-apple-darwin --prefix="$prefix" --disable-shared --enable-static
+make clean
 make -j4
 make install
 cd ../libvorbis-1.3.7
-./configure --host=aarch64-apple-darwin --prefix="$prefix" --disable-shared --enable-static --disable-oggtest --disable-vorbistest
-make -j4
-make install
+./configure --host=aarch64-apple-darwin --prefix="$prefix" --disable-shared --enable-static \
+  --disable-oggtest --disable-docs --disable-examples
+# Its configure script adds the obsolete -force_cpusubtype_ALL Darwin flag.
+# Override build flags explicitly: Xcode 26's iOS linker rejects that flag.
+vorbis_cflags="$CFLAGS -fno-common -fsigned-char"
+make clean
+make -j4 CFLAGS="$vorbis_cflags"
+make CFLAGS="$vorbis_cflags" install
 cd ../FFmpeg-239f2c733d
 ./configure --cc="$CC" --arch=aarch64 --target-os="$platform" --enable-cross-compile \
   --sysroot="$sdkroot" --disable-autodetect --disable-everything --disable-programs \
@@ -46,6 +53,7 @@ cd ../FFmpeg-239f2c733d
   --disable-swscale --disable-swresample --enable-decoder=wmav2 --enable-demuxer=asf \
   --enable-encoder=libvorbis --enable-libvorbis --enable-muxer=ogg --enable-protocol=file \
   --pkg-config-flags=--static --extra-cflags="-O2 -fPIC -I$prefix/include" --extra-ldflags="-L$prefix/lib"
+make clean
 make -j4
 # Deliberate word splitting: CC contains compiler flags, not a shell program.
 $CC -O2 -fPIC -Wall -Wextra -Werror -I. -c "$repo/installer/ios/native/audio.c" -o "$work/audio.o"

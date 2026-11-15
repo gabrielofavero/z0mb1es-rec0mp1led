@@ -9,6 +9,12 @@
     <PublishAot>false</PublishAot>
     <!-- Imported IL and Cecil need metadata that a closed-world trim would remove. -->
     <TrimMode>copy</TrimMode>
+    <!-- In this SDK TrimMode alone controls framework assemblies. None also
+         assigns copy to the app and project references, including UIKit callbacks. -->
+    <MtouchLink>None</MtouchLink>
+    <!-- This experiment intentionally loads unknown IL. copy retains every assembly;
+         closed-world trim analysis cannot describe that execution model. -->
+    <EnableTrimAnalyzer>false</EnableTrimAnalyzer>
     <EnableCodeSigning>false</EnableCodeSigning>
     <BuildIpa>true</BuildIpa>
     <IpaPackageName>Z0MB1ES-execution-probe.ipa</IpaPackageName>

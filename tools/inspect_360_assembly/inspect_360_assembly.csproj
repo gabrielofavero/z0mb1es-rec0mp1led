@@ -6,6 +6,6 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="../inspect_assembly/MetadataNames.cs" Link="MetadataNames.cs" />
+    <Compile Include="../../src/Port.Analysis/MetadataNames.cs" Link="MetadataNames.cs" />
   </ItemGroup>
 </Project>

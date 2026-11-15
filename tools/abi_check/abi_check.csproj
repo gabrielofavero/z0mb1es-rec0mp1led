@@ -7,6 +7,6 @@
     <NuGetAudit>false</NuGetAudit>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="../inspect_assembly/MetadataNames.cs" Link="MetadataNames.cs" />
+    <ProjectReference Include="../../src/Port.Analysis/Port.Analysis.csproj" />
   </ItemGroup>
 </Project>

@@ -22,4 +22,6 @@ dotnet build "$project" -c Release --no-restore \
   -p:EnableCodeSigning=false -p:BuildIpa=true \
   -p:UseInterpreter=true -p:PublishAot=false -p:TrimMode=copy \
   -bl:out/ios/probe-build.binlog
+dotnet run --project tests/IosProbe.Checks -c Release -- --bundle \
+  src/Port.IosProbe/bin/Release/net10.0-ios26.0/ios-arm64/Z0MB1ES-execution-probe.ipa
 python3 installer/ios/audit-probe.py

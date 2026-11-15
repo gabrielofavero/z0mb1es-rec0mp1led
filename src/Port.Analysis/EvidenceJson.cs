@@ -19,7 +19,7 @@ internal static class EvidenceJson
         }
     }
 
-    private static int RunChecked(string[] args)
+    internal static int RunChecked(string[] args)
     {
         var versionsPath = "config/supported-versions.json";
         if (args.Length >= 2 && args[^2] == "--versions")

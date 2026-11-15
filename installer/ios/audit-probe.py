@@ -4,14 +4,18 @@ import argparse
 import json
 import plistlib
 import struct
+import subprocess
+import tempfile
 import zipfile
 from pathlib import Path
 
 repo = Path(__file__).resolve().parents[2]
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--ipa', type=Path, help='Explicit experiment IPA (also useful for audit fixtures)')
+parser.add_argument('--game-host', action='store_true', help='Audit the FNA/original-game host experiment')
 args = parser.parse_args()
-ipas = [args.ipa.resolve()] if args.ipa else list((repo / 'src/Port.IosProbe/bin/Release').rglob('Z0MB1ES-execution-probe.ipa'))
+project, package = ('Port.IosGame', 'Z0MB1ES.ipa') if args.game_host else ('Port.IosProbe', 'Z0MB1ES-execution-probe.ipa')
+ipas = [args.ipa.resolve()] if args.ipa else list((repo / f'src/{project}/bin/Release').rglob(package))
 if len(ipas) != 1:
     raise SystemExit(f'Expected one fresh probe IPA, found {len(ipas)}')
 ipa = ipas[0]
@@ -42,8 +46,45 @@ with zipfile.ZipFile(ipa) as archive:
     native = repo / 'out/ios/native/libz0audio.a'
     if hashlib.sha256(native.read_bytes()).hexdigest() != converter:
         raise SystemExit('Converter identity differs from native input')
-    # Source project has no content resources, FNA, game runtime or prepared output.
+    if args.game_host:
+        if info['CFBundleVersion'] != '5' or info['CFBundleDisplayName'] != 'Z0MB1ES':
+            raise SystemExit('Unexpected original-game host build number')
+        if not info.get('UIFileSharingEnabled') or not info.get('LSSupportsOpeningDocumentsInPlace'):
+            raise SystemExit('Game logs must be accessible from Files')
+        for key in ('CFBundleIcons', 'CFBundleIcons~ipad'):
+            if not info.get(key, {}).get('CFBundlePrimaryIcon', {}).get('CFBundleIconFiles'):
+                raise SystemExit('Missing black app icon declaration')
+        pin = json.loads((repo / 'config/ios-packaging.json').read_text())
+        for name, expected in pin['nativeLibraries'].items():
+            if hashlib.sha256((repo / 'out/ios/game/native' / name).read_bytes()).hexdigest() != expected:
+                raise SystemExit('Native link input differs: ' + name)
+        for name, expected in pin['preparationAssemblies'].items():
+            if hashlib.sha256(archive.read(prefix + 'preparation/' + name)).hexdigest() != expected:
+                raise SystemExit('Unexpected preparation metadata: ' + name)
+        runtime_names = sorted(name for name in names if name.startswith(prefix + 'abi-runtime/') and name.endswith('.dll'))
+        rows = ''.join(Path(name).name + ' ' + hashlib.sha256(archive.read(name)).hexdigest() + '\n'
+                       for name in runtime_names)
+        if hashlib.sha256(rows.encode()).hexdigest() != pin['runtimeCatalogSha256']:
+            raise SystemExit('Unexpected iOS runtime metadata catalog')
+        with tempfile.NamedTemporaryFile() as binary:
+            binary.write(executable)
+            binary.flush()
+            symbols = subprocess.check_output(['/usr/bin/nm', '-gU', binary.name], text=True)
+        exported = {line.split()[-1] for line in symbols.splitlines() if line.split()}
+        for name in ('SDL_RunApp', 'FNA3D_CreateDevice', 'FAudioCreate', 'z0_audio_convert'):
+            if '_' + name not in exported:
+                raise SystemExit('Missing linked native symbol: ' + name)
+    icon_names = {prefix + path.name for path in (repo / 'out/ios/game/icons').glob('*.png')} if args.game_host else set()
+    if args.game_host:
+        if len(icon_names) != 5 or not icon_names.issubset(names):
+            raise SystemExit('Missing generated black app icons')
+        for name in icon_names:
+            if archive.read(name) != (repo / 'out/ios/game/icons' / Path(name).name).read_bytes():
+                raise SystemExit('Packaged icon differs from staged black icon')
+    # Authored libraries and target metadata are allowed; imported game material is not.
     for name in names:
+        if name in icon_names:
+            continue
         lower = name.lower()
         if lower.endswith(('.xap', '.xnb', '.wma', '.ogg', '.png', '.jpg', '.jpeg')) or any(
             token in lower for token in ('zombieswp7', 'content-manifest', 'patch-manifest', 'game-metadata', 'phone-original', 'optional-art', 'embedded.mobileprovision')
@@ -65,6 +106,9 @@ report = {
     'localXapComparison': bool(source_hashes),
     'deviceAcceptance': 'not established by this audit',
 }
-destination = repo / 'out/ios/probe-audit.json'
+if args.game_host:
+    report['nativeLibraries'] = pin['nativeLibraries']
+    report['runtimeCatalogSha256'] = pin['runtimeCatalogSha256']
+destination = repo / ('out/ios/game-audit.json' if args.game_host else 'out/ios/probe-audit.json')
 destination.write_text(json.dumps(report, indent=2) + '\n')
 print(json.dumps(report, indent=2))

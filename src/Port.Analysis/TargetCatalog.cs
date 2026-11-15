@@ -5,7 +5,7 @@ internal sealed class TargetCatalog : IDisposable
 {
     private readonly List<TargetAssembly> assemblies = [];
     private readonly Dictionary<string, List<TargetType>> types = new(StringComparer.Ordinal);
-    public TargetCatalog(string fnaPath, string? bridgePath = null)
+    public TargetCatalog(string fnaPath, string? bridgePath = null, IReadOnlyList<string>? runtimeAssemblies = null)
     {
         Add(fnaPath, "FNA");
         var fna = assemblies[0];
@@ -17,7 +17,7 @@ internal sealed class TargetCatalog : IDisposable
             if (assemblies[1].Name != "Port.Bridge")
                 throw new InvalidDataException("Bridge target is not Port.Bridge");
         }
-        var paths = ((string?)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES"))?
+        var paths = runtimeAssemblies ?? ((string?)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES"))?
             .Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries)
             ?? throw new InvalidOperationException(".NET trusted platform assembly list unavailable");
         foreach (var path in paths.Distinct(StringComparer.OrdinalIgnoreCase).Order(StringComparer.Ordinal))

@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType></PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/Port.Art/Port.Art.csproj" />
+    <Compile Include="../../src/Port.IosBundled/BundledAssets.cs" Link="BundledAssets.cs" />
+  </ItemGroup>
+</Project>

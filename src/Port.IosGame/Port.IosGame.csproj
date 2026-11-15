@@ -1,0 +1,52 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-ios26.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>Port.IosGame</AssemblyName>
+    <SupportedOSPlatformVersion>15.0</SupportedOSPlatformVersion>
+    <RuntimeIdentifier>ios-arm64</RuntimeIdentifier>
+    <UseInterpreter>true</UseInterpreter>
+    <PublishAot>false</PublishAot>
+    <TrimMode>copy</TrimMode>
+    <MtouchLink>None</MtouchLink>
+    <EnableTrimAnalyzer>false</EnableTrimAnalyzer>
+    <EnableCodeSigning>false</EnableCodeSigning>
+    <BuildIpa>true</BuildIpa>
+    <IpaPackageName>Z0MB1ES.ipa</IpaPackageName>
+    <JsonSerializerIsReflectionEnabledByDefault>true</JsonSerializerIsReflectionEnabledByDefault>
+    <!-- FNA resolves static imports with dlsym from the main executable. -->
+    <MtouchNoSymbolStrip>true</MtouchNoSymbolStrip>
+    <_ExportSymbolsExplicitly>false</_ExportSymbolsExplicitly>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Port.Prepare/Port.Prepare.csproj" />
+    <ProjectReference Include="../Port.Bridge/Port.Bridge.csproj" />
+    <ProjectReference Include="../Port.Hooks/Port.Hooks.csproj" />
+    <Reference Include="FNA"><HintPath>$(FnaDependencyDirectory)/managed/FNA.dll</HintPath><Private>true</Private></Reference>
+    <Compile Include="../Port.IosProbe/NativeAudioConverter.cs" Link="NativeAudioConverter.cs" />
+    <ProjectReference Include="../Port.Art/Port.Art.csproj" />
+    <NativeReference Include="../../out/ios/game/native/*.a">
+      <Kind>Static</Kind><ForceLoad>true</ForceLoad><IsCxx>true</IsCxx>
+      <Frameworks>AudioToolbox CoreBluetooth CoreHaptics CoreMotion OpenGLES Metal GameController AVFoundation CoreVideo CoreAudio CoreGraphics UIKit Foundation</Frameworks>
+    </NativeReference>
+    <!-- Theorafile already contains Ogg/Vorbis. Load converter members on demand
+         to avoid forcing duplicate codec definitions from its combined archive. -->
+    <NativeReference Include="../../out/ios/native/libz0audio.a"><Kind>Static</Kind><ForceLoad>false</ForceLoad></NativeReference>
+    <LinkerArgument Include="-Wl,-u,_z0_audio_convert" />
+    <!-- The native libraries are resolved by FNA's runtime DllImportResolver.
+         Retain their global symbols even when the interpreter has no native call site. -->
+    <LinkerArgument Include="-Wl,-export_dynamic" />
+    <LinkerArgument Include="-lz" /><LinkerArgument Include="-liconv" />
+    <BundleResource Include="../../out/ios/game/icons/*.png" LogicalName="%(Filename)%(Extension)" />
+    <BundleResource Include="../../out/ios/game/preparation/*" LogicalName="preparation/%(Filename)%(Extension)" />
+    <BundleResource Include="../../out/ios/game/abi-runtime/*.dll" LogicalName="abi-runtime/%(Filename)%(Extension)" />
+    <BundleResource Include="../../out/ios/native/converter-identity.txt" LogicalName="converter-identity.txt" />
+    <BundleResource Include="../../out/ios/native/notices/*" LogicalName="notices/%(Filename)%(Extension)" />
+    <BundleResource Include="../../out/deps/fna-26.11/FNA/licenses/*" LogicalName="notices/fna/%(Filename)%(Extension)" />
+    <BundleResource Include="../../out/deps/fna-26.11/FNA/lib/FAudio/LICENSE" LogicalName="notices/FAudio.txt" />
+    <BundleResource Include="../../out/deps/fna-26.11/FNA/lib/FNA3D/LICENSE" LogicalName="notices/FNA3D.txt" />
+    <BundleResource Include="../../out/deps/fna-26.11/FNA/lib/FNA3D/MojoShader/LICENSE.txt" LogicalName="notices/MojoShader.txt" />
+    <BundleResource Include="../../out/deps/fna-26.11/FNA/lib/SDL3-CS/LICENSE" LogicalName="notices/SDL3-binding.txt" />
+    <BundleResource Include="../../out/deps/fna-26.11/FNA/lib/Theorafile/licenses/*" LogicalName="notices/theorafile/%(Filename)%(Extension)" />
+  </ItemGroup>
+</Project>

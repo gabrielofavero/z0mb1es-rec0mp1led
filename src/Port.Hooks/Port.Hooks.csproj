@@ -1,5 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup><AssemblyName>Port.Hooks</AssemblyName><InformationalVersion>1.0.0</InformationalVersion><IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion></PropertyGroup>
+  <!-- Keep the reviewed DLL fingerprint independent of the Git revision. -->
+  <PropertyGroup><EnableSourceLink>false</EnableSourceLink></PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../Port.Bridge/Port.Bridge.csproj" />
     <Reference Include="FNA"><HintPath>$(FnaDependencyDirectory)/managed/FNA.dll</HintPath><Private>true</Private></Reference>
