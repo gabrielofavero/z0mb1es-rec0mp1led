@@ -76,7 +76,8 @@ public static class Program
         var game = (Game)Activator.CreateInstance(type)!;
         GameTrace.Write("game1=created");
         game.Content.RootDirectory = System.IO.Path.Combine(active.ContentRoot, "Content");
-        DesktopDisplay.Configure(game);
+        DesktopDisplay.Configure(game, mobile: true);
+        DeviceVibration.Configure();
         DesktopInput.Configure(game);
         DesktopAchievements.Configure();
         var monitor = new MobileSession(game, type, !File.Exists(System.IO.Path.Combine(saveRoot, "savegame")));
@@ -170,7 +171,8 @@ internal sealed class MobileSession(Game game, Type type, bool firstSave) : Draw
             settings.GetType().GetField("showTouchPads")!.SetValue(settings, true);
             padsSet = true;
         }
-        // Keep the original mobile Settings layout and touch controls.
+        if (ready) DesktopDisplay.AttachSettingsMenu();
+        DesktopDisplay.Update();
         if (updates == 120 || updates % 1800 == 0)
             GameTrace.Write($"game-progress updates={updates} frames={Frames} state={state} elapsed={elapsed.Elapsed.TotalSeconds:F2}");
         base.Update(time);

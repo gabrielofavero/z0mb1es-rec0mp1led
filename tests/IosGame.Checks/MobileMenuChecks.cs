@@ -42,7 +42,6 @@ internal static class MobileMenuChecks
         var itemField = levelType.GetField("item", instances)!;
         var location = itemType.GetField("loc", instances)!;
         var tilt = itemType.GetField("tiltLoc", instances)!;
-        var flag = itemType.GetField("flag", instances)!;
         var levels = (IDictionary)Activator.CreateInstance(typeof(Dictionary<,>).MakeGenericType(typeof(int), levelType))!;
         var menuType = Type("IMAK3Z0MB1EGAEM.menu.Menu");
         menuType.GetField("menuLevel", statics)!.SetValue(null, levels);
@@ -51,37 +50,80 @@ internal static class MobileMenuChecks
         levels[2] = Activator.CreateInstance(Type("IMAK3Z0MB1EGAEM.menu.Pause"))!;
         levels[3] = Activator.CreateInstance(Type("IMAK3Z0MB1EGAEM.menu.EndGameYouSure"))!;
         levels[5] = Activator.CreateInstance(Type("IMAK3Z0MB1EGAEM.menu.Settings"))!;
-        var snapshots = new Dictionary<object, (Vector2 Location, Vector2 Tilt, int Flag)>(ReferenceEqualityComparer.Instance);
-        foreach (var level in levels.Values)
-            if (itemField.GetValue(level) is Array items)
-                foreach (var item in items)
-                    snapshots.TryAdd(item!, ((Vector2)location.GetValue(item)!, (Vector2)tilt.GetValue(item)!, (int)flag.GetValue(item)!));
-        var layout = new MobileMenuLayout(assembly);
-        foreach (var width in new[] { 783f, 600f, 900f, 783f })
+        var hooks = typeof(DesktopDisplay);
+        void Set(string name, object? value) => hooks.GetField(name, statics)!.SetValue(null, value);
+        void Invoke(string name) => hooks.GetMethod(name, statics)!.Invoke(null, null);
+        Set("mobile", true);
+        Set("menuScaleField", Type("ZombiesWP7.Game1").GetField("MENUSCALE", statics));
+        hooks.GetMethod("AttachSettingsMenu", statics, [typeof(Assembly)])!.Invoke(null, [assembly]);
+        var settings = levels[5]!;
+        var text = itemType.GetField("text", instances)!;
+        object[] Items() => ((Array)itemField.GetValue(settings)!).Cast<object>().ToArray();
+        string[] Labels() => Items().Select(item => (string)text.GetValue(item)!).ToArray();
+        void Click(string label) => Assert(DesktopDisplay.HandleSettingsClick(settings, label), "Settings click was not handled: " + label);
+        Assert(Labels().Contains("GRAPH1CS") && Labels().Contains("AUD10") && Labels().Contains("GAMEPLAY"), "Modified Settings categories missing.");
+        var pauseOffsets = new Dictionary<object, Vector2>(ReferenceEqualityComparer.Instance);
+        foreach (var key in new[] { 2, 3 })
+            foreach (var item in (Array)itemField.GetValue(levels[key])!)
+                pauseOffsets[item!] = (Vector2)location.GetValue(item)!;
+        foreach (var width in new[] { 783, 600, 900, 783 })
         {
-            Assert(layout.Apply(width), "Menu layout did not follow a scene width change.");
-            Assert(!layout.Apply(width), "Menu layout applied twice at the same width.");
+            Set("sceneSize", (width, 360));
+            Invoke("CenterMenuItems");
             foreach (var key in new[] { 2, 3 })
             {
-                var items = ((Array)itemField.GetValue(levels[key])!).Cast<object>().ToArray();
-                var xs = items.Select(item => ((Vector2)location.GetValue(item)!).X).ToArray();
-                Assert(Math.Abs((xs.Min() + xs.Max()) / 2f - width / (2 * scale)) < 0.001f, "Pause group is off center.");
-                var first = items[0];
-                foreach (var item in items)
-                {
-                    var actual = (Vector2)location.GetValue(item)!;
-                    Assert(Vector2.Distance(actual - (Vector2)location.GetValue(first)!, snapshots[item].Location - snapshots[first].Location) < 0.001f,
-                        "Pause rows lost their stagger or vertical positions.");
-                    Assert(Vector2.Distance((Vector2)tilt.GetValue(item)! - actual, snapshots[item].Tilt - snapshots[item].Location) < 0.001f, "Menu draw and hit positions diverged.");
-                }
+                var group = ((Array)itemField.GetValue(levels[key])!).Cast<object>().ToArray();
+                var xs = group.Select(item => ((Vector2)location.GetValue(item)!).X).ToArray();
+                Assert(Math.Abs((xs.Min() + xs.Max()) / 2f - width / (2f * scale)) < 0.001f, "Pause group is off center.");
+                foreach (var item in group)
+                    Assert(Vector2.Distance((Vector2)location.GetValue(item)! - (Vector2)location.GetValue(group[0])!,
+                        pauseOffsets[item] - pauseOffsets[group[0]]) < 0.001f, "Pause rows lost their stagger.");
             }
-            foreach (var item in (Array)itemField.GetValue(levels[5])!)
+            Click("GRAPH1CS");
+            var labels = Labels();
+            Assert(labels.Length == 4 && labels[0].StartsWith("M0DE:") && labels[1].StartsWith("R3DUCE FLASH1NG:") && labels[2] == "ASSETS" && labels[3] == "BACK", "Mobile Graphics rows differ.");
+            var offsets = new[] { -60f, 50f, -55f, 10f };
+            for (var i = 0; i < offsets.Length; i++)
             {
-                var original = snapshots[item!];
-                var expected = original.Location + new Vector2((width - 600) / 2 / (original.Flag is 0 or 1 ? scale : 1), 0);
-                Assert(Vector2.Distance((Vector2)location.GetValue(item)!, expected) < 0.001f, "Settings row offset changed.");
+                var item = Items()[i];
+                var actual = (Vector2)location.GetValue(item)!;
+                Assert(Math.Abs(actual.X - (width / (2f * scale) + offsets[i])) < 0.001f, "Mobile Graphics lost its stagger.");
+                Assert(Vector2.Distance(actual, (Vector2)tilt.GetValue(item)!) < 0.001f, "Graphics hit and draw positions differ.");
             }
+            Click("VSYNC: OFF");
+            Click("RES0LUTI0N: 600 X 360");
+            Assert(Labels().SequenceEqual(labels), "Hidden display controls changed mobile settings.");
+            Click("ASSETS");
+            Assert(DesktopDisplay.IsAssetPage, "Assets page missing.");
+            Assert(DesktopDisplay.HandleSettingsCancel(settings) && DesktopDisplay.IsDisplayPage, "Assets Back did not return to Graphics.");
+            Assert(DesktopDisplay.HandleSettingsCancel(settings), "Graphics Back failed.");
+            Click("GAMEPLAY");
+            Click("1NPUT");
+            Click("T0UCHPADS");
+            Assert(DesktopDisplay.IsTouchpadPage && Labels().Any(label => label.StartsWith("TOUCHPAD SIZE:")), "Modified touchpad settings missing.");
+            Assert(DesktopDisplay.HandleSettingsCancel(settings) && DesktopDisplay.IsTouchPage, "Touchpads Back failed.");
+            Assert(DesktopDisplay.HandleSettingsCancel(settings) && DesktopDisplay.IsGameplayPage, "Input Back failed.");
+            Assert(DesktopDisplay.HandleSettingsCancel(settings), "Gameplay Back failed.");
+            Click("AUD10");
+            Assert(Labels().Contains("BACK"), "Audio Back missing.");
+            Assert(DesktopDisplay.HandleSettingsCancel(settings), "Audio Back failed.");
         }
-        Console.WriteLine("IOS_MENU_OK; real pause/confirmation/Settings layouts; width changes; touch back, hold, drag, release and gesture capture; desktop default unchanged");
+        // Verify stale desktop preferences cannot override mobile display constraints.
+        var preferences = hooks.GetField("preferences", statics)!.GetValue(null)!;
+        var preferenceType = preferences.GetType();
+        preferenceType.GetProperty("Auto")!.SetValue(preferences, false);
+        preferenceType.GetProperty("VSync")!.SetValue(preferences, false);
+        var normalized = hooks.GetMethod("MobilePreferences", statics)!.Invoke(null, [preferences])!;
+        Assert((bool)preferenceType.GetProperty("Auto")!.GetValue(normalized)! &&
+               (bool)preferenceType.GetProperty("VSync")!.GetValue(normalized)!, "Mobile did not force Auto resolution and VSync.");
+        Set("mobile", false);
+        Assert(ReferenceEquals(preferences, hooks.GetMethod("MobilePreferences", statics)!.Invoke(null, [preferences])), "Desktop preferences changed.");
+        // Recreate Settings to verify the desktop still exposes all six Graphics rows.
+        levels[5] = Activator.CreateInstance(Type("IMAK3Z0MB1EGAEM.menu.Settings"))!;
+        settings = levels[5]!;
+        hooks.GetMethod("AttachSettingsMenu", statics, [typeof(Assembly)])!.Invoke(null, [assembly]);
+        Click("GRAPH1CS");
+        Assert(Labels().Length == 6 && Labels().Any(label => label.StartsWith("RES0LUTI0N:")) && Labels().Any(label => label.StartsWith("VSYNC:")), "Desktop display controls missing.");
+        Console.WriteLine("IOS_MENU_OK; shared Settings; mobile Graphics constraints; staggered rows across widths; subpage navigation; desktop controls; touch Back capture");
     }
 }

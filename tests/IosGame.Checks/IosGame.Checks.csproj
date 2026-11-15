@@ -5,7 +5,6 @@
     <ProjectReference Include="../../src/Port.Art/Port.Art.csproj" />
     <ProjectReference Include="../../src/Port.Hooks/Port.Hooks.csproj" />
     <Compile Include="../../src/Port.IosBundled/CaseMappedContentManager.cs" Link="CaseMappedContentManager.cs" />
-    <Compile Include="../../src/Port.IosBundled/MobileMenuLayout.cs" Link="MobileMenuLayout.cs" />
     <Reference Include="FNA"><HintPath>$(FnaDependencyDirectory)/managed/FNA.dll</HintPath><Private>true</Private></Reference>
   </ItemGroup>
 </Project>

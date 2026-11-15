@@ -82,7 +82,8 @@ public static class Program
         game.Content.Dispose();
         game.Content = new CaseMappedContentManager(game.Services,
             System.IO.Path.Combine(active.ContentRoot, "Content"), GameTrace.Write);
-        DesktopDisplay.Configure(game);
+        DesktopDisplay.Configure(game, mobile: true);
+        DeviceVibration.Configure();
         DesktopInput.Configure(game);
         DesktopInput.NativeBackButtonEnabled = true;
         DesktopAchievements.Configure();
@@ -107,7 +108,6 @@ public static class Program
 
 internal sealed class MobileSession(Game game, Type type, bool firstSave) : DrawableGameComponent(game)
 {
-    private readonly MobileMenuLayout menuLayout = new(type.Assembly);
     private readonly System.Collections.Concurrent.ConcurrentQueue<Action> pending = new();
     internal void Enqueue(Action action) => pending.Enqueue(action);
     internal void PauseForMenu()
@@ -177,9 +177,8 @@ internal sealed class MobileSession(Game game, Type type, bool firstSave) : Draw
             settings.GetType().GetField("showTouchPads")!.SetValue(settings, true);
             padsSet = true;
         }
-        // Keep the original mobile Settings layout and touch controls.
-        if (ready && menuLayout.Apply(DesktopDisplay.SceneSize.X))
-            GameTrace.Write($"ios-menu-layout=applied width={DesktopDisplay.SceneSize.X}; native-back=enabled; tools-overlay=disabled");
+        if (ready) DesktopDisplay.AttachSettingsMenu();
+        DesktopDisplay.Update();
         if (updates == 120 || updates % 1800 == 0)
             GameTrace.Write($"game-progress updates={updates} frames={Frames} state={state} elapsed={elapsed.Elapsed.TotalSeconds:F2}");
         base.Update(time);

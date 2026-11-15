@@ -21,6 +21,7 @@ public static class DesktopDisplay
         (2560, 1440), (3440, 1440), (3840, 1600), (3840, 2160)
     ];
     private const BindingFlags Fields = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+    private static bool mobile;
     private static Game? game;
     private static GraphicsDeviceManager? graphics;
     private static RenderTarget2D? scene;
@@ -84,8 +85,9 @@ public static class DesktopDisplay
     public static Action? ReimportRequested { get; set; }
     internal static IntPtr GameWindowHandle => game?.Window.Handle ?? IntPtr.Zero;
 
-    public static void Configure(Game runningGame)
+    public static void Configure(Game runningGame, bool mobile = false)
     {
+        DesktopDisplay.mobile = mobile;
         game = runningGame;
         graphics = (GraphicsDeviceManager?)runningGame.Services.GetService(typeof(IGraphicsDeviceManager))
             ?? throw new InvalidOperationException("Game has no graphics manager.");
@@ -124,7 +126,7 @@ public static class DesktopDisplay
         previousInfos = null;
         displayPage = touchPage = touchpadPage = gameplayPage = audioPage = assetPage = captureInput = false;
         editing = -1;
-        preferences = Load();
+        preferences = MobilePreferences(Load());
         nameText = PlayerIdentity.Name;
     }
 
@@ -155,7 +157,11 @@ public static class DesktopDisplay
     public static void AttachSettingsMenu()
     {
         if (game is null) return;
-        var assembly = game.GetType().Assembly;
+        AttachSettingsMenu(game.GetType().Assembly);
+    }
+
+    private static void AttachSettingsMenu(Assembly assembly)
+    {
         var menu = assembly.GetType("IMAK3Z0MB1EGAEM.menu.Menu", true)!;
         if (menu.GetField("menuLevel", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)?
                 .GetValue(null) is not IDictionary levels || levels.Count != 17 ||
@@ -207,11 +213,14 @@ public static class DesktopDisplay
         touchpadItems.SetValue(oldItems.GetValue(2), 1);
         touchpadItems.SetValue(Item("TOUCHPAD SIZE: ORIGINAL", 190, -65, 0.7f), 2);
         touchpadItems.SetValue(Item("BACK", 235), 3);
-        displayItems = Array.CreateInstance(itemType, 6);
+        displayItems = Array.CreateInstance(itemType, DisplayRows.Length);
         var displayLabels = new[] { "M0DE", "RES0LUTI0N", "VSYNC", "R3DUCE FLASH1NG", "ASSETS", "BACK" };
         var displayOffsets = new[] { -60f, 40f, -45f, 50f, -55f, 10f };
-        for (var i = 0; i < displayLabels.Length; i++)
-            displayItems.SetValue(Item(displayLabels[i], 95 + i * 34, displayOffsets[i], 0.7f), i);
+        for (var i = 0; i < DisplayRows.Length; i++)
+        {
+            var row = DisplayRows[i];
+            displayItems.SetValue(Item(displayLabels[row], 95 + i * 34, displayOffsets[row], 0.7f), i);
+        }
         assetItems = Array.CreateInstance(itemType, 5);
         var assetOffsets = new[] { -35f, 35f, -25f, 30f, 0f };
         for (var i = 0; i < 5; i++)
@@ -229,7 +238,7 @@ public static class DesktopDisplay
         foreach (var key in new[] { 2, 3 })
         {
             if (menuLevels![key] is not { } level || itemsField!.GetValue(level) is not Array items ||
-                items.Length != 3)
+                items.Length == 0)
                 throw new InvalidOperationException($"Original menu {key} layout differs.");
             var positions = items.Cast<object>().Select(item =>
                 (Vector2)itemLocationField!.GetValue(item)!).ToArray();
@@ -311,7 +320,7 @@ public static class DesktopDisplay
     {
         touchPage = touchpadPage = gameplayPage = audioPage = assetPage = false;
         displayPage = true;
-        titleField!.SetValue(settingsMenu, "graph1cs");
+        titleField!.SetValue(settingsMenu, "d1splay");
         itemsField!.SetValue(settingsMenu, displayItems);
         RefreshLabels();
     }
@@ -398,6 +407,8 @@ public static class DesktopDisplay
             RefreshLabels();
             return true;
         }
+        if (mobile && (text.StartsWith("RES0LUTI0N:", StringComparison.Ordinal) ||
+                       text.StartsWith("VSYNC:", StringComparison.Ordinal))) return true;
         if (text.StartsWith("M0DE:", StringComparison.Ordinal))
         {
             var modes = new[] { "Windowed", "Borderless", "Fullscreen" };
@@ -568,8 +579,8 @@ public static class DesktopDisplay
             $"R3DUCE FLASH1NG: {(preferences.ReduceFlashing ? "ON" : "OFF")}",
             "ASSETS", "BACK"
         };
-        for (var i = 0; i < displayLabels.Length; i++)
-            itemTextField.SetValue(displayItems.GetValue(i), displayLabels[i]);
+        for (var i = 0; i < DisplayRows.Length; i++)
+            itemTextField.SetValue(displayItems.GetValue(i), displayLabels[DisplayRows[i]]);
         var assetLabels = new[]
         {
             $"I MAED: {AssetChoices.NormalLabel}",
@@ -840,9 +851,16 @@ public static class DesktopDisplay
         ResolveResolution(preferences.Auto, preferences.Width, preferences.Height,
             desktopSize.Width, desktopSize.Height);
 
+    // Keep each visible row's original horizontal stagger on both hosts.
+    private static ReadOnlySpan<int> DisplayRows => mobile ? [0, 3, 4, 5] : [0, 1, 2, 3, 4, 5];
+
+    private static DisplayPreferences MobilePreferences(DisplayPreferences requested) =>
+        mobile ? requested with { Auto = true, VSync = true } : requested;
+
     private static void Apply(DisplayPreferences requested, bool save)
     {
         if (game is null || graphics is null) return;
+        requested = MobilePreferences(requested);
         if (!Valid(requested.Width, requested.Height) ||
             requested.Mode is not ("Windowed" or "Borderless" or "Fullscreen"))
             throw new ArgumentOutOfRangeException(nameof(requested));

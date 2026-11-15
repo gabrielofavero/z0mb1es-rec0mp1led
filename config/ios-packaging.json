@@ -15,8 +15,8 @@
   },
   "preparationAssemblies": {
     "FNA.dll": "5c9ae37965b3d5510c5dec4377bc7a24808c552cacbeb9e41aaf7c88e36babe6",
-    "Port.Bridge.dll": "9ad015606cb0d400fa718515bfe022bdcd48e06c19682fe98ed2e846163390b1",
-    "Port.Hooks.dll": "bc620bd6ce7237549164b1059d40ed1fb6bdcda33b3960dd1b135a7ba1eb4761"
+    "Port.Bridge.dll": "393868336e2b90f6beed904104e82064fbd69b06ce7cb199826c75c5ee88afcc",
+    "Port.Hooks.dll": "4ace25ae9aef68413321a0fed550d8180eed3b3b7894d00bb8fe250c4dcb9ab0"
   },
   "runtimeCatalogSha256": "9a86961dec1b4e8f7ec92c8b2804ed506793975230d1c1fdd955d61cf2f236bc"
 }

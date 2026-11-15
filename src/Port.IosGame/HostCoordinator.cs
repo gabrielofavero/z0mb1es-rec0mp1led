@@ -36,7 +36,9 @@ internal static class HostCoordinator
         var scene = UIApplication.SharedApplication.ConnectedScenes.OfType<UIWindowScene>()
             .OrderBy(s => s.ActivationState == UISceneActivationState.ForegroundActive ? 0 : 1).FirstOrDefault()
             ?? throw new InvalidOperationException("UIKit did not provide a window scene.");
-        window = new UIWindow(scene) { Frame = scene.CoordinateSpace.Bounds, WindowLevel = UIWindowLevel.Normal + 2 };
+        var bounds = OperatingSystem.IsIOSVersionAtLeast(26)
+            ? scene.EffectiveGeometry.CoordinateSpace.Bounds : scene.CoordinateSpace.Bounds;
+        window = new UIWindow(scene) { Frame = bounds, WindowLevel = UIWindowLevel.Normal + 2 };
         UiDiagnostics.Start();
         GameTrace.Write("host-window=created");
     }
@@ -111,7 +113,7 @@ internal sealed class IosDisplayLoop(Game game, MobileSession monitor, Action<Ex
         GameTrace.Write("game-loop=initializing");
         driver.Start();
         display = CADisplayLink.Create(Frame);
-        display.PreferredFramesPerSecond = 60;
+        display.PreferredFrameRateRange = CAFrameRateRange.Create(60, 60, 60);
         display.AddToRunLoop(NSRunLoop.Main, NSRunLoopMode.Common);
         observers.Add(NSNotificationCenter.DefaultCenter.AddObserver(UIApplication.WillResignActiveNotification, _ =>
         {

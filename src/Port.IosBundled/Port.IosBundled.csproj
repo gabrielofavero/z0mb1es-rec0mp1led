@@ -24,6 +24,7 @@
     <ProjectReference Include="../Port.Hooks/Port.Hooks.csproj" />
     <Reference Include="FNA"><HintPath>$(FnaDependencyDirectory)/managed/FNA.dll</HintPath><Private>true</Private></Reference>
     <Compile Include="../Port.IosGame/PhotoPicker.cs" Link="PhotoPicker.cs" />
+    <Compile Include="../Port.IosGame/DeviceVibration.cs" Link="DeviceVibration.cs" />
     <NativeReference Include="../../out/ios/game/native/*.a">
       <Kind>Static</Kind><ForceLoad>true</ForceLoad><IsCxx>true</IsCxx>
       <Frameworks>AudioToolbox CoreBluetooth CoreHaptics CoreMotion OpenGLES Metal GameController AVFoundation CoreVideo CoreAudio CoreGraphics UIKit Foundation</Frameworks>

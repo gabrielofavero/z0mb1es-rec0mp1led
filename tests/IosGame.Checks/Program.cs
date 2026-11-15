@@ -53,6 +53,7 @@ if (args is ["--bundled-ipa", var personalIpa])
     input.CopyTo(memory);
     memory.Position = 0;
     using var assembly = AssemblyDefinition.ReadAssembly(memory);
+    VibrationPackageChecks.Run(assembly, "RunOriginal");
     foreach (var (name, method) in new[] { ("Program", "NativeMain"), ("Program", "RunOriginal"),
         ("GameUi", "StartWatchdog"), ("GameUi", "LogWindows"), ("GameUi", "ShowFailure"),
         ("CaseMappedContentManager", "OpenStream"), ("PhotoPicker", "DidFinishPicking") })
@@ -63,8 +64,8 @@ if (args is ["--bundled-ipa", var personalIpa])
     if (assembly.MainModule.GetType("Port.IosGame.GameUi").Methods.Any(m => m.Name is "AttachMenu" or "ShowMenu"))
         throw new Exception("Personal build still contains the tools overlay.");
     var update = assembly.MainModule.GetType("Port.IosGame.MobileSession").Methods.Single(m => m.Name == "Update");
-    if (!update.Body.Instructions.Any(i => i.Operand is MethodReference m && m.DeclaringType.Name == "MobileMenuLayout" && m.Name == "Apply"))
-        throw new Exception("Personal game does not apply the mobile menu layout.");
+    if (!update.Body.Instructions.Any(i => i.Operand is MethodReference m && m.DeclaringType.FullName == "Port.Hooks.DesktopDisplay" && m.Name == "AttachSettingsMenu"))
+        throw new Exception("Personal game does not install the shared Settings menu.");
     var original = assembly.MainModule.GetType("Port.IosGame.Program").Methods.Single(m => m.Name == "RunOriginal");
     if (!original.Body.Instructions.Any(i => i.Operand is MethodReference method && method.Name == ".ctor" &&
             method.DeclaringType.FullName == "Port.IosGame.CaseMappedContentManager"))
@@ -110,9 +111,10 @@ if (args is ["--game-bundle", var ipa])
     input.CopyTo(memory);
     memory.Position = 0;
     using var assembly = AssemblyDefinition.ReadAssembly(memory);
+    VibrationPackageChecks.Run(assembly, "CreateOriginal");
     foreach (var (typeName, method) in new[] {
-        ("Program", "NativeMain"), ("Program", "RunOriginal"), ("ImportController", "ViewDidLoad"),
-        ("ImportController", "ViewDidAppear"), ("GameUi", "ShowImporter"), ("ImportShell", "EndDraw"),
+        ("Program", "NativeMain"), ("Program", "CreateOriginal"), ("ImportController", "ViewDidLoad"),
+        ("ImportController", "ViewDidAppear"), ("GameUi", "ShowImporter"), ("HostCoordinator", "Begin"),
         ("ImportController", "Pick"), ("MobileSession", "Update"), ("PhotoPicker", "DidFinishPicking") })
         if (assembly.MainModule.GetType("Port.IosGame." + typeName)?.Methods.Any(m => m.Name == method && m.HasBody) != true)
             throw new Exception("Packaged iOS host lost " + typeName + "." + method);

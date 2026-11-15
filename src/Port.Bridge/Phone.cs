@@ -18,16 +18,10 @@ namespace Microsoft.Devices
     public sealed class VibrateController
     {
         private static readonly VibrateController Instance = new();
-        private static bool absenceReported;
         private VibrateController() { }
         public static VibrateController Default => Instance;
-        public void Start(TimeSpan duration)
-        {
-            if (duration < TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(duration));
-            if (absenceReported) return;
-            absenceReported = true;
-            Trace.TraceWarning("VibrateController.Start(TimeSpan): no phone vibration motor is available; play continues without vibration.");
-        }
+        public void Start(TimeSpan duration) => GameVibration.Start(duration);
+        public void Stop() => GameVibration.Stop();
     }
 }
 

@@ -4,6 +4,7 @@ using System.Reflection;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
 using Microsoft.Xna.Framework.Input.Touch;
+using Port.Bridge;
 
 namespace Port.Hooks;
 
@@ -162,6 +163,15 @@ public static class DesktopInput
             return ScreenPosition(characterManager is null ? null :
                 (characters.GetValue(characterManager) as Array)?.GetValue(0), characterLoc, vikingScreen);
         };
+        var player = RequireField(runningGame.GetType(), "player", staticFlags);
+        var settings = RequireField(player.FieldType, "settings", instanceFlags);
+        var vibration = RequireField(settings.FieldType, "vibration", instanceFlags);
+        GameVibration.Configure(runningGame, () =>
+        {
+            var currentPlayer = player.GetValue(null);
+            var currentSettings = currentPlayer is null ? null : settings.GetValue(currentPlayer);
+            return currentSettings is not null && (bool)vibration.GetValue(currentSettings)!;
+        });
     }
 
     public static GamePadState GetGamePadState(PlayerIndex player)
