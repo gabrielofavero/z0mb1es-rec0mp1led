@@ -176,6 +176,7 @@ public static class DesktopInput
 
     public static GamePadState GetGamePadState(PlayerIndex player)
     {
+        DesktopDisplay.RefreshLayout();
         if (DesktopDisplay.CapturesInput) return default;
         var state = GamePad.GetState(player);
         var keyboard = Keyboard.GetState();
@@ -218,6 +219,7 @@ public static class DesktopInput
 
     public static TouchCollection GetState()
     {
+        DesktopDisplay.RefreshLayout();
         var mode = ReadMode();
         RestoreCarouselOnReturn(mode);
         Samples++;
@@ -490,7 +492,7 @@ public static class DesktopInput
     private static void ScrollLongMenu(object level, int wheelDelta, float rightStickY, float frameTime)
     {
         var current = (float)menuLevelScrollField!.GetValue(level)!;
-        var maximum = (float)menuLevelScrollMaxField!.GetValue(level)!;
+        var maximum = DesktopDisplay.MenuScrollLimit((float)menuLevelScrollMaxField!.GetValue(level)!, level);
         menuLevelScrollField.SetValue(level, MenuNavigation.AchievementScroll(
             current, maximum, wheelDelta, rightStickY, frameTime));
     }
@@ -499,7 +501,7 @@ public static class DesktopInput
     {
         if (LeaderboardIsReading(level)) return;
         var current = (float)menuLevelScrollField!.GetValue(level)!;
-        var maximum = (float)menuLevelScrollMaxField!.GetValue(level)!;
+        var maximum = DesktopDisplay.MenuScrollLimit((float)menuLevelScrollMaxField!.GetValue(level)!, level);
         menuLevelScrollField.SetValue(level, MenuNavigation.LeaderboardScroll(current, maximum,
             wheelDelta, verticalStep, rightStickY, (float)frameTimeField!.GetValue(null)!));
     }

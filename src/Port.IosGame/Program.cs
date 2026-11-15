@@ -77,6 +77,7 @@ public static class Program
         GameTrace.Write("game1=created");
         game.Content.RootDirectory = System.IO.Path.Combine(active.ContentRoot, "Content");
         DesktopDisplay.Configure(game, mobile: true);
+        MobileDisplay.Configure(game);
         DeviceVibration.Configure();
         DesktopInput.Configure(game);
         DesktopInput.NativeBackButtonEnabled = true;

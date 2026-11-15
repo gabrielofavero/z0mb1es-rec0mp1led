@@ -72,7 +72,44 @@ Check(DesktopDisplay.MapPointer(400, 550, new Rectangle(0, 0, 800, 600),
 if (DesktopDisplay.MapPointer(3440, 720, new Rectangle(0, 0, 3440, 1440),
         DesktopDisplay.CanvasSize(3440, 1440)) is not null)
     throw new Exception("Out-of-window coordinate was accepted.");
-Console.WriteLine("INPUT_DISPLAY_MAP_OK");
+foreach (var (width, height) in new[] { (390, 844), (844, 390), (768, 1024), (1024, 768), (360, 600) })
+{
+    var canvas = DesktopDisplay.CanvasSize(width, height);
+    var presentation = DesktopDisplay.Presentation(width, height, canvas);
+    if ((canvas.Height > canvas.Width) != (height > width) || canvas.Width < 600 || canvas.Height < 360)
+        throw new Exception("Portrait or landscape canvas changed aspect or lost the minimum scene.");
+    var logical = new Vector2(canvas.Width * 0.5f, canvas.Height * 0.8f);
+    var pixel = presentation.Offset + logical * presentation.Scale;
+    var mapped = DesktopDisplay.MapPointer((int)pixel.X, (int)pixel.Y, new Rectangle(0, 0, width, height), canvas);
+    if (mapped is null || Vector2.Distance(logical, mapped.Value) > 3)
+        throw new Exception("Rotated pointer did not use the presented scene coordinates.");
+    if (DesktopDisplay.ResolveResolution(true, 600, 360, width, height) != (width, height))
+        throw new Exception("Auto resolution did not preserve portrait display pixels.");
+}
+foreach (var viewport in new[] { new Vector2(600, 1305), new Vector2(600, 800), new Vector2(360, 780) })
+foreach (var world in new[] { new Vector2(1228.8f, 921.6f), new Vector2(1100.8f, 793.6f) })
+{
+    var zoom = DesktopDisplay.ZombieCoverZoom(viewport, world, 0.75f);
+    var projected = world * (zoom * 0.75f);
+    if (projected.X + 0.001f < viewport.X || projected.Y + 0.001f < viewport.Y ||
+        Math.Min(Math.Abs(projected.X - viewport.X), Math.Abs(projected.Y - viewport.Y)) > 0.001f)
+        throw new Exception("Portrait zombie camera leaves blank bands or zooms past the minimum needed to cover the view.");
+}
+var roomTopLeft = new Vector2(1292.8f, 985.6f);
+var roomBottomRight = roomTopLeft + new Vector2(1228.8f, 921.6f);
+var visible = new Vector2(440, 921.6f);
+foreach (var center in new[] { Vector2.Zero, roomTopLeft, roomBottomRight, roomBottomRight * 2f })
+{
+    var fitted = DesktopDisplay.ClampCameraToWorld(center, visible, roomTopLeft, roomBottomRight);
+    var top = fitted - visible / 2f;
+    var bottom = fitted + visible / 2f;
+    if (top.X < roomTopLeft.X - 0.001f || top.Y < roomTopLeft.Y - 0.001f ||
+        bottom.X > roomBottomRight.X + 0.001f || bottom.Y > roomBottomRight.Y + 0.001f)
+        throw new Exception("Portrait Endless camera shows beyond its current room.");
+}
+Console.WriteLine("PORTRAIT_CAMERA_BOUNDS_OK; nonzero Endless room origin and every arena edge");
+Console.WriteLine("PORTRAIT_CAMERA_COVER_OK; finite arena and Endless room; view scale included");
+Console.WriteLine("INPUT_DISPLAY_MAP_OK; portrait/landscape phone and tablet round trips");
 if (!DesktopDisplay.AvailablePresets(2560, 1080).SequenceEqual(
         [(600, 360), (1280, 720), (1920, 1080), (2560, 1080)]) ||
     DesktopDisplay.AvailablePresets(3840, 2160).Length != 8 ||

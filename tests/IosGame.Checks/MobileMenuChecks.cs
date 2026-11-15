@@ -90,44 +90,85 @@ internal static class MobileMenuChecks
         levels[2] = Activator.CreateInstance(Type("IMAK3Z0MB1EGAEM.menu.Pause"))!;
         levels[3] = Activator.CreateInstance(Type("IMAK3Z0MB1EGAEM.menu.EndGameYouSure"))!;
         levels[5] = Activator.CreateInstance(Type("IMAK3Z0MB1EGAEM.menu.Settings"))!;
+        var accel = Activator.CreateInstance(Type("ZombiesWP7.AccelMgr"))!;
+        accel.GetType().GetField("state", instances)!.SetValue(accel, new Vector3(0, 0, -0.5f));
+        Type("ZombiesWP7.Game1").GetField("accelMgr", statics)!.SetValue(null, accel);
+        Type("ZombiesWP7.Game1").GetField("frameTime", statics)!.SetValue(null, 1f / 60f);
+        var animate = itemType.GetMethod("Update", instances)!;
+        void CheckAnimatedRows(IEnumerable<object> rows)
+        {
+            foreach (var row in rows)
+            {
+                var target = (Vector2)location.GetValue(row)!;
+                if (target.X < -900) continue;
+                for (var frame = 0; frame < 60; frame++) animate.Invoke(row, null);
+                Assert(Vector2.Distance(target, (Vector2)tilt.GetValue(row)!) < 0.01f,
+                    "Menu animation collapsed a portrait row instead of retaining its draw/hit position.");
+            }
+        }
         var hooks = typeof(DesktopDisplay);
         void Set(string name, object? value) => hooks.GetField(name, statics)!.SetValue(null, value);
         void Invoke(string name) => hooks.GetMethod(name, statics)!.Invoke(null, null);
         CheckSafeArea();
         Set("mobile", true);
+        Assert(!DesktopDisplay.ResponsiveOrientationEnabled, "Auto rotate must default off on mobile.");
         Set("menuScaleField", Type("ZombiesWP7.Game1").GetField("MENUSCALE", statics));
         hooks.GetMethod("AttachSettingsMenu", statics, [typeof(Assembly)])!.Invoke(null, [assembly]);
         var settings = levels[5]!;
         var text = itemType.GetField("text", instances)!;
         object[] Items() => ((Array)itemField.GetValue(settings)!).Cast<object>().ToArray();
         string[] Labels() => Items().Select(item => (string)text.GetValue(item)!).ToArray();
-        void Click(string label) => Assert(DesktopDisplay.HandleSettingsClick(settings, label), "Settings click was not handled: " + label);
+        void CheckStaggeredRows()
+        {
+            var visible = Items().Where(row => ((Vector2)location.GetValue(row)!).X > -900).ToArray();
+            for (var i = 1; i < visible.Length; i++)
+            {
+                var center = DesktopDisplay.SceneSize.X / (2f * scale);
+                var before = ((Vector2)location.GetValue(visible[i - 1])!).X - center;
+                var after = ((Vector2)location.GetValue(visible[i])!).X - center;
+                Assert(before * after < 0, "Settings rows must alternate left/right on every page.");
+            }
+        }
+        void Click(string label)
+        {
+            Assert(DesktopDisplay.HandleSettingsClick(settings, label), "Settings click was not handled: " + label);
+            CheckStaggeredRows();
+            if (label == "GRAPH1CS") Assert((string)levelType.GetField("title", instances)!.GetValue(settings)! == "graph1cs", "Graphics category title differs from its entry.");
+        }
         Assert(Labels().Contains("GRAPH1CS") && Labels().Contains("AUD10") && Labels().Contains("GAMEPLAY"), "Modified Settings categories missing.");
         var pauseOffsets = new Dictionary<object, Vector2>(ReferenceEqualityComparer.Instance);
         foreach (var key in new[] { 2, 3 })
             foreach (var item in (Array)itemField.GetValue(levels[key])!)
                 pauseOffsets[item!] = (Vector2)location.GetValue(item)!;
-        foreach (var width in new[] { 783, 600, 900, 783 })
+        foreach (var (width, height) in new[] { (783, 360), (600, 1300), (600, 800), (600, 360), (900, 360), (783, 360) })
         {
-            Set("sceneSize", (width, 360));
+            Set("sceneSize", (width, height));
             Invoke("CenterMenuItems");
             foreach (var key in new[] { 2, 3 })
             {
                 var group = ((Array)itemField.GetValue(levels[key])!).Cast<object>().ToArray();
+                CheckAnimatedRows(group);
                 var xs = group.Select(item => ((Vector2)location.GetValue(item)!).X).ToArray();
                 Assert(Math.Abs((xs.Min() + xs.Max()) / 2f - width / (2f * scale)) < 0.001f, "Pause group is off center.");
                 foreach (var item in group)
-                    Assert(Vector2.Distance((Vector2)location.GetValue(item)! - (Vector2)location.GetValue(group[0])!,
-                        pauseOffsets[item] - pauseOffsets[group[0]]) < 0.001f, "Pause rows lost their stagger.");
+                {
+                    var actual = (Vector2)location.GetValue(item)! - (Vector2)location.GetValue(group[0])!;
+                    var authored = pauseOffsets[item] - pauseOffsets[group[0]];
+                    Assert(Math.Abs(actual.X - authored.X) < 0.001f, "Pause rows lost their horizontal stagger.");
+                    if (height <= width) Assert(Math.Abs(actual.Y - authored.Y) < 0.001f, "Landscape row positions drifted after rotation.");
+                }
+                if (height > width)
+                    Assert(group.All(row => ((Vector2)location.GetValue(row)!).Y * scale > height * 0.35f), "Portrait pause options are stuck at the top.");
             }
             Click("GRAPH1CS");
+            CheckAnimatedRows(Items());
             var labels = Labels();
-            Assert(labels.Length == 5 && labels[0].StartsWith("M0DE:") && labels[1].StartsWith("R3DUCE FLASH1NG:") && labels[2] == "SAFE AREA: ON" && labels[3] == "ASSETS" && labels[4] == "BACK", "Mobile Graphics rows differ.");
+            Assert(labels.Length == 6 && labels[0].StartsWith("M0DE:") && labels[1] == "AUTO R0TATE: OFF" && labels[2].StartsWith("R3DUCE FLASH1NG:") && labels[3] == "SAFE AREA: ON" && labels[4] == "ASSETS" && labels[5] == "BACK", "Mobile Graphics rows differ.");
             Click("SAFE AREA: ON");
-            Assert(!DesktopDisplay.SafeAreaEnabled && Labels()[2] == "SAFE AREA: OFF", "Mobile safe area toggle failed.");
+            Assert(!DesktopDisplay.SafeAreaEnabled && Labels()[3] == "SAFE AREA: OFF", "Mobile safe area toggle failed.");
             Click("SAFE AREA: OFF");
             Assert(DesktopDisplay.SafeAreaEnabled && Labels().SequenceEqual(labels), "Safe area did not restore immediately.");
-            var offsets = new[] { -60f, 50f, -35f, -55f, 10f };
+            var offsets = new[] { -60f, 30f, -50f, 35f, -55f, 10f };
             for (var i = 0; i < offsets.Length; i++)
             {
                 var item = Items()[i];
@@ -135,16 +176,33 @@ internal static class MobileMenuChecks
                 Assert(Math.Abs(actual.X - (width / (2f * scale) + offsets[i])) < 0.001f, "Mobile Graphics lost its stagger.");
                 Assert(Vector2.Distance(actual, (Vector2)tilt.GetValue(item)!) < 0.001f, "Graphics hit and draw positions differ.");
             }
+            var notified = false;
+            void OrientationChanged(bool enabled) => notified = enabled;
+            DesktopDisplay.ResponsiveOrientationChanged += OrientationChanged;
+            Click("AUTO R0TATE: OFF");
+            Assert(DesktopDisplay.ResponsiveOrientationEnabled && notified && Labels()[1] == "AUTO R0TATE: ON", "Auto rotate did not enable immediately.");
+            var saved = File.ReadAllText(Path.Combine(DesktopStorage.SaveDirectory, "display.json"));
+            Assert(saved.Contains("\"ResponsiveOrientation\":true"), "Auto rotate was not saved.");
+            var reloaded = hooks.GetMethod("Load", statics)!.Invoke(null, null)!;
+            Assert((bool)reloaded.GetType().GetProperty("ResponsiveOrientation")!.GetValue(reloaded)!, "Auto rotate did not survive loading preferences.");
+            Click("AUTO R0TATE: ON");
+            DesktopDisplay.ResponsiveOrientationChanged -= OrientationChanged;
+            Assert(!DesktopDisplay.ResponsiveOrientationEnabled && !notified, "Auto rotate did not return to the landscape default.");
+            if (height > width)
+                Assert(((Vector2)location.GetValue(Items()[5])!).Y * scale > height * 0.55f &&
+                    ((Vector2)location.GetValue(Items()[5])!).Y * scale < height * 0.9f, "Portrait options do not form a centered panel.");
             Click("VSYNC: OFF");
             Click("RES0LUTI0N: 600 X 360");
             Assert(Labels().SequenceEqual(labels), "Hidden display controls changed mobile settings.");
             Click("ASSETS");
+            CheckAnimatedRows(Items());
             Assert(DesktopDisplay.IsAssetPage, "Assets page missing.");
             Assert(DesktopDisplay.HandleSettingsCancel(settings) && DesktopDisplay.IsDisplayPage, "Assets Back did not return to Graphics.");
             Assert(DesktopDisplay.HandleSettingsCancel(settings), "Graphics Back failed.");
             Click("GAMEPLAY");
             Click("1NPUT");
             Click("T0UCHPADS");
+            CheckAnimatedRows(Items());
             Assert(DesktopDisplay.IsTouchpadPage && Labels().Any(label => label.StartsWith("TOUCHPAD SIZE:")), "Modified touchpad settings missing.");
             Assert(DesktopDisplay.HandleSettingsCancel(settings) && DesktopDisplay.IsTouchPage, "Touchpads Back failed.");
             Assert(DesktopDisplay.HandleSettingsCancel(settings) && DesktopDisplay.IsGameplayPage, "Input Back failed.");
@@ -153,6 +211,28 @@ internal static class MobileMenuChecks
             Assert(Labels().Contains("BACK"), "Audio Back missing.");
             Assert(DesktopDisplay.HandleSettingsCancel(settings), "Audio Back failed.");
         }
+        // Starting a mode recreates the menus while the current view may already
+        // be portrait. Exercise the new constructors, not only the old instances.
+        Set("sceneSize", (600, 1300));
+        Invoke("CenterMenuItems");
+        levels[2] = Activator.CreateInstance(Type("IMAK3Z0MB1EGAEM.menu.Pause"))!;
+        levels[3] = Activator.CreateInstance(Type("IMAK3Z0MB1EGAEM.menu.EndGameYouSure"))!;
+        levels[5] = Activator.CreateInstance(Type("IMAK3Z0MB1EGAEM.menu.Settings"))!;
+        var freshPause = ((Array)itemField.GetValue(levels[2])!).Cast<object>().ToArray();
+        var authoredYs = freshPause.Select(row => ((Vector2)location.GetValue(row)!).Y).ToArray();
+        hooks.GetMethod("AttachSettingsMenu", statics, [typeof(Assembly)])!.Invoke(null, [assembly]);
+        settings = levels[5]!;
+        CheckAnimatedRows(freshPause);
+        Assert(freshPause.All(row => ((Vector2)location.GetValue(row)!).Y * scale > 1300 * 0.35f), "Recreated portrait menu retained landscape row positions.");
+        for (var rotation = 0; rotation < 5; rotation++)
+        {
+            Set("sceneSize", (783, 360)); Invoke("CenterMenuItems"); CheckAnimatedRows(freshPause);
+            for (var row = 0; row < freshPause.Length; row++)
+                Assert(Math.Abs(((Vector2)location.GetValue(freshPause[row])!).Y - authoredYs[row]) < 0.001f, "Recreated menu drifted or collapsed after returning to landscape.");
+            Set("sceneSize", (600, 1300)); Invoke("CenterMenuItems"); CheckAnimatedRows(freshPause);
+        }
+        Set("sceneSize", (783, 360)); Invoke("CenterMenuItems");
+        Assert(!DesktopDisplay.BuildVersionInfo()[0].ToString().Contains('+'), "User-facing version leaks the commit hash.");
         CheckPlayerName(assembly);
         // Verify stale desktop preferences cannot override mobile display constraints.
         var preferences = hooks.GetField("preferences", statics)!.GetValue(null)!;
@@ -169,8 +249,9 @@ internal static class MobileMenuChecks
         settings = levels[5]!;
         hooks.GetMethod("AttachSettingsMenu", statics, [typeof(Assembly)])!.Invoke(null, [assembly]);
         Click("GRAPH1CS");
+        Assert(DesktopDisplay.ResponsiveOrientationEnabled && !Labels().Any(label => label.StartsWith("AUTO R0TATE:")), "Desktop must support portrait without the mobile switch.");
         Assert(Labels().Length == 7 && Labels().Any(label => label.StartsWith("RES0LUTI0N:")) && Labels().Any(label => label.StartsWith("VSYNC:")) && Labels().Contains("SAFE AREA: ON"), "Desktop display controls missing.");
-        var desktopOffsets = new[] { -60f, 40f, -45f, 50f, -35f, -55f, 10f };
+        var desktopOffsets = new[] { -60f, 40f, -45f, 50f, -35f, 55f, -10f };
         for (var i = 0; i < desktopOffsets.Length; i++)
         {
             var position = (Vector2)location.GetValue(Items()[i])!;
@@ -209,7 +290,7 @@ internal static class MobileMenuChecks
         Assert(DesktopDisplay.SafeAreaEnabled, "Legacy mobile save should default safe area on.");
         var margin = DesktopDisplay.HudMargin;
         Assert(margin.X > 0 && margin.Y > 0, "Safe area needs both horizontal and vertical margins.");
-        foreach (var size in new[] { new Vector2(600, 360), new Vector2(783, 360), new Vector2(600, 450), new Vector2(900, 360) })
+        foreach (var size in new[] { new Vector2(600, 360), new Vector2(783, 360), new Vector2(600, 450), new Vector2(900, 360), new Vector2(600, 1300), new Vector2(600, 800) })
         {
             var pause = DesktopDisplay.SafePausePosition(size.X - 40, 30);
             Assert(pause == new Vector2(size.X - 40 - margin.X, 30 + margin.Y) && DesktopInput.PauseHitTest(pause, size), "Inset pause glyph and hitbox differ.");
@@ -221,6 +302,19 @@ internal static class MobileMenuChecks
             Assert(DesktopDisplay.MapPointer(0, 0, new Rectangle(0, 0, (int)size.X, (int)size.Y), ((int)size.X, (int)size.Y)) == Vector2.Zero,
                 "Safe area restricted full-screen relative input.");
         }
+        var scene = hooks.GetField("sceneSize", statics)!;
+        var nativeInsets = hooks.GetField("mobileSafeInsets", statics)!;
+        var oldScene = scene.GetValue(null);
+        scene.SetValue(null, (600, 1300));
+        nativeInsets.SetValue(null, new Vector4(0, 0.09f, 0, 0.04f));
+        Assert(DesktopDisplay.SafePausePosition(560, 30).Y >= 147 &&
+            DesktopInput.VirtualStickCenter(new Vector2(600, 1300), 0.75f, false).Y <= 1158,
+            "Portrait HUD or sticks overlap the native cutout/system bar.");
+        preferenceType.GetProperty("SafeArea")!.SetValue(preferences.GetValue(null), false);
+        Assert(DesktopDisplay.HudMargin == Vector2.Zero && DesktopDisplay.SafePausePosition(560, 30).Y == 30,
+            "Native insets ignored the user's safe-area opt-out.");
+        nativeInsets.SetValue(null, Vector4.Zero);
+        scene.SetValue(null, oldScene);
         // Save explicit choices and reload on each host, including a mobile opt-out.
         foreach (var enabled in new[] { false, true })
         {

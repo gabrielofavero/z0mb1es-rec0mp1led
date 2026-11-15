@@ -22,7 +22,7 @@ public static class Program
     {
         Console.SetOut(new GameTrace.Writer());
         Console.SetError(new GameTrace.Writer());
-        GameTrace.Write($"launch build=8 variant=preinstalled ios={UIKit.UIDevice.CurrentDevice.SystemVersion} " +
+        GameTrace.Write($"launch build=11 variant=preinstalled ios={UIKit.UIDevice.CurrentDevice.SystemVersion} " +
             $"runtime={System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription} " +
             $"dynamicCodeCompiled={RuntimeFeature.IsDynamicCodeCompiled}");
         AppDomain.CurrentDomain.UnhandledException += (_, e) => GameTrace.Write("unhandled=" + e.ExceptionObject);
@@ -83,6 +83,7 @@ public static class Program
         game.Content = new CaseMappedContentManager(game.Services,
             System.IO.Path.Combine(active.ContentRoot, "Content"), GameTrace.Write);
         DesktopDisplay.Configure(game, mobile: true);
+        MobileDisplay.Configure(game);
         DeviceVibration.Configure();
         DesktopInput.Configure(game);
         DesktopInput.NativeBackButtonEnabled = true;

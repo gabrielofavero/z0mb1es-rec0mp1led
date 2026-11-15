@@ -12,7 +12,7 @@ using SDL3;
 namespace Port.Hooks;
 
 /// <summary>Expands the phone scene to the display aspect ratio and adds Display settings.</summary>
-public static class DesktopDisplay
+public static partial class DesktopDisplay
 {
     public const int LogicalWidth = 600;
     public const int LogicalHeight = 360;
@@ -80,6 +80,7 @@ public static class DesktopDisplay
     // Endless darkens unrevealed rooms after drawing the map. Its original
     // right edge was fixed at 800, which leaves a gap on wider desktop scenes.
     public static float EndlessMaskRightEdge() => sceneSize.Width;
+    public static float EndlessMaskBottomEdge() => sceneSize.Height;
     public static bool IsDisplayPage => displayPage;
     public static (int Width, int Height) RenderResolution => ActiveResolution;
     public static bool IsTouchPage => touchPage;
@@ -95,10 +96,18 @@ public static class DesktopDisplay
     public static void Configure(Game runningGame, bool mobile = false)
     {
         StopEditingName();
-        if (game is not null) game.Exiting -= OnGameExiting;
+        if (game is not null)
+        {
+            game.Exiting -= OnGameExiting;
+            game.Window.ClientSizeChanged -= OnWindowResized;
+            game.Window.OrientationChanged -= OnWindowResized;
+        }
+        if (graphics is not null) graphics.PreparingDeviceSettings -= PrepareMobileDevice;
         DesktopDisplay.mobile = mobile;
         game = runningGame;
         game.Exiting += OnGameExiting;
+        game.Window.ClientSizeChanged += OnWindowResized;
+        game.Window.OrientationChanged += OnWindowResized;
         graphics = (GraphicsDeviceManager?)runningGame.Services.GetService(typeof(IGraphicsDeviceManager))
             ?? throw new InvalidOperationException("Game has no graphics manager.");
         scene?.Dispose();
@@ -107,6 +116,9 @@ public static class DesktopDisplay
         batch = null;
         overlayPixel?.Dispose();
         overlayPixel = null;
+        achievementClip?.Dispose();
+        achievementClip = null;
+        achievementList = null;
         var assembly = runningGame.GetType().Assembly;
         const BindingFlags staticFields = BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
         var textType = assembly.GetType("IMAK3Z0MB1EGAEM.Text", true)!;
@@ -134,6 +146,9 @@ public static class DesktopDisplay
         itemFlagField = itemLocationField = itemTiltField = null;
         menuLevels = null;
         menuOffsetApplied = 0;
+        menuHeightApplied = LogicalHeight;
+        menuAnchors.Clear();
+        menuPanelApplied = default;
         originalItems = settingsItems = audioItems = touchItems = touchpadItems = gameplayItems = displayItems = assetItems = null;
         previousInfos = null;
         displayPage = touchPage = touchpadPage = gameplayPage = audioPage = assetPage = captureInput = false;
@@ -141,6 +156,17 @@ public static class DesktopDisplay
         preferences = new("Fullscreen", 600, 360);
         preferences = MobilePreferences(Load());
         nameText = PlayerIdentity.Name;
+        mobileSafeInsets = Vector4.Zero;
+        landscapeCameraZoom = null;
+        vikingCameraScale = 1f;
+        gameStateField = null;
+        if (mobile)
+        {
+            // FNA ignores SDL window-resize events unless this flag is enabled.
+            game.Window.AllowUserResizing = true;
+            graphics.PreparingDeviceSettings += PrepareMobileDevice;
+        }
+        ApplyOrientationPolicy();
     }
 
     public static void ApplyStartup(bool windowed)
@@ -154,9 +180,15 @@ public static class DesktopDisplay
         Presets.Where(preset => preset.Width <= displayWidth && preset.Height <= displayHeight).ToArray();
 
     public static (int Width, int Height) ResolveResolution(bool auto, int width, int height,
-        int displayWidth, int displayHeight) => auto
-        ? (Math.Max(LogicalWidth, displayWidth), Math.Max(LogicalHeight, displayHeight))
-        : (width, height);
+        int displayWidth, int displayHeight)
+    {
+        if (!auto) return (width, height);
+        if (displayWidth <= 0 || displayHeight <= 0) return (LogicalWidth, LogicalHeight);
+        var portrait = displayHeight > displayWidth;
+        var scale = Math.Max(1d, Math.Max((portrait ? LogicalHeight : LogicalWidth) / (double)displayWidth,
+            (portrait ? LogicalWidth : LogicalHeight) / (double)displayHeight));
+        return ((int)Math.Ceiling(displayWidth * scale), (int)Math.Ceiling(displayHeight * scale));
+    }
 
     public static StringBuilder[] BuildVersionInfo()
     {
@@ -164,6 +196,7 @@ public static class DesktopDisplay
         var version = assembly?.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
             ?? assembly?.GetName().Version?.ToString(3)
             ?? "unknown";
+        version = version.Split('+')[0];
         return [new StringBuilder($"Version {version}")];
     }
 
@@ -198,17 +231,26 @@ public static class DesktopDisplay
         layerField.SetValue(oldItems.GetValue(2), 3.5f);
         menuLevels = levels;
         menuOffsetApplied = 0;
+        menuHeightApplied = LogicalHeight;
+        menuAnchors.Clear();
+        menuPanelApplied = default;
         CenterMenuItems();
         CenterGameMenus();
         var constructor = itemType.GetConstructor([typeof(string), typeof(Vector2), typeof(float)])
             ?? throw new MissingMethodException("MenuItem(string, Vector2, float)");
-        object Item(string text, float y, float xOffset = 0, float scale = 0.9f) =>
-            constructor.Invoke([text, new Vector2(CenteredMenuX + xOffset, y), scale]);
+        object Item(string text, float y, float xOffset = 0, float scale = 0.9f)
+        {
+            var authored = new Vector2(LogicalWidth / (2f * MenuScale) + xOffset, y);
+            var item = constructor.Invoke([text, authored, scale]);
+            menuAnchors[item] = authored;
+            LayoutFixedItem(item);
+            return item;
+        }
         settingsItems = Array.CreateInstance(itemType, 8);
         Array.Copy(oldItems, settingsItems, 5);
         settingsItems.SetValue(Item("GRAPH1CS", 150, -85), 5);
         settingsItems.SetValue(Item("AUD10", 200, 115), 6);
-        settingsItems.SetValue(Item("GAMEPLAY", 250, 15), 7);
+        settingsItems.SetValue(Item("GAMEPLAY", 250, -15), 7);
         gameplayItems = Array.CreateInstance(itemType, 4);
         gameplayItems.SetValue(Item("PLAYER NAME", 105, -45, 0.7f), 0);
         gameplayItems.SetValue(Item("  " + nameText, 145, 40, 0.7f), 1);
@@ -216,26 +258,28 @@ public static class DesktopDisplay
         gameplayItems.SetValue(Item("BACK", 245, 25), 3);
         audioItems = Array.CreateInstance(itemType, 6);
         Array.Copy(oldItems, audioItems, 5);
-        audioItems.SetValue(Item("BACK", 250), 5);
+        audioItems.SetValue(Item("BACK", 250, -15), 5);
         touchItems = Array.CreateInstance(itemType, 3);
         touchItems.SetValue(oldItems.GetValue(0), 0);
-        touchItems.SetValue(Item("T0UCHPADS", 180, -20), 1);
-        touchItems.SetValue(Item("BACK", 240), 2);
+        touchItems.SetValue(Item("T0UCHPADS", 180, 20), 1);
+        touchItems.SetValue(Item("BACK", 240, -15), 2);
         touchpadItems = Array.CreateInstance(itemType, 4);
         touchpadItems.SetValue(oldItems.GetValue(1), 0);
         touchpadItems.SetValue(oldItems.GetValue(2), 1);
         touchpadItems.SetValue(Item("TOUCHPAD SIZE: ORIGINAL", 190, -65, 0.7f), 2);
-        touchpadItems.SetValue(Item("BACK", 235), 3);
+        touchpadItems.SetValue(Item("BACK", 235, 15), 3);
         displayItems = Array.CreateInstance(itemType, DisplayRows.Length);
-        var displayLabels = new[] { "M0DE", "RES0LUTI0N", "VSYNC", "R3DUCE FLASH1NG", "SAFE AREA", "ASSETS", "BACK" };
-        var displayOffsets = new[] { -60f, 40f, -45f, 50f, -35f, -55f, 10f };
+        var displayLabels = new[] { "M0DE", "RES0LUTI0N", "VSYNC", "R3DUCE FLASH1NG", "SAFE AREA", "ASSETS", "BACK", "AUTO R0TATE" };
+        var displayOffsets = mobile
+            ? new[] { -60f, 40f, -45f, -50f, 35f, -55f, 10f, 30f }
+            : new[] { -60f, 40f, -45f, 50f, -35f, 55f, -10f, 30f };
         for (var i = 0; i < DisplayRows.Length; i++)
         {
             var row = DisplayRows[i];
-            displayItems.SetValue(Item(displayLabels[row], 95 + i * (mobile ? 34 : 28), displayOffsets[row], 0.7f), i);
+            displayItems.SetValue(Item(displayLabels[row], 95 + i * (mobile ? 31 : 28), displayOffsets[row], 0.7f), i);
         }
         assetItems = Array.CreateInstance(itemType, 5);
-        var assetOffsets = new[] { -35f, 35f, -25f, 30f, 0f };
+        var assetOffsets = new[] { -35f, 35f, -25f, 30f, -15f };
         for (var i = 0; i < 5; i++)
             assetItems.SetValue(Item("BACK", 75 + i * 45, assetOffsets[i], 0.7f), i);
         settingsMenu = settings;
@@ -260,8 +304,8 @@ public static class DesktopDisplay
             var shift = new Vector2(CenteredMenuX - (minX + maxX) / 2f, 0);
             foreach (var item in items)
             {
-                itemLocationField!.SetValue(item, (Vector2)itemLocationField.GetValue(item)! + shift);
-                itemTiltField!.SetValue(item, (Vector2)itemTiltField.GetValue(item)! + shift);
+                menuAnchors[item] += shift;
+                LayoutFixedItem(item);
             }
         }
     }
@@ -269,9 +313,16 @@ public static class DesktopDisplay
     private static void PlaceOriginal(int index, bool visible, Vector2 position)
     {
         var item = originalItems!.GetValue(index)!;
-        var location = visible ? position + new Vector2(TextMenuOffset, 0) : new Vector2(-1000, -1000);
-        itemLocationField!.SetValue(item, location);
-        itemTiltField!.SetValue(item, location);
+        if (visible)
+        {
+            menuAnchors[item] = position;
+            LayoutFixedItem(item, force: true);
+        }
+        else
+        {
+            itemLocationField!.SetValue(item, new Vector2(-1000, -1000));
+            itemTiltField!.SetValue(item, new Vector2(-1000, -1000));
+        }
     }
 
     private static void ShowSettingsPage()
@@ -302,8 +353,8 @@ public static class DesktopDisplay
         touchPage = false;
         touchpadPage = true;
         PlaceOriginal(0, false, Vector2.Zero);
-        PlaceOriginal(1, true, new Vector2(LogicalWidth / (2f * MenuScale) + 27.5f, 100));
-        PlaceOriginal(2, true, new Vector2(LogicalWidth / (2f * MenuScale) + 7.5f, 145));
+        PlaceOriginal(1, true, new Vector2(LogicalWidth / (2f * MenuScale) - 27.5f, 100));
+        PlaceOriginal(2, true, new Vector2(LogicalWidth / (2f * MenuScale) + 27.5f, 145));
         itemsField!.SetValue(settingsMenu, touchpadItems);
         titleField!.SetValue(settingsMenu, "t0uchpads");
         RefreshLabels();
@@ -333,7 +384,7 @@ public static class DesktopDisplay
     {
         touchPage = touchpadPage = gameplayPage = audioPage = assetPage = false;
         displayPage = true;
-        titleField!.SetValue(settingsMenu, "d1splay");
+        titleField!.SetValue(settingsMenu, "graph1cs");
         itemsField!.SetValue(settingsMenu, displayItems);
         RefreshLabels();
     }
@@ -443,6 +494,14 @@ public static class DesktopDisplay
         }
         else if (text.StartsWith("VSYNC:", StringComparison.Ordinal))
             Apply(preferences with { VSync = !preferences.VSync }, save: true);
+        else if (text.StartsWith("AUTO R0TATE:", StringComparison.Ordinal))
+        {
+            if (!mobile) return true;
+            preferences = preferences with { ResponsiveOrientation = !preferences.ResponsiveOrientation };
+            ApplyOrientationPolicy();
+            RefreshLayout();
+            Save();
+        }
         else if (text.StartsWith("SAFE AREA:", StringComparison.Ordinal))
         {
             preferences = preferences with { SafeArea = !SafeAreaEnabled };
@@ -585,6 +644,7 @@ public static class DesktopDisplay
 
     public static void Update()
     {
+        RefreshLayout();
         if (!captureInput || game is null || !game.IsActive) return;
         var keyboard = Keyboard.GetState();
         var pad = GamePad.GetState(PlayerIndex.One);
@@ -641,7 +701,8 @@ public static class DesktopDisplay
             $"VSYNC: {(preferences.VSync ? "ON" : "OFF")}",
             $"R3DUCE FLASH1NG: {(preferences.ReduceFlashing ? "ON" : "OFF")}",
             $"SAFE AREA: {(SafeAreaEnabled ? "ON" : "OFF")}",
-            "ASSETS", "BACK"
+            "ASSETS", "BACK",
+            $"AUTO R0TATE: {(preferences.ResponsiveOrientation ? "ON" : "OFF")}"
         };
         for (var i = 0; i < DisplayRows.Length; i++)
             itemTextField.SetValue(displayItems.GetValue(i), displayLabels[DisplayRows[i]]);
@@ -672,7 +733,8 @@ public static class DesktopDisplay
     {
         if (game is null) return;
         var device = game.GraphicsDevice;
-        SyncSceneSize();
+        RefreshLayout();
+        FitGameCamera();
         var resolution = ActiveResolution;
         if (scene is null || scene.IsDisposed ||
             scene.Width != resolution.Width || scene.Height != resolution.Height)
@@ -871,52 +933,58 @@ public static class DesktopDisplay
     private static void CenterMenuItems()
     {
         if (menuLevels is null || itemsField is null || itemFlagField is null ||
-            itemLocationField is null || itemTiltField is null)
-            return;
+            itemLocationField is null || itemTiltField is null) return;
         var delta = MenuOffset - menuOffsetApplied;
-        if (delta == 0) return;
-        var locationField = itemLocationField;
-        var tiltField = itemTiltField;
-        var flagField = itemFlagField;
+        if (delta == 0 && menuHeightApplied == PortraitLayoutHeight && menuPanelApplied == MenuPanel) return;
         var seen = new HashSet<object>(ReferenceEqualityComparer.Instance);
-        void Shift(Array? items)
+        void Shift(Array? items, bool fixedRows = true)
         {
             if (items is null) return;
             foreach (var item in items)
             {
                 if (item is null || !seen.Add(item)) continue;
-                var location = (Vector2)locationField.GetValue(item)!;
-                var tilt = (Vector2)tiltField.GetValue(item)!;
-                if (location.X <= -900 && tilt.X <= -900) continue;
-                var flag = (int)flagField.GetValue(item)!;
-                var shift = flag is 0 or 1 ? delta / (float)menuScaleField!.GetValue(null)! : delta;
-                locationField.SetValue(item, location + new Vector2(shift, 0));
-                tiltField.SetValue(item, tilt + new Vector2(shift, 0));
+                var location = (Vector2)itemLocationField!.GetValue(item)!;
+                if (location.X <= -900) continue;
+                if (fixedRows) LayoutFixedItem(item);
+                else if (delta != 0)
+                {
+                    var flag = (int)itemFlagField!.GetValue(item)!;
+                    var shift = new Vector2(flag is 0 or 1 ? delta / MenuScale : delta, 0);
+                    itemLocationField.SetValue(item, location + shift);
+                    itemTiltField!.SetValue(item, (Vector2)itemTiltField!.GetValue(item)! + shift);
+                }
             }
         }
         for (var key = 0; key < 17; key++)
             if (menuLevels.Contains(key) && menuLevels[key] is { } level)
-                Shift(itemsField.GetValue(level) as Array);
-        Shift(originalItems);
-        Shift(settingsItems);
-        Shift(audioItems);
-        Shift(touchItems);
-        Shift(touchpadItems);
-        Shift(gameplayItems);
-        Shift(displayItems);
-        Shift(assetItems);
+                Shift(itemsField.GetValue(level) as Array,
+                    !(bool)level.GetType().GetField("scrolling", Fields)!.GetValue(level)! &&
+                    !(bool)level.GetType().GetField("isCustomMapper", Fields)!.GetValue(level)!);
+        Shift(originalItems); Shift(settingsItems); Shift(audioItems);
+        Shift(touchItems); Shift(touchpadItems); Shift(gameplayItems);
+        Shift(displayItems); Shift(assetItems);
         menuOffsetApplied = MenuOffset;
+        menuHeightApplied = PortraitLayoutHeight;
+        menuPanelApplied = MenuPanel;
     }
 
     private static bool Valid(int width, int height) =>
         width is >= 600 and <= 3840 && height is >= 360 and <= 2160;
 
-    private static (int Width, int Height) ActiveResolution =>
-        ResolveResolution(preferences.Auto, preferences.Width, preferences.Height,
-            desktopSize.Width, desktopSize.Height);
+    private static (int Width, int Height) ActiveResolution
+    {
+        get
+        {
+            var output = game?.GraphicsDevice?.PresentationParameters;
+            var width = output?.BackBufferWidth ?? desktopSize.Width;
+            var height = output?.BackBufferHeight ?? desktopSize.Height;
+            if (mobile && !preferences.ResponsiveOrientation) (width, height) = (Math.Max(width, height), Math.Min(width, height));
+            return ResolveResolution(preferences.Auto, preferences.Width, preferences.Height, width, height);
+        }
+    }
 
     // Keep each visible row's original horizontal stagger on both hosts.
-    private static ReadOnlySpan<int> DisplayRows => mobile ? [0, 3, 4, 5, 6] : [0, 1, 2, 3, 4, 5, 6];
+    private static ReadOnlySpan<int> DisplayRows => mobile ? [0, 7, 3, 4, 5, 6] : [0, 1, 2, 3, 4, 5, 6];
 
     private static DisplayPreferences MobilePreferences(DisplayPreferences requested) =>
         mobile ? requested with { Auto = true, VSync = true } : requested;
@@ -940,10 +1008,12 @@ public static class DesktopDisplay
             game.Window.IsBorderlessEXT = mode == "Borderless";
             graphics.IsFullScreen = mode == "Fullscreen";
             graphics.SynchronizeWithVerticalRetrace = requested.VSync;
+            var native = MobileDrawableSize();
+            var display = native is { } size ? (Width: size.X, Height: size.Y) : desktopSize;
             var resolution = ResolveResolution(requested.Auto, requested.Width, requested.Height,
-                desktopSize.Width, desktopSize.Height);
-            graphics.PreferredBackBufferWidth = mode == "Windowed" ? resolution.Width : desktopSize.Width;
-            graphics.PreferredBackBufferHeight = mode == "Windowed" ? resolution.Height : desktopSize.Height;
+                display.Width, display.Height);
+            graphics.PreferredBackBufferWidth = mode == "Windowed" ? resolution.Width : display.Width;
+            graphics.PreferredBackBufferHeight = mode == "Windowed" ? resolution.Height : display.Height;
             graphics.ApplyChanges();
             preferences = requested;
             SyncSceneSize();
@@ -1013,6 +1083,7 @@ public static class DesktopDisplay
     {
         public bool Auto { get; init; } = true;
         public bool VSync { get; init; } = true;
+        public bool ResponsiveOrientation { get; init; } = false;
         public bool ReduceFlashing { get; init; } = false;
         // Missing in older saves: use the host default until explicitly changed.
         public bool? SafeArea { get; init; }
@@ -1022,7 +1093,10 @@ public static class DesktopDisplay
     public static bool SafeAreaEnabled => preferences.SafeArea ?? mobile;
 
     // Logical scene units, scaled with the HUD at every render resolution.
-    public static Vector2 HudMargin => SafeAreaEnabled ? new Vector2(24f, 12f) : Vector2.Zero;
+    public static Vector2 HudMargin => SafeAreaEnabled
+        ? new Vector2(Math.Max(24f, Math.Max(mobileSafeInsets.X, mobileSafeInsets.Z) * sceneSize.Width),
+            Math.Max(12f, Math.Max(mobileSafeInsets.Y, mobileSafeInsets.W) * sceneSize.Height))
+        : Vector2.Zero;
     public static float SafeHudLeft(float x) => x + HudMargin.X;
     public static float SafeHudTop(float y) => y + HudMargin.Y;
     public static float SafeHudBottom(float y) => y - HudMargin.Y;

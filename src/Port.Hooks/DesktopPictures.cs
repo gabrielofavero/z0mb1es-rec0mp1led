@@ -26,6 +26,7 @@ public static class DesktopPictures
     private static object? laidOutMapper;
     private static object? laidOutItems;
     private static float laidOutOffset;
+    private static float laidOutHeight;
     private static int laidOutIndex = -1;
     private static bool laidOutEnabled;
     private static object? controlledMapper;
@@ -145,14 +146,24 @@ public static class DesktopPictures
         var enabled = count > index && (bool)manager.GetType()
             .GetMethod("GetSrcEnabled", InstanceFields)!.Invoke(manager, [index])!;
         if (ReferenceEquals(laidOutMapper, mapper) && ReferenceEquals(laidOutItems, items) &&
-            laidOutOffset == offset && laidOutIndex == index && laidOutEnabled == enabled) return;
+            laidOutOffset == offset && laidOutHeight == DesktopDisplay.SceneSize.Y && laidOutIndex == index && laidOutEnabled == enabled) return;
 
         type.GetField("orig", InstanceFields)!.SetValue(mapper,
             new Vector2((enabled ? 150 : 240) + offset, 190));
         type.GetField("rOrig", InstanceFields)!.SetValue(mapper, new Vector2(330 + offset, 190));
+        var portrait = DesktopDisplay.SceneSize.Y > DesktopDisplay.SceneSize.X;
+        var centerX = DesktopDisplay.SceneSize.X / (2f * scale);
+        var sourceY = DesktopDisplay.SceneSize.Y * 0.35f / scale;
+        var previewY = DesktopDisplay.SceneSize.Y * 0.63f / scale;
+        if (portrait)
+        {
+            type.GetField("orig", InstanceFields)!.SetValue(mapper, new Vector2(centerX, sourceY));
+            type.GetField("rOrig", InstanceFields)!.SetValue(mapper, new Vector2(centerX, previewY));
+        }
         if (items is not null)
         {
-            var positions = new[] { new Vector2(30 + offset, 180),
+            var positions = portrait ? new[] { new Vector2(30 + offset, sourceY),
+                new Vector2(450 + offset, sourceY), new Vector2(centerX, DesktopDisplay.SceneSize.Y * 0.83f / scale) } : new[] { new Vector2(30 + offset, 180),
                 new Vector2(450 + offset, 180), new Vector2(240 + offset, 280) };
             for (var i = 0; i < Math.Min(items.Length, positions.Length); i++)
             {
@@ -164,6 +175,7 @@ public static class DesktopPictures
         laidOutMapper = mapper;
         laidOutItems = items;
         laidOutOffset = offset;
+        laidOutHeight = DesktopDisplay.SceneSize.Y;
         laidOutIndex = index;
         laidOutEnabled = enabled;
     }

@@ -10,6 +10,12 @@ using Mono.Cecil;
 using Port.Art;
 using Port.IosGame;
 
+if (args is ["--mobile-display-check", var displayGame, var displayNativeDirectory])
+{
+    MobileDisplayChecks.Run(displayGame, displayNativeDirectory);
+    return;
+}
+
 if (args is ["--music-playback-check", var musicGame, var clip, var nativeDirectory])
 {
     MusicPlaybackChecks.Run(musicGame, clip, nativeDirectory);

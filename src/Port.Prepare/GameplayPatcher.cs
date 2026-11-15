@@ -66,6 +66,9 @@ public static class GameplayPatcher
     private const string VikingPlayHash = "eb57c16e78c4c7e00a6b42d688ca93f171d03458ef52691ecc147008f899067e";
     private const string MapInitHash = "7ebf709bfc179137a64d31f9352ef699431a9cc641120a6e2020b25e1ca1989f";
     private const string ParticleInitHash = "7d93b83ca79874f59fdbcc044e5f3b38409179463404e57b098da5517dcd0803";
+    private const string ResponsiveReviewHooksHash = "5fe33fd200f7a8d94cf78576ea01fa5b184c15e0a02fa58292237b8ec4dd1bd4";
+    private const string MobileDrawableHooksHash = "47aec61ecdf74b2909bd1c19f1636a29ee5a7462b1e33b5c1ccd45c44a182bb5";
+    private const string PortraitHooksHash = "c741f7fa26fe91b37050fc81291892747567f7fd36710548d6b73dd459006349";
     private const string SafeAreaHooksHash = "29e3f3888917bb57a8d7baea4419d67867068934e04eacaf944947be2e3c62c8";
     private const string MusicPlaybackHooksHash = "c7ae632d8ed2a850fd107edc9e3e4d5f28f24772e6a60c9cdd0e637b4a744bd6";
     private const string MusicUpdateHash = "5110787c8a586cec1eabe884d5f54e2ca9bfacae4092bcd92a5b36688e1065bc";
@@ -116,7 +119,7 @@ public static class GameplayPatcher
             prior.Patches.Any(patch => patch.Kind == "gameplay-call"))
             throw new PreparationException("Prepared DLL does not match its original guarded rewrite.");
         var hooksHash = Hash(hooksDll);
-        if (hooksHash is not (DebugHooksHash or ReleaseHooksHash or CurrentDebugHooksHash or CurrentReleaseHooksHash or LatestReleaseHooksHash or RestartReleaseHooksHash or EdgeArtReleaseHooksHash or VersionReleaseHooksHash or CreditsScrollHooksHash or PortCreditHooksHash or PictureButtonHooksHash or InstallerFoldersHooksHash or DocumentsSavesHooksHash or CenteredPicturesHooksHash or ReducedFlashFocusHooksHash or CreatorQualityHooksHash or ResolutionHooksHash or RowNavigationHooksHash or InlineResolutionHooksHash or SessionHooksHash or UpdatedReleaseHooksHash or PlatformHooksHash or ExplicitContentHooksHash or ImportDebugHooksHash or ImportReleaseHooksHash or LinuxPhotoDebugHooksHash or LinuxPhotoReleaseHooksHash or CurrentSourceHooksHash or MacHooksHash or CurrentMacHooksHash or StableMacHooksHash or TouchBackHooksHash or MobileSettingsHooksHash or VibrationHooksHash or MobileBackAreaHooksHash or NameInputHooksHash or MusicPlaybackHooksHash or SafeAreaHooksHash) ||
+        if (hooksHash is not (DebugHooksHash or ReleaseHooksHash or CurrentDebugHooksHash or CurrentReleaseHooksHash or LatestReleaseHooksHash or RestartReleaseHooksHash or EdgeArtReleaseHooksHash or VersionReleaseHooksHash or CreditsScrollHooksHash or PortCreditHooksHash or PictureButtonHooksHash or InstallerFoldersHooksHash or DocumentsSavesHooksHash or CenteredPicturesHooksHash or ReducedFlashFocusHooksHash or CreatorQualityHooksHash or ResolutionHooksHash or RowNavigationHooksHash or InlineResolutionHooksHash or SessionHooksHash or UpdatedReleaseHooksHash or PlatformHooksHash or ExplicitContentHooksHash or ImportDebugHooksHash or ImportReleaseHooksHash or LinuxPhotoDebugHooksHash or LinuxPhotoReleaseHooksHash or CurrentSourceHooksHash or MacHooksHash or CurrentMacHooksHash or StableMacHooksHash or TouchBackHooksHash or MobileSettingsHooksHash or VibrationHooksHash or MobileBackAreaHooksHash or NameInputHooksHash or MusicPlaybackHooksHash or SafeAreaHooksHash or PortraitHooksHash or MobileDrawableHooksHash or ResponsiveReviewHooksHash) ||
             System.Reflection.AssemblyName.GetAssemblyName(hooksDll).Name != "Port.Hooks")
             throw new PreparationException("Hook target assembly identity differs.");
 
@@ -169,6 +172,7 @@ public static class GameplayPatcher
                 PatchSafeArea(module, hooks);
                 PatchTouchOverlays(module, hooks);
                 PatchDisplay(module, hooks);
+                PatchResponsiveMenus(module, hooks);
                 PatchSpriteBatches(module, hooks);
                 PatchReducedFlashing(module, hooks);
                 PatchMenuVisuals(module, hooks);
@@ -220,6 +224,7 @@ public static class GameplayPatcher
                 VerifySafeArea(check);
                 VerifyTouchOverlays(check);
                 VerifyDisplay(check);
+                VerifyResponsiveMenus(check);
                 VerifySpriteBatches(check);
                 VerifyReducedFlashing(check);
                 VerifyMenuVisuals(check);
@@ -274,6 +279,11 @@ public static class GameplayPatcher
                         GameDrawHash + "/" + SettingsClickHash + "/" + SettingsCancelHash,
                         "draw on a full-resolution scene target through transformed SpriteBatch calls and route native Display page actions to Port.Hooks.DesktopDisplay",
                         "original game coordinates and Settings actions remain intact while imported art retains source detail"),
+                    new PatchRecord("gameplay-call", OriginalHash,
+                        "IMAK3Z0MB1EGAEM.menu.MenuLevel::Draw/Update; SceneEdit.scene.SceneMgr::DrawLayers",
+                        OriginalHash,
+                        "adapt animated menu row bounds, headings, information spacing, scroll limits and carousel centering to the live portrait scene",
+                        "preserve font proportions, row staggers, scrolling density and running game state across window and orientation changes"),
                     new PatchRecord("gameplay-call", OriginalHash,
                         "IMAK3Z0MB1EGAEM.hud.HUD::Draw; VikingHUD::DrawMoonHealthBox; ZombiesWP7.TouchMgr::Update/DrawThumbpads",
                         OriginalHash,
@@ -827,6 +837,137 @@ public static class GameplayPatcher
             throw new PreparationException("Touch overlay postcondition failed.");
     }
 
+    private static void PatchResponsiveMenus(ModuleDefinition module, ModuleDefinition hooks)
+    {
+        var display = hooks.Types.Single(type => type.FullName == "Port.Hooks.DesktopDisplay");
+        MethodReference Target(string name) => module.ImportReference(display.Methods.Single(method => method.Name == name));
+        var menu = module.Types.Single(type => type.FullName == "IMAK3Z0MB1EGAEM.menu.MenuLevel")
+            .Methods.Single(method => method.Name == "Draw");
+        var il = menu.Body.GetILProcessor();
+        foreach (var (offset, value, hook) in new[] { (0x0012, 50f, "MenuTitleY"), (0x0130, 18f, "MenuInfoSpacing"), (0x012b, 45f, "MenuInfoOffset") })
+        {
+            var anchor = menu.Body.Instructions.Single(item => item.Offset == offset);
+            if (anchor.OpCode != OpCodes.Ldc_R4 || !Equals(anchor.Operand, value))
+                throw new PreparationException("Responsive menu anchor differs.");
+            if (hook is "MenuInfoSpacing" or "MenuTitleY")
+            {
+                var level = Instruction.Create(OpCodes.Ldarg_0);
+                il.InsertAfter(anchor, level);
+                anchor = level;
+            }
+            il.InsertAfter(anchor, Instruction.Create(OpCodes.Call, Target(hook)));
+        }
+        var itemUpdate = module.Types.Single(type => type.FullName == "ZombiesWP7.menu.MenuItem")
+            .Methods.Single(method => method.Name == "Update");
+        foreach (var offset in new[] { 0x0058, 0x0065 })
+        {
+            var clamp = itemUpdate.Body.Instructions.Single(item => item.Offset == offset);
+            if (clamp.OpCode != OpCodes.Ldc_R4 || !Equals(clamp.Operand, 275f))
+                throw new PreparationException("Responsive menu animation clamp differs.");
+            itemUpdate.Body.GetILProcessor().InsertAfter(clamp, Instruction.Create(OpCodes.Call, Target("MenuItemBottom")));
+        }
+        var update = menu.DeclaringType.Methods.Single(method => method.Name == "Update");
+        var limits = update.Body.Instructions.Where(item => item.OpCode == OpCodes.Ldfld &&
+            item.Operand is FieldReference field && field.Name == "scrollMax").ToArray();
+        if (limits.Length != 2) throw new PreparationException("Responsive scroll anchors differ.");
+        foreach (var limit in limits)
+        {
+            var self = Instruction.Create(OpCodes.Ldarg_0);
+            update.Body.GetILProcessor().InsertAfter(limit, self);
+            update.Body.GetILProcessor().InsertAfter(self, Instruction.Create(OpCodes.Call, Target("MenuScrollLimit")));
+        }
+        var updateFirst = update.Body.Instructions.First();
+        update.Body.GetILProcessor().InsertBefore(updateFirst, Instruction.Create(OpCodes.Ldarg_0));
+        update.Body.GetILProcessor().InsertBefore(updateFirst, Instruction.Create(OpCodes.Call, Target("LayoutMenuLevel")));
+        var drawFirst = menu.Body.Instructions.First();
+        il = menu.Body.GetILProcessor();
+        il.InsertBefore(drawFirst, Instruction.Create(OpCodes.Ldarg_0));
+        il.InsertBefore(drawFirst, Instruction.Create(OpCodes.Ldarg_1));
+        il.InsertBefore(drawFirst, Instruction.Create(OpCodes.Call, Target("DrawPortraitAchievements")));
+        il.InsertBefore(drawFirst, Instruction.Create(OpCodes.Brfalse, drawFirst));
+        il.InsertBefore(drawFirst, Instruction.Create(OpCodes.Ret));
+        var modeMenu = module.Types.Single(type => type.FullName == "IMAK3Z0MB1EGAEM.menu.Menu")
+            .Methods.Single(method => method.Name == "Draw");
+        foreach (var offset in new[] { 0x00a9, 0x0119, 0x0184, 0x01f4, 0x025f, 0x0300 })
+        {
+            var position = modeMenu.Body.Instructions.Single(item => item.Offset == offset);
+            if (position.OpCode != OpCodes.Newobj || position.Operand is not MethodReference ctor ||
+                ctor.FullName != "System.Void Microsoft.Xna.Framework.Vector2::.ctor(System.Single,System.Single)")
+                throw new PreparationException("Portrait mode title anchor differs.");
+            position.OpCode = OpCodes.Call;
+            position.Operand = Target(offset == 0x0300 ? "ModeStartPosition" : "ModeTitlePosition");
+        }
+        var culling = module.Types.Single(type => type.FullName == "Viking_x86.zomb1es.endless.EndlessUpdate")
+            .Methods.Single(method => method.Name == "UpdateDrawableRect");
+        var viewSize = culling.Body.Instructions.Single(item => item.Offset == 0x0103);
+        if (viewSize.OpCode != OpCodes.Newobj || viewSize.Operand is not MethodReference vector ||
+            vector.FullName != "System.Void Microsoft.Xna.Framework.Vector2::.ctor(System.Single,System.Single)" ||
+            !Equals(viewSize.Previous.Operand, 480f) || !Equals(viewSize.Previous.Previous.Operand, 800f))
+            throw new PreparationException("Endless culling viewport anchor differs.");
+        viewSize.OpCode = OpCodes.Call;
+        viewSize.Operand = Target("EndlessViewSize");
+        var worldPoints = culling.Body.Instructions.Where(item => item.Operand is MethodReference method &&
+            method.FullName == "Microsoft.Xna.Framework.Vector2 IMAK3Z0MB1EGAEM.ScrollMan::GetRealLoc(Microsoft.Xna.Framework.Vector2,System.Single)").ToArray();
+        if (worldPoints.Length != 2) throw new PreparationException("Endless culling world anchors differ.");
+        foreach (var point in worldPoints) point.Operand = Target("EndlessCullWorld");
+
+        var viking = module.Types.Single(type => type.FullName == "Viking_x86.VikingGame")
+            .Methods.Single(method => method.Name == "Update");
+        var targetZoom = viking.Body.Instructions.Single(item => item.Offset == 0x01a8);
+        var offsetZoom = viking.Body.Instructions.Single(item => item.Offset == 0x018c);
+        const string zoomField = "System.Single Viking_x86.VScroll::zoom";
+        if (targetZoom.OpCode != OpCodes.Ldsfld || targetZoom.Operand is not FieldReference targetField ||
+            targetField.FullName != zoomField || offsetZoom.OpCode != OpCodes.Ldsfld ||
+            offsetZoom.Operand is not FieldReference offsetField || offsetField.FullName != zoomField)
+            throw new PreparationException("Viking portrait camera anchors differ.");
+        il = viking.Body.GetILProcessor();
+        il.InsertAfter(offsetZoom, Instruction.Create(OpCodes.Call, Target("VikingLandscapeZoom")));
+        targetZoom.OpCode = OpCodes.Ldloc_2;
+        targetZoom.Operand = null;
+        var scaleZoom = Instruction.Create(OpCodes.Call, Target("VikingPortraitZoom"));
+        var storeZoom = Instruction.Create(OpCodes.Stloc_2);
+        il.InsertAfter(targetZoom, scaleZoom);
+        il.InsertAfter(scaleZoom, storeZoom);
+        il.InsertAfter(storeZoom, Instruction.Create(OpCodes.Ldsfld, targetField));
+
+        var scene = module.Types.Single(type => type.FullName == "SceneEdit.scene.SceneMgr")
+            .Methods.Single(method => method.Name == "DrawLayers");
+        il = scene.Body.GetILProcessor();
+        foreach (var offset in new[] { 0x0563, 0x05b6 })
+        {
+            var anchor = scene.Body.Instructions.Single(item => item.Offset == offset);
+            if (anchor.OpCode != OpCodes.Call || anchor.Operand is not MethodReference multiply ||
+                multiply.Name != "op_Multiply" || anchor.Previous.Operand is not FieldReference scale || scale.Name != "VIEWSCALE")
+                throw new PreparationException("Responsive carousel anchor differs.");
+            var load = Instruction.Create(OpCodes.Ldsfld, scale);
+            il.InsertAfter(anchor, load);
+            il.InsertAfter(load, Instruction.Create(OpCodes.Call, Target("CenterCarousel")));
+        }
+    }
+
+    private static void VerifyResponsiveMenus(ModuleDefinition module)
+    {
+        foreach (var (type, method, hook, count) in new[] {
+            ("IMAK3Z0MB1EGAEM.menu.MenuLevel", "Draw", "MenuTitleY", 1),
+            ("IMAK3Z0MB1EGAEM.menu.MenuLevel", "Draw", "DrawPortraitAchievements", 1),
+            ("IMAK3Z0MB1EGAEM.menu.MenuLevel", "Draw", "MenuInfoOffset", 1),
+            ("IMAK3Z0MB1EGAEM.menu.MenuLevel", "Update", "LayoutMenuLevel", 1),
+            ("IMAK3Z0MB1EGAEM.menu.Menu", "Draw", "ModeTitlePosition", 5),
+            ("IMAK3Z0MB1EGAEM.menu.Menu", "Draw", "ModeStartPosition", 1),
+            ("Viking_x86.zomb1es.endless.EndlessUpdate", "UpdateDrawableRect", "EndlessViewSize", 1),
+            ("Viking_x86.zomb1es.endless.EndlessUpdate", "UpdateDrawableRect", "EndlessCullWorld", 2),
+            ("Viking_x86.VikingGame", "Update", "VikingPortraitZoom", 1),
+            ("Viking_x86.VikingGame", "Update", "VikingLandscapeZoom", 1),
+            ("ZombiesWP7.menu.MenuItem", "Update", "MenuItemBottom", 2),
+            ("IMAK3Z0MB1EGAEM.menu.MenuLevel", "Update", "MenuScrollLimit", 2),
+            ("IMAK3Z0MB1EGAEM.menu.MenuLevel", "Draw", "MenuInfoSpacing", 1),
+            ("SceneEdit.scene.SceneMgr", "DrawLayers", "CenterCarousel", 2) })
+            if (module.Types.Single(candidate => candidate.FullName == type).Methods.Single(candidate => candidate.Name == method)
+                .Body.Instructions.Count(item => item.Operand is MethodReference call &&
+                    call.DeclaringType.FullName == "Port.Hooks.DesktopDisplay" && call.Name == hook) != count)
+                throw new PreparationException("Responsive menu postcondition failed: " + hook);
+    }
+
     private static void PatchDisplay(ModuleDefinition module, ModuleDefinition hooks)
     {
         var display = hooks.Types.Single(type => type.FullName == "Port.Hooks.DesktopDisplay");
@@ -865,6 +1006,15 @@ public static class GameplayPatcher
         {
             edge.OpCode = OpCodes.Call;
             edge.Operand = Target("EndlessMaskRightEdge", 0);
+        }
+
+        var bottomEdges = overlay.Body.Instructions.Where(item =>
+            item.OpCode == OpCodes.Ldc_R4 && Equals(item.Operand, 480f)).ToArray();
+        if (bottomEdges.Length != 2) throw new PreparationException("Original Endless mask bottom edge differs.");
+        foreach (var edge in bottomEdges)
+        {
+            edge.OpCode = OpCodes.Call;
+            edge.Operand = Target("EndlessMaskBottomEdge", 0);
         }
 
         var click = module.Types.Single(type => type.FullName == "IMAK3Z0MB1EGAEM.menu.Settings")
@@ -926,6 +1076,10 @@ public static class GameplayPatcher
             overlay.Body.Instructions.Any(item => item.OpCode == OpCodes.Ldc_R4 &&
                 item.Operand is float value && value == 800f))
             throw new PreparationException("Endless mask right edge postcondition failed.");
+        if (overlay.Body.Instructions.Count(item => item.Operand is MethodReference method &&
+                method.DeclaringType.FullName == "Port.Hooks.DesktopDisplay" && method.Name == "EndlessMaskBottomEdge") != 2 ||
+            overlay.Body.Instructions.Any(item => item.OpCode == OpCodes.Ldc_R4 && Equals(item.Operand, 480f)))
+            throw new PreparationException("Endless mask bottom edge postcondition failed.");
         if (click.Body.Instructions.Count(item => item.Operand is MethodReference method &&
                 method.DeclaringType.FullName == "Port.Hooks.DesktopDisplay" && method.Name == "HandleSettingsClick") != 1)
             throw new PreparationException("Settings display entry postcondition failed.");
