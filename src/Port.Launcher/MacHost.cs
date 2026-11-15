@@ -99,18 +99,18 @@ internal sealed class MacImportView(string program, bool optionalArt) : IGameFil
             if (!await Ask(token, "Import Z0MB1ES (on teh ph0ne) from your Windows Phone XAP to start playing?")) return null;
             if (!optionalArt) return new ImportChoices(true, false, null, false);
             var normal = await Show(token, "optional-art",
-                "Add artwork from I MAED A GAM3 W1TH Z0MB1ES 1N IT!!!? You can skip this and add it later in Settings.") is not null;
+                "Add textures from I MAED A GAM3 W1TH Z0MB1ES 1N IT!!!? You can skip this and add it later in Settings.") is not null;
             var kind = normal ? await ChooseNormalKind(token) : null;
             var viking = await Show(token, "optional-art",
-                "Add artwork from Time Viking? You can skip this and add it later in Settings.") is not null;
+                "Add textures from Time Viking? You can skip this and add it later in Settings.") is not null;
             return new ImportChoices(true, kind is not null, kind, viking);
         }
         var selection = await Show(token, "sources");
         if (string.IsNullOrEmpty(selection)) return null;
         var choices = selection.Split('\n');
         var phone = choices.Contains("Z0MB1ES phone XAP");
-        var normalSource = optionalArt && choices.Contains("I MAED artwork");
-        var vikingSource = optionalArt && choices.Contains("Time Viking artwork");
+        var normalSource = optionalArt && choices.Contains("I MAED textures");
+        var vikingSource = optionalArt && choices.Contains("Time Viking textures");
         if (!phone && !normalSource && !vikingSource) return null;
         var normalKind = normalSource ? await ChooseNormalKind(token) : null;
         if (normalKind is null) normalSource = false;

@@ -25,7 +25,7 @@ The app's `Z0MB1ES.icns` uses the 1024px `assets/icon/icon-macos.png` artwork: a
 
 Each import picker identifies its source game and platform: the Z0MB1ES Windows Phone XAP, the I MAED Steam folder or Xbox 360 LIVE package, or the Time Viking Xbox 360 LIVE package.
 
-Optional-art prompts provide a **Skip** button. Cancelling an optional source choice or file picker skips that artwork and continues with the phone assets; cancelling optional-only reimport resumes the current game. The bundled art importer writes into the host's app-data staging tree, with a separate scratch directory, and needs no repository, Python installation, or .NET SDK on the player's machine.
+Optional-texture prompts provide a **Skip** button. Cancelling an optional source choice or file picker skips those textures and continues with the phone assets; cancelling optional-only reimport resumes the current game. The bundled art importer writes into the host's app-data staging tree, with a separate scratch directory, and needs no repository, Python installation, or .NET SDK on the player's machine.
 
 For a new-user test, install the `.pkg` and launch from Finder in a fresh macOS account. The `.pkg` and extracted `.app.zip` use the same account's persistent data, so changing formats does not reset onboarding. To repeat onboarding in your existing account, quit the game and temporarily rename `~/Library/Application Support/z0mb1es-rec0mp1led` to a backup before launching. Keep that backup to preserve saves and imported assets. Test the ZIP separately if distributing both formats.
 

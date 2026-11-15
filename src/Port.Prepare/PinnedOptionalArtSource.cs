@@ -23,7 +23,7 @@ public static class PinnedOptionalArtSource
                 bytes += Check(Path.Combine(root, "Content", relative.Replace('/', Path.DirectorySeparatorChar)),
                     row, "Steam I MAED 1.0.0.0");
             }
-            return ("I MAED Steam 1.0.0.0; I MAED and Endless artwork", bytes);
+            return ("I MAED Steam 1.0.0.0; I MAED and Endless textures", bytes);
         }
         if (kind is "i-maed-360" or "time-viking-360")
         {
@@ -34,8 +34,8 @@ public static class PinnedOptionalArtSource
                 .GetProperty("package");
             var label = kind == "i-maed-360" ? "I MAED 360 LIVE" : "Time Viking 360 LIVE";
             var bytes = Check(source, package, label);
-            return (kind == "i-maed-360" ? "I MAED 360 pinned LIVE; 121 mapped artworks" :
-                "Time Viking 360 pinned LIVE; 270 mapped artworks", bytes);
+            return (kind == "i-maed-360" ? "I MAED 360 pinned LIVE; 121 mapped textures" :
+                "Time Viking 360 pinned LIVE; 270 mapped textures", bytes);
         }
         throw new ArgumentException("Unsupported optional art source.", nameof(kind));
     }

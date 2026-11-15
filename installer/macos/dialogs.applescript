@@ -5,7 +5,7 @@ on run argv
             display dialog (item 2 of argv) with title "Z0MB1ES" buttons {"Cancel", "Continue"} default button "Continue" cancel button "Cancel"
             return "yes"
         else if action is "optional-art" then
-            display dialog (item 2 of argv) with title "Optional artwork" buttons {"Skip", "Import artwork"} default button "Skip" cancel button "Skip"
+            display dialog (item 2 of argv) with title "Optional textures" buttons {"Skip", "Import textures"} default button "Skip" cancel button "Skip"
             return "yes"
         else if action is "error" then
             display alert "Z0MB1ES" message (item 2 of argv) as critical
@@ -18,7 +18,7 @@ on run argv
         else if action is "i-maed-360" then
             return POSIX path of (choose file with prompt "Select I MAED A GAM3 W1TH Z0MB1ES 1N IT!!! — Xbox 360 LIVE package")
         else if action is "time-viking-360" then
-            return POSIX path of (choose file with prompt "Select Time Viking — Xbox 360 LIVE package (optional artwork)")
+            return POSIX path of (choose file with prompt "Select Time Viking — Xbox 360 LIVE package (optional textures)")
         else if action is "i-maed-steam" then
             return POSIX path of (choose folder with prompt "Select the I MAED A GAM3 W1TH Z0MB1ES 1N IT!!! Steam game folder")
         else if action is "photos" then
@@ -29,7 +29,7 @@ on run argv
             end repeat
             return resultText
         else if action is "sources" then
-            set selectedItems to choose from list {"Z0MB1ES phone XAP", "I MAED artwork", "Time Viking artwork"} with title "Reimport assets" with prompt "Select sources to replace or add. Saves remain intact." with multiple selections allowed
+            set selectedItems to choose from list {"Z0MB1ES phone XAP", "I MAED textures", "Time Viking textures"} with title "Reimport assets" with prompt "Select sources to replace or add. Saves remain intact." with multiple selections allowed
             if selectedItems is false then return ""
             set resultText to ""
             repeat with selectedItem in selectedItems

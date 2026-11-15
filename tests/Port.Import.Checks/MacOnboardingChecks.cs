@@ -34,7 +34,7 @@ internal static class MacOnboardingChecks
                     else if action is "normal-kind" then
                         return "{{kind}}"
                     else if action is "sources" then
-                        return "Z0MB1ES phone XAP" & linefeed & "I MAED artwork" & linefeed & "Time Viking artwork"
+                        return "Z0MB1ES phone XAP" & linefeed & "I MAED textures" & linefeed & "Time Viking textures"
                     end if
                     error "Unexpected dialog"
                 end run
