@@ -78,6 +78,7 @@ internal sealed class FolderSetup : IDisposable
     private readonly bool allowLaunch;
     private readonly Action<string> log;
     private readonly Action? imported;
+    internal bool UsesPicker { get; }
     private bool normalChosen;
     private bool vikingChosen;
     private Task<Action>? operation;
@@ -99,7 +100,7 @@ internal sealed class FolderSetup : IDisposable
     internal bool CanPlay => allowLaunch && Active is not null && Page == SetupPage.Files;
 
     internal FolderSetup(string directory, string saves, PersistentAssetStore store,
-        ActiveAssetSet? active, bool allowLaunch, Action<string> log, Action? imported = null)
+        ActiveAssetSet? active, bool allowLaunch, Action<string> log, Action? imported = null, bool usesPicker = false)
     {
         Directory = System.IO.Path.GetFullPath(directory);
         this.saves = saves;
@@ -107,10 +108,12 @@ internal sealed class FolderSetup : IDisposable
         this.allowLaunch = allowLaunch;
         this.log = log;
         this.imported = imported;
+        UsesPicker = usesPicker;
+        if (UsesPicker) System.IO.Directory.CreateDirectory(Directory);
         Active = active;
         ReduceFlashing = FirstLaunchWarning.InitialReduceFlashing(saves);
         Page = FirstLaunchWarning.IsAcknowledged(saves) ? SetupPage.Files : SetupPage.Warning;
-        if (Page == SetupPage.Files) Rescan();
+        if (Page == SetupPage.Files && !UsesPicker) Rescan();
     }
 
     internal void ContinueWarning()
@@ -121,14 +124,14 @@ internal sealed class FolderSetup : IDisposable
             FirstLaunchWarning.Acknowledge(saves, ReduceFlashing);
             log("flashing-warning=acknowledged reduceFlashing=" + ReduceFlashing);
             Page = SetupPage.Files;
-            Rescan();
+            if (!UsesPicker) Rescan();
         }
         catch (Exception error) { SetStatus("Could not save your choice. " + error.GetBaseException().Message); }
     }
 
     internal void Rescan()
     {
-        if (Page != SetupPage.Files) return;
+        if (Page != SetupPage.Files || UsesPicker) return;
         Begin("Checking files...", token =>
         {
             var files = ImportFolder.Scan(Directory, token);
@@ -144,6 +147,72 @@ internal sealed class FolderSetup : IDisposable
                 log("import-folder=scanned phone=" + files.Phone.Count + " artwork=" + (files.Normal.Count + files.Viking.Count));
             };
         });
+    }
+
+    // The system picker uses asCopy:true. Only its disposable app-local copy is
+    // transferred here; never move or delete a document at its original location.
+    internal void TakePickedFile(string slot, string temporaryCopy)
+    {
+        if (!UsesPicker || Page != SetupPage.Files || slot is not ("phone" or "normal" or "viking")) return;
+        string? folder = null;
+        try
+        {
+            folder = System.IO.Path.Combine(Directory, Guid.NewGuid().ToString("N"));
+            System.IO.Directory.CreateDirectory(folder);
+            var path = System.IO.Path.Combine(folder, System.IO.Path.GetFileName(temporaryCopy));
+            File.Move(temporaryCopy, path);
+            var staging = folder;
+            Begin("Checking file...", token =>
+            {
+                try
+                {
+                    var files = ImportFolder.Scan(staging, token);
+                    var selected = (slot == "phone" ? files.Phone : slot == "normal" ? files.Normal : files.Viking).FirstOrDefault();
+                    if (selected is null) throw new InvalidDataException("The selected package does not match " + slot + ".");
+                    token.ThrowIfCancellationRequested();
+                    return () =>
+                    {
+                        ClearPickedFile(slot);
+                        switch (slot)
+                        {
+                            case "phone": Phone = selected; break;
+                            case "normal": Normal = selected; break;
+                            case "viking": Viking = selected; break;
+                        }
+                        Page = SetupPage.Files;
+                        SetStatus("");
+                        log("picker-selection=verified slot=" + slot + " kind=" + selected.Kind);
+                    };
+                }
+                catch { DeletePickedDirectory(staging); throw; }
+            });
+        }
+        catch (Exception error)
+        {
+            if (folder is not null) DeletePickedDirectory(folder);
+            log("picker-selection-failure=" + error);
+            SetStatus("Could not read that file.");
+        }
+    }
+
+    internal void ClearPickedFile(string slot)
+    {
+        if (!UsesPicker || Page == SetupPage.Warning || Page == SetupPage.Restart) return;
+        var selected = slot == "phone" ? Phone : slot == "normal" ? Normal : Viking;
+        if (selected is not null) DeletePickedDirectory(System.IO.Path.GetDirectoryName(selected.Path)!);
+        switch (slot)
+        {
+            case "phone": Phone = null; break;
+            case "normal": Normal = null; break;
+            case "viking": Viking = null; break;
+        }
+    }
+
+    private void DeletePickedDirectory(string path)
+    {
+        try { if (System.IO.Directory.Exists(path)) System.IO.Directory.Delete(path, true); }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+        { log("picker-cleanup-failure=" + error.Message); }
     }
 
     internal void Cycle(string slot)
@@ -190,6 +259,10 @@ internal sealed class FolderSetup : IDisposable
                 Active = active;
                 imported?.Invoke();
                 log("game-import=passed source=Files");
+                if (UsesPicker)
+                {
+                    ClearPickedFile("phone"); ClearPickedFile("normal"); ClearPickedFile("viking");
+                }
                 try { SelectImportedArtwork(selection); }
                 catch (Exception error)
                 {
@@ -217,12 +290,17 @@ internal sealed class FolderSetup : IDisposable
         if (operation?.IsCompleted != true) return;
         var completed = operation;
         operation = null;
-        try { completed.GetAwaiter().GetResult()(); }
+        try
+        {
+            var apply = completed.GetAwaiter().GetResult();
+            apply();
+        }
         catch (Exception error)
         {
             Page = SetupPage.Files;
             log("files-setup-failure=" + error);
-            SetStatus(error is OperationCanceledException ? "Canceled." : "Import failed. See log.");
+            SetStatus(error is OperationCanceledException ? "Canceled." : UsesPicker && error is InvalidDataException
+                ? "Choose a supported file for this game." : "Import failed. See log.");
         }
         finally { cancellation?.Dispose(); cancellation = null; }
     }
@@ -276,5 +354,6 @@ internal sealed class FolderSetup : IDisposable
         try { operation?.GetAwaiter().GetResult(); }
         catch (Exception error) { log("setup-shutdown=" + error.GetBaseException().Message); }
         cancellation?.Dispose();
+        if (UsesPicker) DeletePickedDirectory(Directory);
     }
 }

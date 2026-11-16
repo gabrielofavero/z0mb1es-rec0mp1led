@@ -7,7 +7,7 @@ internal static class HostCoordinator
 {
     internal static void Run()
     {
-        GameData.EnsureImportFolder();
+        GameData.CleanPickerFiles();
         GameData.CleanInterruptedImports();
         try
         {
@@ -40,10 +40,32 @@ internal static class HostCoordinator
 
     private static ActiveAssetSet? Setup(ActiveAssetSet? active, bool allowLaunch, string? failure = null)
     {
-        using var setup = new FolderSetup(GameData.Imports, GameData.Saves, GameData.Store, active, allowLaunch,
-            GameTrace.Write, () => GameData.RequestImport(false));
+        using var setup = new FolderSetup(GameData.PickerFiles, GameData.Saves, GameData.Store, active, allowLaunch,
+            GameTrace.Write, () => GameData.RequestImport(false), usesPicker: true);
         if (failure is not null) setup.SetStatus("Game startup failed: " + failure);
-        using (var screen = new FolderInstallerGame(setup, mobile: true, Insets, GameTrace.Write)) screen.Run();
+        using (var screen = new FolderInstallerGame(setup, mobile: true, Insets, GameTrace.Write))
+        {
+            PackagePicker? picker = null;
+            screen.PickFile = slot =>
+            {
+                if (screen.PickerOpen) return;
+                screen.PickerOpen = true;
+                try
+                {
+                    picker = new PackagePicker(GameUi.Root(screen), path => setup.TakePickedFile(slot, path),
+                        () => screen.PickerOpen = false);
+                    picker.Show();
+                }
+                catch (Exception error)
+                {
+                    screen.PickerOpen = false;
+                    setup.SetStatus("Could not open Files.");
+                    GameTrace.Write("package-picker-presentation-failure=" + error);
+                }
+            };
+            screen.Run();
+            GC.KeepAlive(picker);
+        }
         // Dispose the setup window/device before Game1 creates its window.
         return setup.LaunchRequested ? setup.Active : null;
     }

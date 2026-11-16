@@ -20,7 +20,7 @@ public static class Program
     {
         Console.SetOut(new GameTrace.Writer());
         Console.SetError(new GameTrace.Writer());
-        GameTrace.Write($"launch build=18 variant=files-importer ios={UIDevice.CurrentDevice.SystemVersion} " +
+        GameTrace.Write($"launch build=20 variant=files-importer ios={UIDevice.CurrentDevice.SystemVersion} " +
             $"runtime={System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription} " +
             $"dynamicCodeCompiled={RuntimeFeature.IsDynamicCodeCompiled}");
         AppDomain.CurrentDomain.UnhandledException += (_, e) => GameTrace.Write("unhandled=" + e.ExceptionObject);

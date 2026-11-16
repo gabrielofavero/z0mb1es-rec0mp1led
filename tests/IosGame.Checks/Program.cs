@@ -202,12 +202,25 @@ if (args is ["--game-bundle", var ipa])
     foreach (var (typeName, method) in new[] {
         ("Program", "NativeMain"), ("Program", "CreateOriginal"), ("HostCoordinator", "Run"),
         ("FolderInstallerGame", "Update"), ("FolderInstallerGame", "Draw"), ("FolderInstallerGame", "Pointer"),
-        ("FolderSetup", "ContinueWarning"), ("FolderSetup", "Rescan"), ("FolderSetup", "Import"),
+        ("FolderSetup", "ContinueWarning"), ("FolderSetup", "TakePickedFile"), ("FolderSetup", "Import"),
+        ("PackagePicker", "Show"), ("PackagePicker", "DidPickDocument"), ("PackagePicker", "WasCancelled"),
         ("ImportFolder", "Scan"), ("SetupFont", "Draw"), ("GameUi", "Reimport"),
         ("MobileSession", "Update"), ("PhotoPicker", "DidFinishPicking"), ("CaseMappedContentManager", "OpenStream") })
         if (assembly.MainModule.GetType("Port.IosGame." + typeName)?.Methods.Any(m => m.Name == method && m.HasBody) != true)
             throw new Exception("Packaged iOS host lost " + typeName + "." + method);
     var reimport = assembly.MainModule.GetType("Port.IosGame.GameUi").Methods.Single(m => m.Name == "Reimport");
+    var picker = assembly.MainModule.GetType("Port.IosGame.PackagePicker").Methods.Single(m => m.Name == "Show");
+    if (!picker.Body.Instructions.Any(i => i.Operand is MethodReference m && m.Name == ".ctor" &&
+        m.DeclaringType.FullName == "UIKit.UIDocumentPickerViewController" && m.Parameters.Count == 2 &&
+        m.Parameters[1].ParameterType.FullName == "System.Boolean" && i.Previous.OpCode == Mono.Cecil.Cil.OpCodes.Ldc_I4_1))
+        throw new Exception("Package picker lost its copy-mode document controller.");
+    var host = assembly.MainModule.GetType("Port.IosGame.HostCoordinator");
+    if (host.Methods.Single(m => m.Name == "Run").Body.Instructions.Any(i =>
+            i.Operand is MethodReference m && m.Name == "EnsureImportFolder") ||
+        !host.Methods.Single(m => m.Name == "Setup").Body.Instructions.Any(i => i.Operand is MethodReference m &&
+            m.Name == ".ctor" && m.DeclaringType.FullName == "Port.IosGame.FolderSetup" &&
+            i.Previous.OpCode == Mono.Cecil.Cil.OpCodes.Ldc_I4_1))
+        throw new Exception("Importer host still requires the public Imports directory.");
     foreach (var required in new[] { "PauseForMenu", "SaveForBackground", "RequestImport", "Exit" })
         if (!reimport.Body.Instructions.Any(i => i.Operand is MethodReference m && m.Name == required))
             throw new Exception("Direct Reimport lost " + required);

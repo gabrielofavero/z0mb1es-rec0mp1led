@@ -19,6 +19,8 @@ internal sealed class FolderInstallerGame : Game
     private readonly FolderSetup setup;
     private readonly Func<Game, Vector4> safeInsets;
     private readonly Action<string> log;
+    internal Action<string>? PickFile { get; set; }
+    internal bool PickerOpen { get; set; }
     private readonly GraphicsDeviceManager graphics;
     private readonly RasterizerState clipped = new() { ScissorTestEnable = true, CullMode = CullMode.None };
     private SpriteBatch batch = null!;
@@ -100,6 +102,8 @@ internal sealed class FolderInstallerGame : Game
         TouchPanel.DisplayHeight = GraphicsDevice.PresentationParameters.BackBufferHeight;
         if (lastPage != setup.Page) { scroll = 0; focus = 0; pressed = false; lastPage = setup.Page; }
         Layout();
+        // UIKit owns input while its file picker is presented or dismissing.
+        if (PickerOpen) { pressed = false; finger = null; return; }
         var touches = TouchPanel.GetState();
         if (finger is null)
             foreach (var touch in touches)
@@ -223,13 +227,14 @@ internal sealed class FolderInstallerGame : Game
         }
         else
         {
-            Text("Files / Z0MB1ES / Imports\nAdd packages, then Rescan.", 2);
+            Text(setup.UsesPicker ? "Choose your files." : "Files / Z0MB1ES / Imports\nAdd packages, then Rescan.", 2);
             string Name(ImportFile? file, bool phone) => file is not null ? phone ? "XAP" : "Enhanced" :
-                setup.Active is not null ? "Keep" : phone ? "XAP required" : "Original";
-            Button("phone", "Phone: " + Name(setup.Phone, true), () => setup.Cycle("phone"));
-            Button("normal", "I MAED: " + Name(setup.Normal, false), () => setup.Cycle("normal"));
-            Button("viking", "Time Viking: " + Name(setup.Viking, false), () => setup.Cycle("viking"));
-            Button("rescan", "Rescan", setup.Rescan);
+                setup.Active is not null ? "Keep" : phone ? "Choose XAP" : setup.UsesPicker ? "Choose artwork" : "Original";
+            void Choose(string slot) { if (setup.UsesPicker) PickFile?.Invoke(slot); else setup.Cycle(slot); }
+            Button("phone", "Phone: " + Name(setup.Phone, true), () => Choose("phone"));
+            Button("normal", "I MAED: " + Name(setup.Normal, false), () => Choose("normal"));
+            Button("viking", "Time Viking: " + Name(setup.Viking, false), () => Choose("viking"));
+            if (!setup.UsesPicker) Button("rescan", "Rescan", setup.Rescan);
             Button("import", setup.AllowLaunch ? "Import and play" : "Import", setup.Import, setup.CanImport);
             if (setup.CanPlay) Button("play", "Play installed game", setup.Play);
         }

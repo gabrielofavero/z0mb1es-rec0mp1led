@@ -107,7 +107,64 @@ internal static class FolderSetupChecks
         }
         Require(originals.SequenceEqual(new[] { xap, normal, viking }.Select(Hash)) && File.ReadAllText(save) == "keep player progress",
             "Setup modified original packages or saves.");
+        PickerFlow(root, saves, store, xap, normal, viking);
+        Require(originals.SequenceEqual(new[] { xap, normal, viking }.Select(Hash)) && File.ReadAllText(save) == "keep player progress",
+            "Picker modified original packages or saves.");
         Console.WriteLine("FILES_SETUP_FLOW_OK warning; real sources; canceled/failed import; artwork-only reimport; source-free restart; sources and saves preserved");
+    }
+
+    private static void PickerFlow(string root, string saves, PersistentAssetStore store, string xap, string normal, string viking)
+    {
+        var staging = Path.Combine(root, "PickerStaging");
+        string ProviderCopy(string source)
+        {
+            var path = Path.Combine(root, Guid.NewGuid().ToString("N") + Path.GetExtension(source));
+            File.Copy(source, path);
+            return path;
+        }
+        using (var setup = new FolderSetup(staging, saves, store, null, true, Console.WriteLine, usesPicker: true))
+        {
+            Require(setup.Page == SetupPage.Files && !setup.CanImport, "Picker unexpectedly scanned public Imports.");
+            setup.TakePickedFile("phone", ProviderCopy(xap)); setup.Cancel(); Wait(setup);
+            Require(setup.Phone is null && !setup.CanImport, "Canceled picker verification selected a file.");
+            setup.TakePickedFile("phone", ProviderCopy(xap)); Wait(setup);
+            var previous = setup.Phone;
+            Require(previous is not null && previous.Path.StartsWith(staging + Path.DirectorySeparatorChar, StringComparison.Ordinal),
+                "Picker did not take ownership of its temporary copy.");
+            setup.TakePickedFile("phone", ProviderCopy(viking)); Wait(setup);
+            Require(setup.Phone == previous && File.Exists(previous!.Path), "Wrong-slot selection replaced the verified phone package.");
+            setup.TakePickedFile("normal", ProviderCopy(normal)); Wait(setup);
+            var replaced = setup.Normal!.Path;
+            setup.TakePickedFile("normal", ProviderCopy(normal)); Wait(setup);
+            Require(!File.Exists(replaced) && setup.Normal is not null, "Replacement retained an obsolete staging copy.");
+            setup.TakePickedFile("viking", ProviderCopy(viking)); Wait(setup);
+            setup.ClearPickedFile("viking");
+            Require(setup.Viking is null, "Clear did not deselect optional artwork.");
+            setup.TakePickedFile("viking", ProviderCopy(viking)); Wait(setup);
+            setup.Import(); Wait(setup);
+            Require(setup.LaunchRequested && setup.Active is not null && !Directory.EnumerateFiles(staging, "*", SearchOption.AllDirectories).Any(),
+                "Successful picker import retained source-package copies.");
+            DesktopStorage.Configure(saves);
+            AssetChoices.Initialize(setup.Active!.ArtRoot, null, null, null);
+            Require(AssetChoices.NormalLabel == "ENHANCED" && AssetChoices.VikingLabel == "ENHANCED" && AssetChoices.EndlessLabel == "ENHANCED",
+                "Picker artwork did not activate Enhanced.");
+        }
+        Require(!Directory.Exists(staging), "Picker disposal retained staging.");
+        using (var setup = new FolderSetup(staging, saves, store, store.TryOpen(), false, Console.WriteLine, usesPicker: true))
+        {
+            Require(!setup.CanPlay && !setup.CanImport, "Reimport picker did not preserve its fresh-launch boundary.");
+            setup.TakePickedFile("normal", ProviderCopy(normal)); Wait(setup);
+            setup.Import(); Wait(setup);
+            Require(setup.Page == SetupPage.Restart && !setup.LaunchRequested && !Directory.EnumerateFiles(staging, "*", SearchOption.AllDirectories).Any(),
+                "Artwork-only picker reimport failed or retained packages.");
+        }
+        using (var setup = new FolderSetup(staging, saves, store, store.TryOpen(), true, Console.WriteLine, usesPicker: true))
+        {
+            setup.TakePickedFile("normal", ProviderCopy(normal)); Wait(setup);
+            Require(setup.CanPlay, "Picker prevented source-free installed play.");
+        }
+        Require(!Directory.Exists(staging), "Abandoned picker selection was retained after disposal.");
+        Console.WriteLine("PACKAGE_PICKER_FLOW_OK canceled/invalid selection; replacement; clear; full import; Enhanced; artwork-only repair; temporary cleanup; original sources preserved");
     }
 
     private static void Wait(FolderSetup setup)
@@ -129,10 +186,12 @@ internal static class FolderSetupChecks
         var store = new PersistentAssetStore(Path.Combine(root, "Assets"), saves, (_, _, _, _) => throw new Exception("Unexpected preparation."));
         try
         {
-            using (var setup = new FolderSetup(Path.Combine(root, "Imports"), saves, store, active, true, Console.WriteLine))
+            using (var setup = new FolderSetup(Path.Combine(root, "Picker"), saves, store, active, true, Console.WriteLine, usesPicker: true))
             using (var game = new FolderInstallerGame(setup, false, _ => new Vector4(0.04f, 0.04f, 0.04f, 0.04f), Console.WriteLine))
             {
-                game.Components.Add(new RenderMonitor(game, setup, saves, output));
+                var picked = new List<string>();
+                game.PickFile = slot => picked.Add(slot);
+                game.Components.Add(new RenderMonitor(game, setup, saves, output, picked));
                 game.Run();
                 Require(setup.LaunchRequested, "Setup did not hand off from the Play button.");
             }
@@ -167,7 +226,7 @@ internal static class FolderSetupChecks
         }
     }
 
-    private sealed class RenderMonitor(FolderInstallerGame game, FolderSetup setup, string saves, string output) : DrawableGameComponent(game)
+    private sealed class RenderMonitor(FolderInstallerGame game, FolderSetup setup, string saves, string output, List<string> picked) : DrawableGameComponent(game)
     {
         private int frame;
         private bool warningContinued;
@@ -221,6 +280,10 @@ internal static class FolderSetupChecks
             }
             if (frame > 35 && warningContinued && setup.Page == SetupPage.Files)
             {
+                Require(game.Rows.All(row => row.Id != "rescan"), "Picker still shows Rescan.");
+                game.Scroll(0);
+                Tap("phone"); Tap("normal"); Tap("viking");
+                Require(picked.SequenceEqual(new[] { "phone", "normal", "viking" }), "Package rows did not request their file picker.");
                 Capture("files-portrait"); game.Scroll(10000); warningContinued = false;
             }
             if (frame > 40 && setup.CanPlay) Tap("play");

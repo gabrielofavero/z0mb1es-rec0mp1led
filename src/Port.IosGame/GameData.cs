@@ -10,6 +10,14 @@ internal static class GameData
     internal static string Root => Path.Combine(NSFileManager.DefaultManager.GetUrls(
         NSSearchPathDirectory.ApplicationSupportDirectory, NSSearchPathDomain.User)[0].Path!, "Z0MB1ES-ios-game");
     internal static string Saves => Path.Combine(Root, "Saves");
+    internal static string PickerFiles => Path.Combine(Path.GetTempPath(), "z0mb1es-package-picks");
+    internal static void CleanPickerFiles()
+    {
+        // Also remove selections left behind by termination during a prior import.
+        try { if (Directory.Exists(PickerFiles)) Directory.Delete(PickerFiles, recursive: true); }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+        { GameTrace.Write("interrupted-picker-cleanup=" + error.Message); }
+    }
     internal static string Imports => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Imports");
     internal static void EnsureImportFolder()
     {
