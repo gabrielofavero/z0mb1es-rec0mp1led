@@ -19,11 +19,14 @@
     <_ExportSymbolsExplicitly>false</_ExportSymbolsExplicitly>
   </PropertyGroup>
   <ItemGroup>
+    <!-- Earlier native UI experiments are retained in source; setup draws with FNA. -->
+    <Compile Remove="ImporterAppDelegate.cs;FirstLaunchWarningUi.cs;UiDiagnostics.cs" />
     <ProjectReference Include="../Port.Prepare/Port.Prepare.csproj" />
     <ProjectReference Include="../Port.Bridge/Port.Bridge.csproj" />
     <ProjectReference Include="../Port.Hooks/Port.Hooks.csproj" />
     <Reference Include="FNA"><HintPath>$(FnaDependencyDirectory)/managed/FNA.dll</HintPath><Private>true</Private></Reference>
     <Compile Include="../Port.IosProbe/NativeAudioConverter.cs" Link="NativeAudioConverter.cs" />
+    <Compile Include="../Port.IosBundled/CaseMappedContentManager.cs" Link="CaseMappedContentManager.cs" />
     <ProjectReference Include="../Port.Art/Port.Art.csproj" />
     <NativeReference Include="../../out/ios/game/native/*.a">
       <Kind>Static</Kind><ForceLoad>true</ForceLoad><IsCxx>true</IsCxx>

@@ -10,6 +10,24 @@ using Mono.Cecil;
 using Port.Art;
 using Port.IosGame;
 
+if (args is ["--files-setup-flow", var filesXap, var filesInputs, var filesRoot, var filesAudio, var filesNormal, var filesViking])
+{
+    FolderSetupChecks.Flow(filesXap, filesInputs, filesRoot, filesAudio, filesNormal, filesViking);
+    return;
+}
+
+if (args is ["--files-setup-render", var filesActive, var filesNative, var filesOutput])
+{
+    FolderSetupChecks.Render(filesActive, filesNative, filesOutput);
+    return;
+}
+
+if (args is ["--frame-driver-check", var importedRoot, var driverNativeDirectory])
+{
+    FrameDriverChecks.Run(importedRoot, driverNativeDirectory);
+    return;
+}
+
 if (args is ["--first-launch-warning"])
 {
     await FirstLaunchWarningChecks.Run();
@@ -159,19 +177,40 @@ if (args is ["--game-bundle", var ipa])
     memory.Position = 0;
     using var assembly = AssemblyDefinition.ReadAssembly(memory);
     VibrationPackageChecks.Run(assembly, "CreateOriginal");
+    var main = assembly.MainModule.GetType("Port.IosGame.Program").Methods.Single(m => m.Name == "Main");
+    if (!main.Body.Instructions.Any(i => i.Operand is MethodReference m && m.Name == "SDL_RunApp"))
+        throw new Exception("Files setup must enter through the SDL/FNA application lifecycle.");
+    if (assembly.MainModule.Types.Any(t => t.Name is "ImportController" or "FlashingWarningController" or "ImporterSceneDelegate"))
+        throw new Exception("Files setup unexpectedly includes native onboarding screens.");
     var original = assembly.MainModule.GetType("Port.IosGame.Program").Methods.Single(m => m.Name == "CreateOriginal");
     if (!original.Body.Instructions.Any(i => i.Operand is MethodReference m && m.Name == "set_ReimportRequested"))
         throw new Exception("Importer game does not enable asset management from Settings.");
-    if (assembly.MainModule.GetType("Port.IosGame.GameUi").Methods.Any(m => m.Name == "AttachMenu"))
+    if (!original.Body.Instructions.Any(i => i.Operand is MethodReference m && m.Name == ".ctor" &&
+            m.DeclaringType.FullName == "Port.IosGame.CaseMappedContentManager"))
+        throw new Exception("Importer game lost the verified case-insensitive asset loader.");
+    var setup = assembly.MainModule.GetType("Port.IosGame.FolderInstallerGame");
+    if (setup?.BaseType.FullName != "Microsoft.Xna.Framework.Game")
+        throw new Exception("Files setup is not rendered by FNA.");
+    if (assembly.MainModule.Types.Where(t => t.FullName.StartsWith("Port.IosGame.Folder", StringComparison.Ordinal))
+        .SelectMany(t => t.Methods).Where(m => m.HasBody).SelectMany(m => m.Body.Instructions)
+        .Any(i => i.Operand is MethodReference m && m.DeclaringType.FullName.StartsWith("UIKit.", StringComparison.Ordinal)))
+        throw new Exception("Files setup depends on UIKit controls.");
+    if (assembly.MainModule.GetType("Port.IosGame.GameUi").Methods.Any(m => m.Name is "AttachMenu" or "ShowAssetMenu"))
         throw new Exception("Importer game still contains the fixed tools button.");
     if (!original.Body.Instructions.Any(i => i.Operand is MethodReference m && m.Name == "set_NativeBackButtonEnabled"))
         throw new Exception("iOS game does not enable touch Back.");
     foreach (var (typeName, method) in new[] {
-        ("Program", "NativeMain"), ("Program", "CreateOriginal"), ("ImportController", "ViewDidLoad"),
-        ("ImportController", "ViewDidAppear"), ("GameUi", "ShowImporter"), ("GameUi", "ShowAssetMenu"), ("HostCoordinator", "Begin"),
-        ("ImportController", "Pick"), ("MobileSession", "Update"), ("PhotoPicker", "DidFinishPicking") })
+        ("Program", "NativeMain"), ("Program", "CreateOriginal"), ("HostCoordinator", "Run"),
+        ("FolderInstallerGame", "Update"), ("FolderInstallerGame", "Draw"), ("FolderInstallerGame", "Pointer"),
+        ("FolderSetup", "ContinueWarning"), ("FolderSetup", "Rescan"), ("FolderSetup", "Import"),
+        ("ImportFolder", "Scan"), ("SetupFont", "Draw"), ("GameUi", "Reimport"),
+        ("MobileSession", "Update"), ("PhotoPicker", "DidFinishPicking"), ("CaseMappedContentManager", "OpenStream") })
         if (assembly.MainModule.GetType("Port.IosGame." + typeName)?.Methods.Any(m => m.Name == method && m.HasBody) != true)
             throw new Exception("Packaged iOS host lost " + typeName + "." + method);
+    var reimport = assembly.MainModule.GetType("Port.IosGame.GameUi").Methods.Single(m => m.Name == "Reimport");
+    foreach (var required in new[] { "PauseForMenu", "SaveForBackground", "RequestImport", "Exit" })
+        if (!reimport.Body.Instructions.Any(i => i.Operand is MethodReference m && m.Name == required))
+            throw new Exception("Direct Reimport lost " + required);
     Console.WriteLine("IOS_GAME_BUNDLE_OK; original-game device execution remains unproven");
     return;
 }

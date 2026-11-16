@@ -28,7 +28,7 @@ Once a release is available, download the installer from the Releases page. It w
 
 Linux x64 `.deb` and `.rpm` packages are being tested. Their desktop entry opens a first-launch XAP importer, then stores prepared assets and saves in your user data directory. The [Linux package guide](installer/linux/README.md) explains the current local artifacts and remaining desktop checks; no Linux release has been published yet.
 
-macOS Apple Silicon builds are validated. Install the unsigned `.pkg`, open **Z0MB1ES** from Applications, and import your XAP on first launch. The [macOS package guide](installer/macos/README.md) covers the security override, optional artwork, and app-data locations.
+macOS Apple Silicon builds are validated. Install the unsigned `.pkg`, open **Z0MB1ES** from Applications, and import your XAP on first launch. You can also [build and run directly from the CLI](installer/macos/README.md#direct-cli-build-without-an-installer), including optional textures. The [macOS package guide](installer/macos/README.md) covers the security override, optional artwork, and app-data locations.
 
 iOS is at the [execution experiment stage](installer/ios/README.md). There is no playable IPA yet.
 

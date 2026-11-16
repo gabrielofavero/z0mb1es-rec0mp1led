@@ -454,7 +454,7 @@ public static partial class DesktopDisplay
         if (assetPage)
         {
             if (text == "BACK") ReturnToGraphicsPage();
-            else if (text == "MANAGE ASSETS" && mobile && ReimportRequested is not null)
+            else if (text == "REIMPORT ASSETS" && mobile && ReimportRequested is not null)
                 ReimportRequested();
             else if (text == "REIMPORT" && !mobile)
             {
@@ -694,7 +694,7 @@ public static partial class DesktopDisplay
         $"I MAED: {AssetChoices.NormalLabel}",
         $"TIME VIKING: {AssetChoices.VikingLabel}",
         $"ENDLESS: {AssetChoices.EndlessLabel}",
-        .. mobile && ReimportRequested is null ? Array.Empty<string>() : new[] { mobile ? "MANAGE ASSETS" : "REIMPORT" },
+        .. mobile && ReimportRequested is null ? Array.Empty<string>() : new[] { mobile ? "REIMPORT ASSETS" : "REIMPORT" },
         "BACK"
     ];
 

@@ -5,7 +5,7 @@
   <key>CFBundleDisplayName</key><string>Z0MB1ES</string>
   <key>CFBundleName</key><string>Port.IosGame</string>
   <key>CFBundleShortVersionString</key><string>0.1.0</string>
-  <key>CFBundleVersion</key><string>5</string>
+  <key>CFBundleVersion</key><string>17</string>
   <key>UIApplicationSupportsIndirectInputEvents</key><true/>
   <key>CFBundleIcons</key><dict><key>CFBundlePrimaryIcon</key><dict>
     <key>CFBundleIconFiles</key><array><string>AppIcon60x60</string></array>
@@ -24,5 +24,13 @@
   <key>LSSupportsOpeningDocumentsInPlace</key><true/>
   <key>GCSupportedGameControllers</key><array><dict><key>ProfileName</key><string>ExtendedGamepad</string></dict></array>
   <key>GCSupportsControllerUserInteraction</key><true/>
-  <!-- SDL_RunApp supplies UIApplication's delegate and owns its window lifecycle. -->
+  <key>UIApplicationSceneManifest</key><dict>
+    <key>UIApplicationSupportsMultipleScenes</key><false/>
+    <key>UISceneConfigurations</key><dict>
+      <key>UIWindowSceneSessionRoleApplication</key><array><dict>
+        <key>UISceneConfigurationName</key><string>SDLSceneConfiguration</string>
+        <key>UISceneDelegateClassName</key><string>SDLUIKitSceneDelegate</string>
+      </dict></array>
+    </dict>
+  </dict>
 </dict></plist>

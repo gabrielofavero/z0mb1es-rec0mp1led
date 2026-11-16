@@ -31,6 +31,49 @@ Optional-texture prompts provide a **Skip** button. Cancelling an optional sourc
 
 For a new-user test, install the `.pkg` and launch from Finder in a fresh macOS account. The `.pkg` and extracted `.app.zip` use the same account's persistent data, so changing formats does not reset onboarding. To repeat onboarding in your existing account, quit the game and temporarily rename `~/Library/Application Support/z0mb1es-rec0mp1led` to a backup before launching. Keep that backup to preserve saves and imported assets. Test the ZIP separately if distributing both formats.
 
+## Direct CLI build without an installer
+
+`dev.ps1` provides the direct build strategy on Apple Silicon: `build-game` prepares the supplied XAP and stages a runnable game in ignored `private/run/current/`; `run-game` launches it without installing a `.pkg` or importing assets through the app. The build includes the pinned macOS native libraries and the creator photo picker. It requires PowerShell, the pinned .NET SDK, managed FNA and the local NuGet cache prepared by `scripts/bootstrap-fna.ps1`, the native libraries above, and the pinned converter at `private/macos-inputs/ffmpeg`. It does not require building the installer or the optional-art importer for a phone-textures-only build.
+
+From the repository root, with those prerequisites available:
+
+```sh
+export PATH="$PWD/out/tooling/dotnet:$PWD/out/tooling/powershell:$PATH"
+export DOTNET_ROOT="$PWD/out/tooling/dotnet"
+export DOTNET_CLI_HOME="$PWD/out/dotnet-home"
+pwsh -NoProfile -Command '. ./dev.ps1; build-game'
+pwsh -NoProfile -Command '. ./dev.ps1; run-game'
+```
+
+The default XAP is `game/Z0MB1ES (on teh ph0ne) v1.0.0.0.xap`. To supply another path, use `build-game -XapPath "/path/to/game.xap"`. CLI saves and creator pictures use `~/Documents/Z0MB1ES on teh ph0ne/Saves` and `Pictures`, separately from the packaged app's data. The first run shows the flashing lights warning.
+
+Prepared optional textures at `private/asset-swap/prepared/` are automatically copied into the build. You can also supply another prepared store, including textures previously imported by the packaged macOS app:
+
+```sh
+pwsh -NoProfile -Command '. ./dev.ps1; build-game -ArtStorePath "$HOME/Library/Application Support/z0mb1es-rec0mp1led/assets/current/optional-art"'
+```
+
+Use the actual prepared-art directory from your import; a store contains source folders such as `i-maed-steam`, `i-maed-360`, or `time-viking-360` with `current.json` pointers. The copied textures stay with the CLI build, so the source store is no longer needed to run it. Choose **Enhanced** or **Original** in the game's asset settings.
+
+To prepare textures entirely through the CLI, build the optional-art importer with `build-art.sh` as described above. After an initial `build-game`, build the Xbox texture decoder, extract a separate phone reference, and import your supported source packages:
+
+```sh
+dotnet build tools/decode_360_xnb -c Release --source out/deps/cache -p:NuGetAudit=false
+dotnet tools/prepare-cli/bin/Release/net10.0/prepare.dll \
+  --xap 'game/Z0MB1ES (on teh ph0ne) v1.0.0.0.xap' --output private/cli-art-reference
+export PORT_ASSET_PRIVATE="$PWD/private"
+export PORT_ASSET_DECODER="$PWD/tools/decode_360_xnb/bin/Release/net10.0/decode_360_xnb"
+export PORT_ASSET_FNA="$PWD/out/deps/managed/FNA.dll"
+private/macos-inputs/Port.AssetImporter prepare --kind i-maed-360 \
+  --source '/path/to/I MAED LIVE package' --phone-root private/cli-art-reference/original-xap
+private/macos-inputs/Port.AssetImporter prepare --kind time-viking-360 \
+  --source '/path/to/Time Viking LIVE package' --phone-root private/cli-art-reference/original-xap
+pwsh -NoProfile -Command '. ./dev.ps1; build-game'
+pwsh -NoProfile -Command '. ./dev.ps1; run-game'
+```
+
+For Steam I MAED textures, replace the first import's kind with `i-maed-steam` and its source with the Steam game directory. Either import is optional; importing also composes the mapped Endless textures. The phone-reference output must be a new directory. Personal builds contain proprietary game content and stay under ignored `private/`.
+
 ## Unsigned install
 
 After downloading the package from a trusted project source, open the `.pkg`. If macOS blocks it, try opening it once, then go to **System Settings → Privacy & Security**, scroll down, click **Open Anyway**, and confirm **Open** in the next warning. Install the app, open **Z0MB1ES** from Applications, and repeat the same procedure for the app if macOS blocks its first launch. Apple documents this exact override for an unsigned app or installer in [Safely open apps on your Mac](https://support.apple.com/en-us/102445). No SDK or developer account is required for a player; the one-time security override is required.

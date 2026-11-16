@@ -47,10 +47,16 @@ with zipfile.ZipFile(ipa) as archive:
     if hashlib.sha256(native.read_bytes()).hexdigest() != converter:
         raise SystemExit('Converter identity differs from native input')
     if args.game_host:
-        if info['CFBundleVersion'] != '5' or info['CFBundleDisplayName'] != 'Z0MB1ES':
+        if info['CFBundleVersion'] != '17' or info['CFBundleDisplayName'] != 'Z0MB1ES':
             raise SystemExit('Unexpected original-game host build number')
         if not info.get('UIFileSharingEnabled') or not info.get('LSSupportsOpeningDocumentsInPlace'):
             raise SystemExit('Game logs must be accessible from Files')
+        scenes = info.get('UIApplicationSceneManifest', {})
+        configs = scenes.get('UISceneConfigurations', {}).get('UIWindowSceneSessionRoleApplication', [])
+        if scenes.get('UIApplicationSupportsMultipleScenes') is not False or not any(
+            c.get('UISceneDelegateClassName') == 'SDLUIKitSceneDelegate' for c in configs
+        ):
+            raise SystemExit('Files setup must use the SDL scene lifecycle')
         for key in ('CFBundleIcons', 'CFBundleIcons~ipad'):
             if not info.get(key, {}).get('CFBundlePrimaryIcon', {}).get('CFBundleIconFiles'):
                 raise SystemExit('Missing black app icon declaration')
@@ -74,6 +80,9 @@ with zipfile.ZipFile(ipa) as archive:
         for name in ('SDL_RunApp', 'FNA3D_CreateDevice', 'FAudioCreate', 'z0_audio_convert'):
             if '_' + name not in exported:
                 raise SystemExit('Missing linked native symbol: ' + name)
+        for name in ('SDLUIKitSceneDelegate',):
+            if '_OBJC_CLASS_$_' + name not in exported:
+                raise SystemExit('Missing registered native UIKit delegate: ' + name)
     icon_names = {prefix + path.name for path in (repo / 'out/ios/game/icons').glob('*.png')} if args.game_host else set()
     if args.game_host:
         if len(icon_names) != 5 or not icon_names.issubset(names):

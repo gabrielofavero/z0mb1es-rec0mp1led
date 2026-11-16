@@ -48,7 +48,10 @@ function Invoke-DevGame {
     $arguments = @($launcher, '--run', $game, '--content', $Build.FullName,
         '--save-dir', (Join-Path $userData 'Saves'),
         '--pictures-dir', (Join-Path $userData 'Pictures'))
-    $localArt = Join-Path $script:DevRoot 'private/asset-swap/prepared'
+    $localArt = Join-Path $Build.FullName 'optional-art'
+    if (-not (Test-Path -LiteralPath $localArt -PathType Container)) {
+        $localArt = Join-Path $script:DevRoot 'private/asset-swap/prepared'
+    }
     if (Test-Path -LiteralPath $localArt -PathType Container) {
         $arguments += @('--art-store', $localArt)
     }
@@ -59,11 +62,17 @@ function build-game {
     [CmdletBinding()]
     param(
         [string]$XapPath = (Join-Path $script:DevRoot 'game/Z0MB1ES (on teh ph0ne) v1.0.0.0.xap'),
-        [string]$FfmpegPath = (Join-Path $script:DevRoot $(if ($IsMacOS) { 'private/macos-inputs/ffmpeg' } else { 'private/tooling/ffmpeg.exe' }))
+        [string]$FfmpegPath = (Join-Path $script:DevRoot $(if ($IsMacOS) { 'private/macos-inputs/ffmpeg' } else { 'private/tooling/ffmpeg.exe' })),
+        [string]$ArtStorePath = (Join-Path $script:DevRoot 'private/asset-swap/prepared')
     )
     $ErrorActionPreference = 'Stop'
     $xap = (Resolve-Path -LiteralPath $XapPath).Path
     $ffmpeg = (Resolve-Path -LiteralPath $FfmpegPath).Path
+    $localArt = $null
+    if ($PSBoundParameters.ContainsKey('ArtStorePath') -or (Test-Path -LiteralPath $ArtStorePath)) {
+        $localArt = (Resolve-Path -LiteralPath $ArtStorePath).Path
+        if (-not (Test-Path -LiteralPath $localArt -PathType Container)) { throw 'ArtStorePath must be a prepared artwork directory.' }
+    }
     $expectedFfmpeg = (Get-Content -Raw -LiteralPath (Join-Path $script:DevRoot 'config/content-tools.json') | ConvertFrom-Json).ffmpeg.executableSha256
     if ($IsMacOS) {
         $expectedFfmpeg = (Get-Content -Raw -LiteralPath (Join-Path $script:DevRoot 'config/macos-packaging.json') | ConvertFrom-Json).artifactHashes.'private/macos-inputs/ffmpeg'
@@ -120,8 +129,7 @@ function build-game {
         if (-not (Test-Path -LiteralPath (Join-Path $candidate 'Z0MB1ES.dll') -PathType Leaf)) {
             throw 'Game staging did not produce a runnable build.'
         }
-        $localArt = Join-Path $script:DevRoot 'private/asset-swap/prepared'
-        if (Test-Path -LiteralPath $localArt -PathType Container) {
+        if ($localArt) {
             Copy-Item -LiteralPath $localArt -Destination (Join-Path $candidate 'optional-art') -Recurse
         }
         $priorMoved = $false

@@ -10,6 +10,13 @@ internal static class GameData
     internal static string Root => Path.Combine(NSFileManager.DefaultManager.GetUrls(
         NSSearchPathDirectory.ApplicationSupportDirectory, NSSearchPathDomain.User)[0].Path!, "Z0MB1ES-ios-game");
     internal static string Saves => Path.Combine(Root, "Saves");
+    internal static string Imports => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Imports");
+    internal static void EnsureImportFolder()
+    {
+        Directory.CreateDirectory(Imports);
+        var instructions = Path.Combine(Imports, "README.txt");
+        if (!File.Exists(instructions)) File.WriteAllText(instructions, ImportFolder.Instructions + "\n");
+    }
     internal static void CleanInterruptedImports()
     {
         var assets = Path.Combine(Root, "Assets");

@@ -9,6 +9,18 @@ internal static class FirstLaunchWarningUi
 {
     private static UIWindow? window;
 
+    internal static void ShowInHost(Action<UIViewController> present, Action ready, Action<Exception> failed)
+    {
+        if (FirstLaunchWarning.IsAcknowledged(GameData.Saves)) { ready(); return; }
+        present(new FlashingWarningController(() =>
+            CoreFoundation.DispatchQueue.MainQueue.DispatchAsync(() =>
+            {
+                try { ready(); }
+                catch (Exception error) { failed(error); }
+            })));
+        GameTrace.Write("flashing-warning=presented host=scene");
+    }
+
     internal static void ShowIfNeeded(Action ready, Action<Exception> failed)
     {
         if (FirstLaunchWarning.IsAcknowledged(GameData.Saves)) { ready(); return; }
@@ -42,6 +54,7 @@ internal sealed class FlashingWarningController(Action ready) : UIViewController
 
     public override void ViewDidLoad()
     {
+        GameTrace.Write("flashing-warning=view-loading");
         base.ViewDidLoad();
         View!.BackgroundColor = UIColor.SystemBackground;
         var title = new UILabel
@@ -122,5 +135,12 @@ internal sealed class FlashingWarningController(Action ready) : UIViewController
         var width = panel.WidthAnchor.ConstraintEqualTo(safe.WidthAnchor, -40);
         width.Priority = 999;
         width.Active = true;
+        GameTrace.Write("flashing-warning=view-loaded");
+    }
+
+    public override void ViewDidAppear(bool animated)
+    {
+        base.ViewDidAppear(animated);
+        GameTrace.Write($"flashing-warning=visible bounds={View?.Bounds}");
     }
 }

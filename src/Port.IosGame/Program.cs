@@ -8,19 +8,19 @@ using Port.Bridge;
 using Port.Hooks;
 using Port.Prepare;
 using SDL3;
+using UIKit;
 
 namespace Port.IosGame;
 
 public static class Program
 {
-    // Keep the unmanaged callback alive for SDL's entire application lifetime.
     private static readonly SDL.SDL_main_func Entry = NativeMain;
 
     public static void Main(string[] args)
     {
         Console.SetOut(new GameTrace.Writer());
         Console.SetError(new GameTrace.Writer());
-        GameTrace.Write($"launch build=6 ios={UIKit.UIDevice.CurrentDevice.SystemVersion} " +
+        GameTrace.Write($"launch build=17 variant=files-importer ios={UIDevice.CurrentDevice.SystemVersion} " +
             $"runtime={System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription} " +
             $"dynamicCodeCompiled={RuntimeFeature.IsDynamicCodeCompiled}");
         AppDomain.CurrentDomain.UnhandledException += (_, e) => GameTrace.Write("unhandled=" + e.ExceptionObject);
@@ -28,34 +28,22 @@ public static class Program
         // resolver is absent. All five native dependencies are linked into this image.
         NativeLibrary.SetDllImportResolver(typeof(Game).Assembly,
             (_, _, _) => NativeLibrary.GetMainProgramHandle());
-        SDL.SDL_SetHint("FNA_GRAPHICS_ENABLE_HIGHDPI", "1");
+        Environment.SetEnvironmentVariable("FNA_GRAPHICS_ENABLE_HIGHDPI", "1");
         SDL.SDL_SetHint(SDL.SDL_HINT_MOUSE_TOUCH_EVENTS, "0");
         SDL.SDL_SetHint(SDL.SDL_HINT_TOUCH_MOUSE_EVENTS, "0");
         SDL.SDL_SetHint("SDL_ACCELEROMETER_AS_JOYSTICK", "0");
+        SDL.SDL_SetHint("SDL_ORIENTATIONS", "Portrait LandscapeLeft LandscapeRight");
         SDL.SDL_RunApp(0, IntPtr.Zero, Entry, IntPtr.Zero);
     }
 
     [ObjCRuntime.MonoPInvokeCallback(typeof(SDL.SDL_main_func))]
     private static int NativeMain(int argc, IntPtr argv)
     {
-        // SDL supplies UIApplication rather than UIApplication.Main. Keep await
-        // continuations and Progress callbacks on UIKit's main queue as well.
         if (SynchronizationContext.Current is null)
             SynchronizationContext.SetSynchronizationContext(new MainThreadContext());
         GameTrace.Write("sdl-main=entered");
-        try
-        {
-            GameData.CleanInterruptedImports();
-            HostCoordinator.Begin();
-            GameTrace.Write("sdl-main=returning-to-uikit");
-            return 0;
-        }
-        catch (Exception error)
-        {
-            GameTrace.Write("startup-failure=" + error);
-            HostCoordinator.ShowFailure(error);
-            return 0;
-        }
+        try { HostCoordinator.Run(); return 0; }
+        catch (Exception error) { GameTrace.Write("startup-failure=" + error); return 1; }
     }
 
     internal static (Game Game, MobileSession Monitor) CreateOriginal(ActiveAssetSet active)
@@ -75,7 +63,9 @@ public static class Program
         var type = assembly.GetType("ZombiesWP7.Game1", throwOnError: true)!;
         var game = (Game)Activator.CreateInstance(type)!;
         GameTrace.Write("game1=created");
-        game.Content.RootDirectory = System.IO.Path.Combine(active.ContentRoot, "Content");
+        game.Content.Dispose();
+        game.Content = new CaseMappedContentManager(game.Services,
+            System.IO.Path.Combine(active.ContentRoot, "Content"), GameTrace.Write);
         DesktopDisplay.Configure(game, mobile: true);
         MobileDisplay.Configure(game);
         DeviceVibration.Configure();
@@ -86,8 +76,7 @@ public static class Program
         game.Components.Add(monitor);
         DesktopDisplay.ReimportRequested = () => monitor.Enqueue(() =>
         {
-            monitor.PauseForMenu();
-            GameUi.ShowAssetMenu(game, monitor);
+            GameUi.Reimport(game, monitor);
         });
         game.Activated += (_, _) => GameTrace.Write("application=active");
         game.Deactivated += (_, _) =>
@@ -105,6 +94,18 @@ public static class Program
     }
 }
 
+internal sealed class MainThreadContext : SynchronizationContext
+{
+    public override SynchronizationContext CreateCopy() => this;
+    public override void Post(SendOrPostCallback callback, object? state) =>
+        CoreFoundation.DispatchQueue.MainQueue.DispatchAsync(() =>
+        {
+            var previous = Current;
+            SetSynchronizationContext(this);
+            try { callback(state); }
+            finally { SetSynchronizationContext(previous); }
+        });
+}
 internal sealed class MobileSession(Game game, Type type, bool firstSave) : DrawableGameComponent(game)
 {
     private readonly System.Collections.Concurrent.ConcurrentQueue<Action> pending = new();
@@ -190,17 +191,4 @@ internal sealed class MobileSession(Game game, Type type, bool firstSave) : Draw
         if (Frames == 1) GameTrace.Write("original-game=first-frame");
         base.Draw(time);
     }
-}
-
-internal sealed class MainThreadContext : SynchronizationContext
-{
-    public override SynchronizationContext CreateCopy() => this;
-    public override void Post(SendOrPostCallback callback, object? state) =>
-        CoreFoundation.DispatchQueue.MainQueue.DispatchAsync(() =>
-        {
-            var previous = Current;
-            SetSynchronizationContext(this);
-            try { callback(state); }
-            finally { SetSynchronizationContext(previous); }
-        });
 }

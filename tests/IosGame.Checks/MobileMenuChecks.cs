@@ -199,15 +199,15 @@ internal static class MobileMenuChecks
             Click("ASSETS");
             CheckAnimatedRows(Items());
             Assert(DesktopDisplay.IsAssetPage, "Assets page missing.");
-            Assert(Labels().Length == 5 && Labels()[3] == "MANAGE ASSETS" && Labels()[4] == "BACK",
-                "Importer mobile build must expose Manage Assets.");
+            Assert(Labels().Length == 5 && Labels()[3] == "REIMPORT ASSETS" && Labels()[4] == "BACK",
+                "Importer mobile build must expose Reimport assets.");
             var assetOffsets = new[] { -35f, 35f, -25f, 30f, -15f };
             for (var i = 0; i < assetOffsets.Length; i++)
                 Assert(Math.Abs(((Vector2)location.GetValue(Items()[i])!).X -
                     (width / (2f * scale) + assetOffsets[i])) < 0.001f, "Assets lost its stagger.");
             var previousRequests = managementRequests;
-            Click("MANAGE ASSETS");
-            Assert(managementRequests == previousRequests + 1, "Manage Assets did not request the host UI.");
+            Click("REIMPORT ASSETS");
+            Assert(managementRequests == previousRequests + 1, "Reimport assets did not call the host action.");
             Assert(!DesktopDisplay.HandleSettingsClick(settings, "REIMPORT"), "Mobile accepted the hidden desktop Reimport action.");
             Assert(managementRequests == previousRequests + 1, "Hidden desktop Reimport action ran on mobile.");
             Assert(DesktopDisplay.HandleSettingsCancel(settings) && DesktopDisplay.IsDisplayPage, "Assets Back did not return to Graphics.");
@@ -255,7 +255,7 @@ internal static class MobileMenuChecks
         Assert(Labels().Length == 4 && Labels()[3] == "BACK" &&
             Labels()[0].StartsWith("I MAED:") && Labels()[1].StartsWith("TIME VIKING:") && Labels()[2].StartsWith("ENDLESS:"),
             "Bundled mobile build must retain artwork choices and omit replacement controls.");
-        Assert(!DesktopDisplay.HandleSettingsClick(settings, "MANAGE ASSETS") &&
+        Assert(!DesktopDisplay.HandleSettingsClick(settings, "REIMPORT ASSETS") &&
             !DesktopDisplay.HandleSettingsClick(settings, "REIMPORT"), "Bundled build accepted hidden replacement actions.");
         CheckAnimatedRows(Items());
         Assert(DesktopDisplay.HandleSettingsCancel(settings) && DesktopDisplay.IsDisplayPage, "Bundled Assets Back failed.");
@@ -287,7 +287,7 @@ internal static class MobileMenuChecks
             Assert(position.Y * scale < 340, "Desktop Graphics row extends below the viewport.");
         }
         Click("ASSETS");
-        Assert(Labels().Length == 5 && Labels()[3] == "REIMPORT" && !Labels().Contains("MANAGE ASSETS"),
+        Assert(Labels().Length == 5 && Labels()[3] == "REIMPORT" && !Labels().Contains("REIMPORT ASSETS"),
             "Desktop Assets controls changed.");
         Console.WriteLine("IOS_MENU_OK; shared Settings; importer-only mobile asset management; bundled artwork choices; mobile Graphics constraints; staggered rows across widths; subpage navigation; desktop controls; touch Back capture");
     }

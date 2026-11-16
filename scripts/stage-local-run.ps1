@@ -15,14 +15,31 @@ if (-not $output.StartsWith($runRoot + [System.IO.Path]::DirectorySeparatorChar,
     throw 'OutputDirectory must be a new directory under private/run/.'
 }
 if (Test-Path -LiteralPath $output) { throw "OutputDirectory already exists: $output" }
-foreach ($required in @(
+$requiredInputs = @(
     (Join-Path $prepared 'ZombiesWP7.dll'),
     (Join-Path $prepared 'patch-manifest.json'),
     (Join-Path $content 'content-manifest.json'),
     (Join-Path $content 'Content/Arial.xnb'),
-    (Join-Path $runtime 'Z0MB1ES.dll'),
-    (Join-Path $runtime 'D3D12/D3D12Core.dll')
-)) {
+    (Join-Path $runtime 'Z0MB1ES.dll')
+)
+if ($IsMacOS) {
+    if ([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture -ne [System.Runtime.InteropServices.Architecture]::Arm64) {
+        throw 'Only Apple Silicon is configured for macOS local builds.'
+    }
+    $macPin = Get-Content -Raw -LiteralPath (Join-Path $repoRoot 'config/macos-packaging.json') | ConvertFrom-Json
+    foreach ($name in $macPin.requiredNativeFiles) {
+        $relative = "out/deps/native/osx-arm64/$name"
+        $source = Join-Path $repoRoot $relative
+        $expected = $macPin.artifactHashes.$relative
+        if (-not $expected -or (Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash -ine $expected) {
+            throw "macOS native library differs from config/macos-packaging.json: $name"
+        }
+    }
+    $requiredInputs += Join-Path $repoRoot 'installer/macos/dialogs.applescript'
+} else {
+    $requiredInputs += Join-Path $runtime 'D3D12/D3D12Core.dll'
+}
+foreach ($required in $requiredInputs) {
     if (-not (Test-Path -LiteralPath $required -PathType Leaf)) { throw "Missing stage input: $required" }
 }
 
@@ -43,9 +60,23 @@ function Move-StageDirectory([string]$source, [string]$destination) {
 try {
     [System.IO.Directory]::CreateDirectory($stage) | Out-Null
     foreach ($file in Get-ChildItem -LiteralPath $runtime -File) {
+        if ($IsMacOS -and $file.Name -in @('SDL3.dll', 'FNA3D.dll', 'FAudio.dll', 'libtheorafile.dll')) { continue }
         Copy-Item -LiteralPath $file.FullName -Destination $stage
     }
-    Copy-Item -LiteralPath (Join-Path $runtime 'D3D12') -Destination $stage -Recurse
+    if ($IsMacOS) {
+        foreach ($name in $macPin.requiredNativeFiles) {
+            Copy-Item -LiteralPath (Join-Path $repoRoot "out/deps/native/osx-arm64/$name") -Destination $stage
+            if ((Get-FileHash -LiteralPath (Join-Path $stage $name) -Algorithm SHA256).Hash -ine $macPin.artifactHashes."out/deps/native/osx-arm64/$name") {
+                throw "Stage verification failed: $name"
+            }
+        }
+        foreach ($name in @('SDL3', 'FNA3D', 'FAudio')) {
+            Copy-Item -LiteralPath (Join-Path $stage "lib$name.0.dylib") -Destination (Join-Path $stage "lib$name.dylib")
+        }
+        Copy-Item -LiteralPath (Join-Path $repoRoot 'installer/macos/dialogs.applescript') -Destination $stage
+    } else {
+        Copy-Item -LiteralPath (Join-Path $runtime 'D3D12') -Destination $stage -Recurse
+    }
     Copy-Item -LiteralPath (Join-Path $prepared 'ZombiesWP7.dll') -Destination $stage
     Copy-Item -LiteralPath (Join-Path $prepared 'patch-manifest.json') -Destination $stage
     foreach ($item in Get-ChildItem -LiteralPath $content) {
@@ -59,9 +90,11 @@ try {
     $contentSourceHash = (Get-FileHash -LiteralPath (Join-Path $content 'content-manifest.json') -Algorithm SHA256).Hash
     $contentStageHash = (Get-FileHash -LiteralPath (Join-Path $stage 'content-manifest.json') -Algorithm SHA256).Hash
     if ($contentSourceHash -ne $contentStageHash) { throw 'Stage verification failed: content-manifest.json' }
-    $d3d12SourceHash = (Get-FileHash -LiteralPath (Join-Path $runtime 'D3D12/D3D12Core.dll') -Algorithm SHA256).Hash
-    $d3d12StageHash = (Get-FileHash -LiteralPath (Join-Path $stage 'D3D12/D3D12Core.dll') -Algorithm SHA256).Hash
-    if ($d3d12SourceHash -ne $d3d12StageHash) { throw 'Stage verification failed: D3D12/D3D12Core.dll' }
+    if (-not $IsMacOS) {
+        $d3d12SourceHash = (Get-FileHash -LiteralPath (Join-Path $runtime 'D3D12/D3D12Core.dll') -Algorithm SHA256).Hash
+        $d3d12StageHash = (Get-FileHash -LiteralPath (Join-Path $stage 'D3D12/D3D12Core.dll') -Algorithm SHA256).Hash
+        if ($d3d12SourceHash -ne $d3d12StageHash) { throw 'Stage verification failed: D3D12/D3D12Core.dll' }
+    }
     Move-StageDirectory $stage $output
     Write-Output "RUN_STAGE $output"
 } finally {
