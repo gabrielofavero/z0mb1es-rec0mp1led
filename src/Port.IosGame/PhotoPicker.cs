@@ -82,8 +82,8 @@ internal sealed class PhotoPicker(UIViewController root, Action changed) : PHPic
             }
             if (imported > 0) changed(); // GPU upload is queued on the game's update thread.
             GameTrace.Write($"creator-photos imported={imported} failed={failed}");
-            if (results.Length > 0)
-                GameUi.Message(root, "Creator photos", $"Added {imported} photos." + (failed > 0 ? $" {failed} could not be imported; details are in the game log." : " Your photos are ready in the creator."));
+            if (failed > 0)
+                GameUi.Message(root, "Creator photos", $"{failed} photos could not be imported. Details are in the game log.");
         }
         catch (Exception failure)
         {

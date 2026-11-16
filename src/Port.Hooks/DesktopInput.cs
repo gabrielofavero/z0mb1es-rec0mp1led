@@ -225,6 +225,7 @@ public static class DesktopInput
         Samples++;
         if (DesktopDisplay.CapturesInput)
         {
+            DesktopPictures.UpdateMapperControls(null, null, false, default, 0);
             var capturedMouse = Mouse.GetState();
             previousWheel = capturedMouse.ScrollWheelValue;
             previousMousePosition = new Point(capturedMouse.X, capturedMouse.Y);
@@ -238,6 +239,7 @@ public static class DesktopInput
         var touches = new List<TouchLocation>(native.Count + contacts.Length);
         foreach (var touch in native)
             if (!NativeBackButtonEnabled || !touchBack.Consumes(touch.Id)) touches.Add(touch);
+        var mapperTouches = new TouchCollection(touches.ToArray());
 
         var active = game.IsActive;
         if (active) ActiveSamples++;
@@ -288,7 +290,8 @@ public static class DesktopInput
         DesktopPictures.UpdateMapperControls(
             level?.GetType().FullName == "IMAK3Z0MB1EGAEM.menu.CustomMapper" &&
             (float)menuLevelAlphaField!.GetValue(level)! > 0.9f ? level : null,
-            pointer, pointAndClick, pad, (float)frameTimeField!.GetValue(null)!);
+            pointer, pointAndClick, pad, (float)frameTimeField!.GetValue(null)!,
+            active ? mapperTouches : default);
         var leaderboard = level?.GetType().FullName == "IMAK3Z0MB1EGAEM.menu.Leaderboards";
         if (level?.GetType().FullName is "IMAK3Z0MB1EGAEM.menu.Achievements" or
             "IMAK3Z0MB1EGAEM.menu.Credits")

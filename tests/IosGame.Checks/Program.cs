@@ -22,6 +22,12 @@ if (args is ["--creator-photo-check", var creatorGame])
     return;
 }
 
+if (args is ["--creator-drag-check", var dragGame, var dragNativeDirectory])
+{
+    CreatorDragChecks.Run(dragGame, dragNativeDirectory);
+    return;
+}
+
 if (args is ["--mobile-display-check", var displayGame, var displayNativeDirectory])
 {
     MobileDisplayChecks.Run(displayGame, displayNativeDirectory);

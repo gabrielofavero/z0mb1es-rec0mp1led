@@ -19,8 +19,8 @@ internal static class MacFlashingWarning
             alert.showsSuppressionButton = true;
             alert.suppressionButton.title = argv[2];
             alert.suppressionButton.state = argv[3] === 'true' ? 1 : 0;
-            if (alert.runModal !== $.NSAlertFirstButtonReturn) return 'cancel';
-            return alert.suppressionButton.state === 1 ? 'true' : 'false';
+            if (Number(alert.runModal) !== Number($.NSAlertFirstButtonReturn)) return 'cancel';
+            return Number(alert.suppressionButton.state) === 1 ? 'true' : 'false';
         }
         """;
 
