@@ -10,6 +10,12 @@ using Mono.Cecil;
 using Port.Art;
 using Port.IosGame;
 
+if (args is ["--creator-photo-check", var creatorGame])
+{
+    CreatorPhotoChecks.Run(creatorGame);
+    return;
+}
+
 if (args is ["--mobile-display-check", var displayGame, var displayNativeDirectory])
 {
     MobileDisplayChecks.Run(displayGame, displayNativeDirectory);

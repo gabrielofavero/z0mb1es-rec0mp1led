@@ -72,6 +72,7 @@ public static class GameplayPatcher
     private const string PortraitHooksHash = "c741f7fa26fe91b37050fc81291892747567f7fd36710548d6b73dd459006349";
     private const string SafeAreaHooksHash = "29e3f3888917bb57a8d7baea4419d67867068934e04eacaf944947be2e3c62c8";
     private const string MusicPlaybackHooksHash = "c7ae632d8ed2a850fd107edc9e3e4d5f28f24772e6a60c9cdd0e637b4a744bd6";
+    private const string MobileCreatorPhotosHooksHash = "04f883059daf7a9edf3821813faee1758e8ea155f4058c9cd995f3162262a8de";
     private const string MusicUpdateHash = "5110787c8a586cec1eabe884d5f54e2ca9bfacae4092bcd92a5b36688e1065bc";
     private const int MethodToken = 0x06000152;
     private const int TouchMethodToken = 0x0600007a;
@@ -120,7 +121,7 @@ public static class GameplayPatcher
             prior.Patches.Any(patch => patch.Kind == "gameplay-call"))
             throw new PreparationException("Prepared DLL does not match its original guarded rewrite.");
         var hooksHash = Hash(hooksDll);
-        if (hooksHash is not (DebugHooksHash or ReleaseHooksHash or CurrentDebugHooksHash or CurrentReleaseHooksHash or LatestReleaseHooksHash or RestartReleaseHooksHash or EdgeArtReleaseHooksHash or VersionReleaseHooksHash or CreditsScrollHooksHash or PortCreditHooksHash or PictureButtonHooksHash or InstallerFoldersHooksHash or DocumentsSavesHooksHash or CenteredPicturesHooksHash or ReducedFlashFocusHooksHash or CreatorQualityHooksHash or ResolutionHooksHash or RowNavigationHooksHash or InlineResolutionHooksHash or SessionHooksHash or UpdatedReleaseHooksHash or PlatformHooksHash or ExplicitContentHooksHash or ImportDebugHooksHash or ImportReleaseHooksHash or LinuxPhotoDebugHooksHash or LinuxPhotoReleaseHooksHash or CurrentSourceHooksHash or MacHooksHash or CurrentMacHooksHash or StableMacHooksHash or TouchBackHooksHash or MobileSettingsHooksHash or VibrationHooksHash or MobileBackAreaHooksHash or NameInputHooksHash or MusicPlaybackHooksHash or SafeAreaHooksHash or PortraitHooksHash or MobileDrawableHooksHash or ResponsiveReviewHooksHash or MobileAssetMenuHooksHash) ||
+        if (hooksHash is not (DebugHooksHash or ReleaseHooksHash or CurrentDebugHooksHash or CurrentReleaseHooksHash or LatestReleaseHooksHash or RestartReleaseHooksHash or EdgeArtReleaseHooksHash or VersionReleaseHooksHash or CreditsScrollHooksHash or PortCreditHooksHash or PictureButtonHooksHash or InstallerFoldersHooksHash or DocumentsSavesHooksHash or CenteredPicturesHooksHash or ReducedFlashFocusHooksHash or CreatorQualityHooksHash or ResolutionHooksHash or RowNavigationHooksHash or InlineResolutionHooksHash or SessionHooksHash or UpdatedReleaseHooksHash or PlatformHooksHash or ExplicitContentHooksHash or ImportDebugHooksHash or ImportReleaseHooksHash or LinuxPhotoDebugHooksHash or LinuxPhotoReleaseHooksHash or CurrentSourceHooksHash or MacHooksHash or CurrentMacHooksHash or StableMacHooksHash or TouchBackHooksHash or MobileSettingsHooksHash or VibrationHooksHash or MobileBackAreaHooksHash or NameInputHooksHash or MusicPlaybackHooksHash or SafeAreaHooksHash or PortraitHooksHash or MobileDrawableHooksHash or ResponsiveReviewHooksHash or MobileAssetMenuHooksHash or MobileCreatorPhotosHooksHash) ||
             System.Reflection.AssemblyName.GetAssemblyName(hooksDll).Name != "Port.Hooks")
             throw new PreparationException("Hook target assembly identity differs.");
 
@@ -1311,6 +1312,15 @@ public static class GameplayPatcher
         clickIl.InsertBefore(clickFirst, clickIl.Create(OpCodes.Brfalse, clickFirst));
         clickIl.InsertBefore(clickFirst, clickIl.Create(OpCodes.Ret));
 
+        var action = mapperType.Methods.Single(method => method.Name == "Click");
+        var actionIl = action.Body.GetILProcessor();
+        var actionFirst = action.Body.Instructions.First();
+        actionIl.InsertBefore(actionFirst, actionIl.Create(OpCodes.Ldarg_0));
+        actionIl.InsertBefore(actionFirst, actionIl.Create(OpCodes.Ldarg_1));
+        actionIl.InsertBefore(actionFirst, actionIl.Create(OpCodes.Call, Target("HandleMapperClick")));
+        actionIl.InsertBefore(actionFirst, actionIl.Create(OpCodes.Brfalse, actionFirst));
+        actionIl.InsertBefore(actionFirst, actionIl.Create(OpCodes.Ret));
+
         var image = module.Types.Single(type => type.FullName == "ZombiesWP7.custom.CustomImg");
         var process = image.Methods.Single(method => method.Name == "Process");
         if (process.Parameters.Count != 2 || process.Parameters[1].ParameterType.FullName !=
@@ -1335,7 +1345,7 @@ public static class GameplayPatcher
             target.Name == "LoadRememberedFolder") != 1)
             throw new PreparationException("Picture folder load hook postcondition failed.");
         foreach (var (methodName, hookName) in new[] { ("Draw", "LayoutMapper"),
-                     ("CustomClick", "ClickMapperPicture") })
+                     ("CustomClick", "ClickMapperPicture"), ("Click", "HandleMapperClick") })
             if (mapper.Methods.Single(candidate => candidate.Name == methodName).Body.Instructions
                 .Count(item => item.Operand is MethodReference target &&
                     target.DeclaringType.FullName == "Port.Hooks.DesktopPictures" &&

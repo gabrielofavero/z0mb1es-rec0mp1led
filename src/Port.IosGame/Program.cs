@@ -63,7 +63,7 @@ public static class Program
         PreparedGameVerifier.Verify(active.DllPath, active.ContentRoot);
         var saveRoot = GameData.Saves;
         DesktopStorage.Configure(saveRoot);
-        DesktopPictures.Configure(System.IO.Path.Combine(GameData.Root, "Pictures"));
+        DesktopPictures.Configure(System.IO.Path.Combine(GameData.Root, "Pictures"), managePhotos: true);
 
         PlayerIdentity.Configure(saveRoot);
         GameContent.Configure(active.ContentRoot);

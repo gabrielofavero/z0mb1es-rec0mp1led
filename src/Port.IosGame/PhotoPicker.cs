@@ -3,6 +3,7 @@ using CoreGraphics;
 using ImageIO;
 using PhotosUI;
 using UIKit;
+using Port.Hooks;
 
 namespace Port.IosGame;
 
@@ -19,8 +20,8 @@ internal sealed class PhotoPicker(UIViewController root, Action changed) : PHPic
         if (root.PresentedViewController is not null) return;
         var folder = Path.Combine(GameData.Root, "Pictures");
         var count = Directory.Exists(folder) ? Directory.GetFiles(folder, "*.png").Length : 0;
-        if (count >= 256) { GameUi.Message(root, "Creator photos", "The 256-photo limit has been reached."); return; }
-        using var config = new PHPickerConfiguration { Filter = PHPickerFilter.ImagesFilter, SelectionLimit = Math.Min(32, 256 - count) };
+        if (count >= DesktopPictures.MaximumPictures) { GameUi.Message(root, "Creator photos", $"The {DesktopPictures.MaximumPictures}-photo limit has been reached. Remove a photo in the creator to make room."); return; }
+        using var config = new PHPickerConfiguration { Filter = PHPickerFilter.ImagesFilter, SelectionLimit = Math.Min(DesktopPictures.MaximumPhotoSelection, DesktopPictures.MaximumPictures - count) };
         picker = new PHPickerViewController(config) { Delegate = this };
         root.PresentViewController(picker, true, null);
     }
@@ -36,7 +37,7 @@ internal sealed class PhotoPicker(UIViewController root, Action changed) : PHPic
             var failed = 0;
             var folder = Path.Combine(GameData.Root, "Pictures");
             Directory.CreateDirectory(folder);
-            foreach (var result in results.Take(32))
+            foreach (var result in results.Take(DesktopPictures.MaximumPhotoSelection))
             {
                 // The provider's temporary URL expires when its callback returns.
                 // Decode and save inside that callback, before completing the task.
@@ -57,14 +58,18 @@ internal sealed class PhotoPicker(UIViewController root, Action changed) : PHPic
                         using var normalized = bitmap.ToImage() ?? throw new InvalidDataException("Could not convert the photo to sRGB.");
                         using var thumbnail = UIImage.FromImage(normalized);
                         using var png = thumbnail.AsPNG() ?? throw new InvalidDataException("Could not normalize the photo.");
-                        // Stable append-only names keep existing creator IDs and saved masks.
-                        var index = 1;
-                        while (File.Exists(Path.Combine(folder, $"photo-{index:D4}.png"))) index++;
-                        if (index > 256) throw new IOException("The 256-photo limit has been reached.");
-                        var path = Path.Combine(folder, $"photo-{index:D4}.png");
-                        if (!png.Save(path + ".tmp", false, out var saveError))
-                            throw new IOException(saveError?.LocalizedDescription ?? "Could not store the photo.");
-                        File.Move(path + ".tmp", path);
+                        if (Directory.GetFiles(folder, "*.png").Length >= DesktopPictures.MaximumPictures)
+                            throw new IOException("The creator photo limit has been reached.");
+                        // Never reuse an ID after removal: saved masks must not attach
+                        // to a different picture on the next import or restart.
+                        var path = Path.Combine(folder, $"photo-{DateTime.UtcNow.Ticks:D19}-{Guid.NewGuid():N}.png");
+                        try
+                        {
+                            if (!png.Save(path + ".tmp", false, out var saveError))
+                                throw new IOException(saveError?.LocalizedDescription ?? "Could not store the photo.");
+                            File.Move(path + ".tmp", path);
+                        }
+                        finally { if (File.Exists(path + ".tmp")) File.Delete(path + ".tmp"); }
                         completion.TrySetResult(true);
                     }
                     catch (Exception failure)
@@ -78,7 +83,7 @@ internal sealed class PhotoPicker(UIViewController root, Action changed) : PHPic
             if (imported > 0) changed(); // GPU upload is queued on the game's update thread.
             GameTrace.Write($"creator-photos imported={imported} failed={failed}");
             if (results.Length > 0)
-                GameUi.Message(root, "Creator photos", $"Added {imported} photos." + (failed > 0 ? $" {failed} could not be imported; details are in the game log." : " Open the monster creator to use them."));
+                GameUi.Message(root, "Creator photos", $"Added {imported} photos." + (failed > 0 ? $" {failed} could not be imported; details are in the game log." : " Your photos are ready in the creator."));
         }
         catch (Exception failure)
         {

@@ -16,13 +16,19 @@ public static class DesktopPictures
     // The phone creator uses a 100-unit coordinate space. Keep four source
     // pixels per unit so the enlarged desktop preview and monster stay sharp.
     private const int ThumbnailSize = 400;
-    private const int MaximumPictures = 256;
+    public const int MaximumPictures = 256;
+    public const int MaximumPhotoSelection = 32;
     private static readonly HashSet<Texture2D> OwnedTextures = [];
     private static readonly HashSet<Texture2D> SourceTextures = [];
     private static readonly Dictionary<Texture2D, float> MaskTextures = [];
     private static readonly HashSet<string> Extensions = new(StringComparer.OrdinalIgnoreCase)
         { ".png", ".jpg", ".jpeg" };
     private static string? pictureFolder;
+    private static bool managePhotos;
+    private static object? photoMapper;
+    private static Array? photoItems;
+    private static int photoCount = -1;
+    private static readonly Dictionary<string, string> SourceFiles = new(StringComparer.Ordinal);
     private static object? laidOutMapper;
     private static object? laidOutItems;
     private static float laidOutOffset;
@@ -38,8 +44,14 @@ public static class DesktopPictures
     public static Func<IReadOnlyList<string>>? PhotoSelectionRequested { get; set; }
     private static string LegacyFolderFile => Path.Combine(DesktopStorage.SaveDirectory, "pictures-folder.txt");
 
-    public static void Configure(string? folder) =>
+    public static void Configure(string? folder, bool managePhotos = false)
+    {
         pictureFolder = string.IsNullOrWhiteSpace(folder) ? null : Path.GetFullPath(folder);
+        DesktopPictures.managePhotos = managePhotos;
+        photoMapper = null;
+        photoItems = null;
+        photoCount = -1;
+    }
 
     public static bool ImportFolder(object manager, string folder) => Import(manager, folder);
 
@@ -143,8 +155,14 @@ public static class DesktopPictures
         var manager = game.GetField("custom", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)!.GetValue(null)!;
         var index = (int)type.GetField("curPic", InstanceFields)!.GetValue(mapper)!;
         var count = (int)manager.GetType().GetMethod("GetSrcImageCount", InstanceFields)!.Invoke(manager, null)!;
-        var enabled = count > index && (bool)manager.GetType()
+        index = Math.Clamp(index, 0, Math.Max(0, count - 1));
+        type.GetField("curPic", InstanceFields)!.SetValue(mapper, index);
+        if (PhotoSelectionRequested is not null)
+            items = LayoutPhotoActions(mapper, items, count, scale);
+        var enabled = count > 0 && (bool)manager.GetType()
             .GetMethod("GetSrcEnabled", InstanceFields)!.Invoke(manager, [index])!;
+        if (count > 0 && items is { Length: >= 3 })
+            items.GetValue(2)!.GetType().GetField("ischecked", InstanceFields)!.SetValue(items.GetValue(2), enabled);
         if (ReferenceEquals(laidOutMapper, mapper) && ReferenceEquals(laidOutItems, items) &&
             laidOutOffset == offset && laidOutHeight == DesktopDisplay.SceneSize.Y && laidOutIndex == index && laidOutEnabled == enabled) return;
 
@@ -160,7 +178,7 @@ public static class DesktopPictures
             type.GetField("orig", InstanceFields)!.SetValue(mapper, new Vector2(centerX, sourceY));
             type.GetField("rOrig", InstanceFields)!.SetValue(mapper, new Vector2(centerX, previewY));
         }
-        if (items is not null)
+        if (count > 0 && items is not null)
         {
             var positions = portrait ? new[] { new Vector2(30 + offset, sourceY),
                 new Vector2(450 + offset, sourceY), new Vector2(centerX, DesktopDisplay.SceneSize.Y * 0.83f / scale) } : new[] { new Vector2(30 + offset, 180),
@@ -193,23 +211,7 @@ public static class DesktopPictures
         var photoKey = Keyboard.GetState().IsKeyDown(Keys.P);
         if (photoKey && !previousPhotoKey && PhotoSelectionRequested is not null)
         {
-            try
-            {
-                var selected = PhotoSelectionRequested();
-                var copied = CopySelectedPhotos(selected);
-                if (copied > 0 && pictureFolder is not null)
-                {
-                    var manager = mapper.GetType().Assembly.GetType("ZombiesWP7.Game1", true)!
-                        .GetField("custom", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)!
-                        .GetValue(null)!;
-                    if (Import(manager, pictureFolder)) DesktopStorage.ReapplyCustom(manager);
-                }
-                if (copied > 0)
-                    mapper.GetType().BaseType!.GetField("infos", InstanceFields)!.SetValue(mapper,
-                        new[] { new StringBuilder($"Added {copied} creator photos.") });
-            }
-            catch (Exception error) when (error is IOException or UnauthorizedAccessException or InvalidDataException)
-            { Trace.TraceWarning($"Creator photo selection failed: {error.Message}"); }
+            RequestPhotos(mapper);
         }
         previousPhotoKey = photoKey;
         LayoutMapper(mapper);
@@ -231,6 +233,108 @@ public static class DesktopPictures
             step += stick * 0.4f * Math.Clamp(frameTime, 0f, 0.05f);
         if (step != 0f) AdjustSliderSize(mapper, step);
     }
+
+    private static Array LayoutPhotoActions(object mapper, Array? items, int count, float scale)
+    {
+        var type = mapper.GetType();
+        var baseType = type.BaseType!;
+        var itemType = baseType.GetField("item", InstanceFields)!.FieldType.GetElementType()!;
+        var portrait = DesktopDisplay.SceneSize.Y > DesktopDisplay.SceneSize.X;
+        var center = DesktopDisplay.SceneSize.X / (2f * scale);
+        var actionY = portrait ? DesktopDisplay.SceneSize.Y * 0.2f / scale : 85f;
+        var rebuild = !ReferenceEquals(photoMapper, mapper) || !ReferenceEquals(photoItems, items) || photoCount != count;
+        if (rebuild)
+        {
+            var labels = count == 0 ? new[] { "Choose Photos" } : managePhotos
+                ? new[] { "<", ">", "use", "Add Photos", "Remove Photo" }
+                : new[] { "<", ">", "use", "Add Photos" };
+            items = Array.CreateInstance(itemType, labels.Length);
+            for (var i = 0; i < labels.Length; i++)
+            {
+                var item = i == 2 && count > 0
+                    ? Activator.CreateInstance(itemType, [labels[i], Vector2.Zero, 0.8f, 1])!
+                    : Activator.CreateInstance(itemType, [labels[i], Vector2.Zero, i < 2 && count > 0 ? 1f : 0.55f])!;
+                items.SetValue(item, i);
+            }
+            baseType.GetField("item", InstanceFields)!.SetValue(mapper, items);
+            type.GetField("havePics", InstanceFields)!.SetValue(mapper, count > 0);
+            baseType.GetField("infos", InstanceFields)!.SetValue(mapper, count == 0
+                ? new[] { new StringBuilder("Choose photos to create your own zombies.") }
+                : new[] { new StringBuilder("Tap a photo to use it. Add Photos to choose more.") });
+            photoMapper = mapper;
+            photoItems = items;
+            photoCount = count;
+        }
+        for (var i = count == 0 ? 0 : 3; i < items!.Length; i++)
+        {
+            var position = count == 0
+                ? new Vector2(center, DesktopDisplay.SceneSize.Y * 0.45f / scale)
+                : new Vector2(center + (managePhotos ? (i == 3 ? -100 : 100) : 0), actionY);
+            var item = items.GetValue(i)!;
+            itemType.GetField("loc", InstanceFields)!.SetValue(item, position);
+            itemType.GetField("tiltLoc", InstanceFields)!.SetValue(item, position);
+        }
+        return items;
+    }
+
+    // Route through the original MenuItem click path for touch, mouse and controller.
+    public static bool HandleMapperClick(object mapper, string text)
+    {
+        if (PhotoSelectionRequested is null) return false;
+        if (text is "Choose Photos" or "Add Photos")
+        {
+            RequestPhotos(mapper);
+            return true;
+        }
+        if (text != "Remove Photo" || !managePhotos || pictureFolder is null) return false;
+        var type = mapper.GetType();
+        var manager = type.Assembly.GetType("ZombiesWP7.Game1", true)!
+            .GetField("custom", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)!.GetValue(null)!;
+        var sources = (IList)manager.GetType().GetField("srcImages", InstanceFields)!.GetValue(manager)!;
+        var index = (int)type.GetField("curPic", InstanceFields)!.GetValue(mapper)!;
+        if (index >= 0 && index < sources.Count)
+        {
+            var source = sources[index]!;
+            var id = (string)source.GetType().GetField("ID", InstanceFields)!.GetValue(source)!;
+            if (SourceFiles.TryGetValue(id, out var path))
+            {
+                try
+                {
+                    File.Delete(path); // Only the app's imported copy; never the library original.
+                    Import(manager, pictureFolder);
+                    LayoutMapper(mapper);
+                }
+                catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+                { SetPhotoInfo(mapper, "Could not remove this photo. Please try again."); }
+            }
+        }
+        return true;
+    }
+
+    private static void RequestPhotos(object mapper)
+    {
+        try
+        {
+            var copied = CopySelectedPhotos(PhotoSelectionRequested!());
+            if (copied > 0 && pictureFolder is not null)
+            {
+                var manager = mapper.GetType().Assembly.GetType("ZombiesWP7.Game1", true)!
+                    .GetField("custom", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)!.GetValue(null)!;
+                if (Import(manager, pictureFolder)) DesktopStorage.ReapplyCustom(manager);
+                LayoutMapper(mapper);
+                SetPhotoInfo(mapper, $"Added {copied} creator photos.");
+            }
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or InvalidDataException)
+        {
+            Trace.TraceWarning($"Creator photo selection failed: {error.Message}");
+            SetPhotoInfo(mapper, "Could not add photos. Please try again.");
+        }
+    }
+
+    private static void SetPhotoInfo(object mapper, string message) =>
+        mapper.GetType().BaseType!.GetField("infos", InstanceFields)!.SetValue(mapper,
+            new[] { new StringBuilder(message) });
 
     private static bool SliderHit(object mapper, Vector2 position)
     {
@@ -355,6 +459,7 @@ public static class DesktopPictures
         var sourceId = sourceType.GetField("ID", InstanceFields)!;
         var sourceTexture = sourceType.GetField("texture", InstanceFields)!;
         var loaded = new List<Texture2D>();
+        var sourceFiles = new Dictionary<string, string>(StringComparer.Ordinal);
         try
         {
             foreach (var file in Directory.EnumerateFiles(folder, "*", new EnumerationOptions
@@ -374,16 +479,19 @@ public static class DesktopPictures
                     var id = "file:" + Convert.ToHexString(SHA256.HashData(
                         Encoding.UTF8.GetBytes(Path.GetFullPath(file).ToUpperInvariant()))).ToLowerInvariant();
                     sources.Add(constructor.Invoke([id, thumbnail]));
+                    sourceFiles[id] = file;
                 }
                 catch (Exception error)
                 {
                     Trace.TraceWarning($"Skipping picture {file}: {error.Message}");
                 }
             }
-            if (sources.Count == 0) return false;
+            if (sources.Count == 0 && !managePhotos) return false;
 
             var previous = (IList?)sourcesField.GetValue(manager);
             sourcesField.SetValue(manager, sources);
+            SourceFiles.Clear();
+            foreach (var pair in sourceFiles) SourceFiles.Add(pair.Key, pair.Value);
             var custom = (Array)managerType.GetField("customImg", InstanceFields)!.GetValue(manager)!;
             foreach (var image in custom)
             {
@@ -397,6 +505,12 @@ public static class DesktopPictures
                 if (match < 0)
                 {
                     type.GetField("enabled", InstanceFields)!.SetValue(image, false);
+                    if (type.GetField("texture", InstanceFields)!.GetValue(image) is Texture2D removed)
+                    {
+                        MaskTextures.Remove(removed);
+                        removed.Dispose();
+                        type.GetField("texture", InstanceFields)!.SetValue(image, null);
+                    }
                     continue;
                 }
                 var slot = Array.IndexOf(custom, image);
