@@ -224,8 +224,7 @@ internal sealed class FolderInstallerGame : Game
         else
         {
             Text("Files / Z0MB1ES / Imports\nAdd packages, then Rescan.", 2);
-            string Name(ImportFile? file, bool phone) => file is not null ? file.Kind switch
-                { "phone" => "XAP", "i-maed-steam" => "Steam", _ => "360" } :
+            string Name(ImportFile? file, bool phone) => file is not null ? phone ? "XAP" : "Enhanced" :
                 setup.Active is not null ? "Keep" : phone ? "XAP required" : "Original";
             Button("phone", "Phone: " + Name(setup.Phone, true), () => setup.Cycle("phone"));
             Button("normal", "I MAED: " + Name(setup.Normal, false), () => setup.Cycle("normal"));

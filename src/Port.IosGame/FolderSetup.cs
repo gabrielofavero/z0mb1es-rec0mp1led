@@ -137,8 +137,7 @@ internal sealed class FolderSetup : IDisposable
             {
                 Files = files;
                 Phone = files.Phone.FirstOrDefault(f => f == Phone) ?? (Active is null ? files.Phone.FirstOrDefault() : null);
-                Normal = files.Normal.FirstOrDefault(f => f == Normal) ?? (normalChosen ? null :
-                    files.Normal.FirstOrDefault(f => f.Kind == "i-maed-360") ?? files.Normal.FirstOrDefault());
+                Normal = files.Normal.FirstOrDefault(f => f == Normal) ?? (normalChosen ? null : PreferredNormal(files));
                 Viking = files.Viking.FirstOrDefault(f => f == Viking) ?? (vikingChosen ? null : files.Viking.FirstOrDefault());
                 Page = SetupPage.Files;
                 SetStatus(files.Notes.Count > 0 ? "Some files could not be verified." : "");
@@ -158,8 +157,8 @@ internal sealed class FolderSetup : IDisposable
         switch (slot)
         {
             case "phone": Phone = Next(Files.Phone, Phone); break;
-            case "normal": normalChosen = true; Normal = Next(Files.Normal, Normal); break;
-            case "viking": vikingChosen = true; Viking = Next(Files.Viking, Viking); break;
+            case "normal": normalChosen = true; Normal = Normal is null ? PreferredNormal(Files) : null; break;
+            case "viking": vikingChosen = true; Viking = Viking is null ? Files.Viking.FirstOrDefault() : null; break;
         }
     }
 
@@ -229,6 +228,9 @@ internal sealed class FolderSetup : IDisposable
     }
 
     internal void SetStatus(string value) => Volatile.Write(ref status, value);
+
+    private static ImportFile? PreferredNormal(ImportFiles files) =>
+        files.Normal.FirstOrDefault(f => f.Kind == "i-maed-360") ?? files.Normal.FirstOrDefault();
 
     private void SelectImportedArtwork(AssetImportSelection selection)
     {
