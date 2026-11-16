@@ -18,7 +18,7 @@ The additions are pretty basic. They focus mainly on making the game accessible 
 
 ## Flashing lights warning
 
-This game uses flashing visuals as part of its original art style. **Settings → Graphics → Reduce Flashing** reduces some menu and gameplay effects, but flashing can still occur with the setting enabled. The installer can enable it on first launch.
+This game uses flashing visuals as part of its original art style. **Settings → Graphics → Reduce Flashing** reduces some menu and gameplay effects, but flashing can still occur with the setting enabled. Windows setup can enable it for first launch; macOS and iOS offer the choice in a one-time warning when the app first opens.
 
 The game is not recommended for people with photosensitive epilepsy or other sensitivity to flashing lights.
 

@@ -10,6 +10,12 @@ using Mono.Cecil;
 using Port.Art;
 using Port.IosGame;
 
+if (args is ["--first-launch-warning"])
+{
+    await FirstLaunchWarningChecks.Run();
+    return;
+}
+
 if (args is ["--creator-photo-check", var creatorGame])
 {
     CreatorPhotoChecks.Run(creatorGame);

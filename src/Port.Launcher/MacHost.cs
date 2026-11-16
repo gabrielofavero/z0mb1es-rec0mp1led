@@ -21,6 +21,7 @@ internal static class MacHost
             var assetRoot = Path.Combine(data, "assets");
             var saveRoot = Path.Combine(data, "saves");
             var pictureRoot = Path.Combine(data, "pictures");
+            if (!await MacFlashingWarning.ShowAsync(saveRoot)) return 0;
             Directory.CreateDirectory(data);
             var tools = new GamePreparationTools(
                 Path.Combine(program, "tools", "inspect_assembly"),

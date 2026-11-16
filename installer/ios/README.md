@@ -1,5 +1,7 @@
 # iOS player build (Plan 1)
 
+Both the importing app and personal preinstalled app show a one-time flashing lights warning with an **Enable Reduce Flashing** checkbox before importing assets or starting animated game content. **Continue** saves the graphics choice and acknowledgment in Application Support, beside saves. Later launches, app updates and asset reimports skip the warning; **Settings → Graphics** remains available to change the setting. The checkbox reflects an existing preference and is unchecked on a fresh install. Reduced flashing does not eliminate all flashing visuals.
+
 Build 5 replaces build 4's first-frame modal importer with a native child view attached after frame submission. Build 4 reached Metal and continued pumping events on the device but showed no importer; build 5 still shows black on the device despite its attachment/appearance callbacks completing. Visible startup remains unresolved.
 
 `Port.IosGame` builds a content-free, unsigned iPhone/iPad IPA that prepares and loads the player's phone game on the device. This is the player-facing continuation of the accepted build-2 interpreter prerequisite. Original-game device play, optional-art device import, lifecycle, performance and signing-renewal acceptance remain open. The user requested one real player build and declined additional diagnostic installs; build 3's mode-check interface is superseded by build 4.

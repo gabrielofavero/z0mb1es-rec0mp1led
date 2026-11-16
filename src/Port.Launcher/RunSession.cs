@@ -101,6 +101,8 @@ internal static class RunSession
                     ? new MacGameHostAdapter() : new WindowsGameHostAdapter();
             host.ConfigureNativeLibraries(paths);
             host.ConfigureStorage(paths);
+            if (OperatingSystem.IsMacOS() &&
+                !MacFlashingWarning.ShowAsync(DesktopStorage.SaveDirectory).GetAwaiter().GetResult()) return 0;
             GameContent.Configure(content);
             AssetChoices.Initialize(artStore, artNormal, artViking, artEndless);
             var assembly = Assembly.LoadFrom(dll);

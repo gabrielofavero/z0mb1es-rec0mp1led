@@ -46,6 +46,21 @@ public static class Program
             SynchronizationContext.SetSynchronizationContext(new MainThreadContext());
         GameTrace.Write("sdl-main=entered");
         GameUi.StartWatchdog();
+        if (!FirstLaunchWarning.IsAcknowledged(GameData.Saves))
+        {
+            // Let UIKit activate its scene before showing the static warning screen.
+            CoreFoundation.DispatchQueue.MainQueue.DispatchAsync(() =>
+            {
+                try { FirstLaunchWarningUi.ShowIfNeeded(() => StartGame(), GameUi.ShowFailure); }
+                catch (Exception error) { GameUi.ShowFailure(error); }
+            });
+            return 0;
+        }
+        return StartGame();
+    }
+
+    private static int StartGame()
+    {
         try
         {
             var active = BundledAssets.Open(Path.Combine(NSBundle.MainBundle.BundlePath, "preinstalled"), GameTrace.Write);

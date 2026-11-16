@@ -1,5 +1,7 @@
 # macOS Apple Silicon packages
 
+Before importing assets or starting animated game content, the app shows a one-time flashing lights warning with an **Enable Reduce Flashing** checkbox. **Continue** saves the choice and acknowledgment; **Quit** leaves the warning pending for the next launch. The checkbox reflects an existing graphics preference and is unchecked for a fresh account. Acknowledgment is stored beside saves in `saves/flashing-warning-acknowledged`, outside the app and imported assets, so updates and reimports do not show it again. The setting remains available in **Settings → Graphics**; reduced flashing does not eliminate all flashing visuals.
+
 The macOS host uses the shared first-launch import and Settings → Graphics → Assets → Reimport flow. It stores imported assets, saves, and creator photos in `~/Library/Application Support/z0mb1es-rec0mp1led/`, logs in `~/Library/Logs/z0mb1es-rec0mp1led/`, and keeps all generated content outside the app bundle. The first launch asks for the supported phone XAP; I MAED and Time Viking art are optional. Once import succeeds, the original packages may be removed. The app bundle and package must contain no XAP, phone DLL, XNB, or generated assets.
 
 `build.sh` packages Apple Silicon only. The pinned toolchain is .NET SDK 10.0.302, runtime 10.0.10, and FNA 26.11. It accepts Xcode 27.1 or Apple Command Line Tools 14.3.1 with SDK 13.3. The first local build was completed on macOS Ventura 13.5 with an Apple M1 and the Command Line Tools. Exact input hashes are recorded in `config/macos-packaging.json`.

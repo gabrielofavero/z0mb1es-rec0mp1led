@@ -22,9 +22,12 @@ internal static class HostCoordinator
         {
             try
             {
-                var active = GameData.Store.TryOpen();
-                if (active is null || GameData.ImportRequested) GameUi.ShowImporter(null, allowLaunch: true);
-                else StartOriginal(active);
+                FirstLaunchWarningUi.ShowIfNeeded(() =>
+                {
+                    var active = GameData.Store.TryOpen();
+                    if (active is null || GameData.ImportRequested) GameUi.ShowImporter(null, allowLaunch: true);
+                    else StartOriginal(active);
+                }, ShowFailure);
             }
             catch (Exception error) { ShowFailure(error); }
         });
