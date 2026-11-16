@@ -42,10 +42,14 @@ internal static class CreatorPhotoChecks
             void Click(string label) => mapperType.GetMethod("Click", fields)!.Invoke(mapper, [label]);
 
             mapperType.GetMethod("Init", fields)!.Invoke(mapper, null);
+            sources = (IList)sourceField.GetValue(manager)!;
             DesktopPictures.LayoutMapper(mapper);
             Assert(Items().Select(Label).SequenceEqual(["Choose Photos"]), "Empty creator has no photo action or still shows source controls.");
             var emptyInfo = mapperType.BaseType.GetField("infos", fields)!.GetValue(mapper);
-            Click("Choose Photos");
+            var menuScale = (float)game.GetField("MENUSCALE", statics)!.GetValue(null)!;
+            var choose = Items()[0];
+            Assert((bool)choose.GetType().GetMethod("TryClick", fields)!.Invoke(choose,
+                [(Position(choose) + new Vector2(0, 12)) * menuScale, mapper])!, "Native touch path misses the padded Choose Photos target.");
             DesktopPictures.LayoutMapper(mapper);
             Assert(requests == 1 && sources.Count == 0 && ReferenceEquals(emptyInfo, mapperType.BaseType.GetField("infos", fields)!.GetValue(mapper)),
                 "Canceling photo selection changed the empty collection or lost its invitation.");
@@ -73,6 +77,13 @@ internal static class CreatorPhotoChecks
                     Assert(Position(item) == (Vector2)item.GetType().GetField("tiltLoc", fields)!.GetValue(item)!, "Creator draw and touch positions differ after rotation.");
                 }
                 Assert(Vector2.Distance(Position(Items()[3]), Position(Items()[4])) >= 180, "Photo actions overlap each other.");
+                var add = Items()[3];
+                var before = requests;
+                Assert((bool)add.GetType().GetMethod("TryClick", fields)!.Invoke(add,
+                    [(Position(add) + new Vector2(0, 12)) * scale, mapper])! && requests == before + 1,
+                    "Rotated native touch path misses Add Photos or repeats selection.");
+                Assert(!DesktopPictures.TryClickPhotoAction(add, (Position(add) + new Vector2(0, 30)) * scale, mapper),
+                    "Photo button accepts touches outside its padded target.");
             }
 
             // Remove the final imported copy through the real click hook. Keep a

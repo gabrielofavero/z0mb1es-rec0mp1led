@@ -11,11 +11,18 @@ internal static class VibrationPackageChecks
             throw new Exception("Device vibration is not connected to the shared feedback API.");
         bool Calls(MethodDefinition method, string type, string name) => method.Body.Instructions
             .Any(i => i.Operand is MethodReference call && call.DeclaringType.FullName == type && call.Name == name);
-        var start = output.Methods.Single(m => m.Name == "TryStart");
+        var start = output.Methods.Single(m => m.Name == "TryStartHaptics");
+        var fallback = output.Methods.Single(m => m.Name == "TrySystemVibration");
+        var failed = output.Methods.Single(m => m.Name == "Failed");
+        var entry = output.Methods.Single(m => m.Name == "TryStart");
+        if (!Calls(failed, output.FullName, fallback.Name) ||
+            !Calls(entry, output.FullName, failed.Name) || entry.Body.ExceptionHandlers.Count == 0)
+            throw new Exception("Core Haptics errors must retain the system vibration fallback.");
         if (!Calls(start, "CoreHaptics.CHHapticEngine", "GetHardwareCapabilities") ||
             !Calls(start, "CoreHaptics.CHHapticEngine", "CreatePlayer") ||
             !Calls(start, "System.TimeSpan", "get_TotalSeconds") ||
-            !Calls(start, "AudioToolbox.SystemSound", "PlaySystemSound"))
+            !Calls(start, output.FullName, fallback.Name) ||
+            !Calls(fallback, "AudioToolbox.SystemSound", "PlaySystemSound"))
             throw new Exception("Device vibration lost capability detection, timed haptics, or legacy vibration.");
         var configure = output.Methods.Single(m => m.Name == "Configure");
         if (!Calls(configure, "Port.Bridge.GameVibration", "set_DeviceOutput") ||

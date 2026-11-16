@@ -5,7 +5,7 @@
   <key>CFBundleDisplayName</key><string>Z0MB1ES</string>
   <key>CFBundleName</key><string>Port.IosBundled</string>
   <key>CFBundleShortVersionString</key><string>0.1.0</string>
-  <key>CFBundleVersion</key><string>11</string>
+  <key>CFBundleVersion</key><string>12</string>
   <key>UIApplicationSupportsIndirectInputEvents</key><true/>
   <key>CFBundleIcons</key><dict><key>CFBundlePrimaryIcon</key><dict>
     <key>CFBundleIconFiles</key><array><string>AppIcon60x60</string></array>

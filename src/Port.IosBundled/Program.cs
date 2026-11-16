@@ -22,7 +22,7 @@ public static class Program
     {
         Console.SetOut(new GameTrace.Writer());
         Console.SetError(new GameTrace.Writer());
-        GameTrace.Write($"launch build=11 variant=preinstalled ios={UIKit.UIDevice.CurrentDevice.SystemVersion} " +
+        GameTrace.Write($"launch build=12 variant=preinstalled ios={UIKit.UIDevice.CurrentDevice.SystemVersion} " +
             $"runtime={System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription} " +
             $"dynamicCodeCompiled={RuntimeFeature.IsDynamicCodeCompiled}");
         AppDomain.CurrentDomain.UnhandledException += (_, e) => GameTrace.Write("unhandled=" + e.ExceptionObject);

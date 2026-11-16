@@ -95,6 +95,21 @@ if (args is ["--bundled-ipa", var personalIpa])
     foreach (var name in new[] { "game/ZombiesWP7.dll", "content/content-manifest.json", "bundled-manifest.json",
         "optional-art/i-maed-360/current.json", "optional-art/time-viking-360/current.json", "optional-art/endless-360/current.json" })
         if (zip.GetEntry(prefix + "preinstalled/" + name) is null) throw new Exception("Personal payload missing " + name);
+    using (var gameInput = zip.GetEntry(prefix + "preinstalled/game/ZombiesWP7.dll")!.Open())
+    using (var gameBytes = new MemoryStream())
+    {
+        gameInput.CopyTo(gameBytes);
+        gameBytes.Position = 0;
+        using var packagedGame = AssemblyDefinition.ReadAssembly(gameBytes);
+        foreach (var (type, method, hook) in new[]
+        {
+            ("IMAK3Z0MB1EGAEM.menu.CustomMapper", "Click", "HandleMapperClick"),
+            ("ZombiesWP7.menu.MenuItem", "TryClick", "TryClickPhotoAction")
+        })
+            if (!packagedGame.MainModule.GetType(type).Methods.Single(m => m.Name == method).Body.Instructions
+                .Any(i => i.Operand is MethodReference m && m.DeclaringType.FullName == "Port.Hooks.DesktopPictures" && m.Name == hook))
+                throw new Exception("Personal package lost creator photo hook: " + hook);
+    }
     Console.WriteLine("PERSONAL_BUNDLE_CODE_OK; device gameplay remains unverified");
     return;
 }

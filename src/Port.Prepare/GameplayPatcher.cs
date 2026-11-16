@@ -72,7 +72,7 @@ public static class GameplayPatcher
     private const string PortraitHooksHash = "c741f7fa26fe91b37050fc81291892747567f7fd36710548d6b73dd459006349";
     private const string SafeAreaHooksHash = "29e3f3888917bb57a8d7baea4419d67867068934e04eacaf944947be2e3c62c8";
     private const string MusicPlaybackHooksHash = "c7ae632d8ed2a850fd107edc9e3e4d5f28f24772e6a60c9cdd0e637b4a744bd6";
-    private const string MobileCreatorPhotosHooksHash = "04f883059daf7a9edf3821813faee1758e8ea155f4058c9cd995f3162262a8de";
+    private const string MobileCreatorPhotosHooksHash = "da0bf99530264e977306efa6c7f98ed25ff636ef494c18167b9cca90cff45074";
     private const string MusicUpdateHash = "5110787c8a586cec1eabe884d5f54e2ca9bfacae4092bcd92a5b36688e1065bc";
     private const int MethodToken = 0x06000152;
     private const int TouchMethodToken = 0x0600007a;
@@ -1321,6 +1321,18 @@ public static class GameplayPatcher
         actionIl.InsertBefore(actionFirst, actionIl.Create(OpCodes.Brfalse, actionFirst));
         actionIl.InsertBefore(actionFirst, actionIl.Create(OpCodes.Ret));
 
+        var tryClick = module.Types.Single(type => type.FullName == "ZombiesWP7.menu.MenuItem")
+            .Methods.Single(method => method.Name == "TryClick");
+        var tryIl = tryClick.Body.GetILProcessor();
+        var tryFirst = tryClick.Body.Instructions.First();
+        tryIl.InsertBefore(tryFirst, tryIl.Create(OpCodes.Ldarg_0));
+        tryIl.InsertBefore(tryFirst, tryIl.Create(OpCodes.Ldarg_1));
+        tryIl.InsertBefore(tryFirst, tryIl.Create(OpCodes.Ldarg_2));
+        tryIl.InsertBefore(tryFirst, tryIl.Create(OpCodes.Call, Target("TryClickPhotoAction")));
+        tryIl.InsertBefore(tryFirst, tryIl.Create(OpCodes.Brfalse, tryFirst));
+        tryIl.InsertBefore(tryFirst, tryIl.Create(OpCodes.Ldc_I4_1));
+        tryIl.InsertBefore(tryFirst, tryIl.Create(OpCodes.Ret));
+
         var image = module.Types.Single(type => type.FullName == "ZombiesWP7.custom.CustomImg");
         var process = image.Methods.Single(method => method.Name == "Process");
         if (process.Parameters.Count != 2 || process.Parameters[1].ParameterType.FullName !=
@@ -1338,6 +1350,11 @@ public static class GameplayPatcher
 
     private static void VerifyPictures(ModuleDefinition module)
     {
+        var tryClick = module.Types.Single(type => type.FullName == "ZombiesWP7.menu.MenuItem")
+            .Methods.Single(method => method.Name == "TryClick");
+        if (tryClick.Body.Instructions.Count(item => item.Operand is MethodReference target &&
+            target.DeclaringType.FullName == "Port.Hooks.DesktopPictures" && target.Name == "TryClickPhotoAction") != 1)
+            throw new PreparationException("Photo action touch target hook postcondition failed.");
         var mapper = module.Types.Single(type => type.FullName == "IMAK3Z0MB1EGAEM.menu.CustomMapper");
         var init = mapper.Methods.Single(candidate => candidate.Name == "Init");
         if (init.Body.Instructions.Count(item => item.Operand is MethodReference target &&

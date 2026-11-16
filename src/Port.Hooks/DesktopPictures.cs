@@ -278,6 +278,24 @@ public static class DesktopPictures
     }
 
     // Route through the original MenuItem click path for touch, mouse and controller.
+    public static bool TryClickPhotoAction(object item, Vector2 position, object mapper)
+    {
+        if (!ReferenceEquals(photoMapper, mapper) || photoItems is null || PhotoSelectionRequested is null)
+            return false;
+        var text = (string)item.GetType().GetField("text", InstanceFields)!.GetValue(item)!;
+        if (text is not ("Choose Photos" or "Add Photos" or "Remove Photo") ||
+            !photoItems.Cast<object>().Any(candidate => ReferenceEquals(candidate, item))) return false;
+        var scale = (float)mapper.GetType().Assembly.GetType("ZombiesWP7.Game1", true)!
+            .GetField("MENUSCALE", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)!.GetValue(null)!;
+        var center = (Vector2)item.GetType().GetField("tiltLoc", InstanceFields)!.GetValue(item)! * scale;
+        // The original text rows have a five-unit half-height. Give these
+        // actions finger-sized targets without enlarging their text.
+        if (!MenuNavigation.HitTest(position, center, (text == "Choose Photos" ? 115 : 92) * scale, 18 * scale))
+            return false;
+        mapper.GetType().GetMethod("Click", InstanceFields)!.Invoke(mapper, [text]);
+        return true;
+    }
+
     public static bool HandleMapperClick(object mapper, string text)
     {
         if (PhotoSelectionRequested is null) return false;

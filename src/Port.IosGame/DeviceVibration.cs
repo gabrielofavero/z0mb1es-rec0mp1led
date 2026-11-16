@@ -12,6 +12,7 @@ internal sealed class DeviceVibration : IVibrationOutput
     private static NSObject? resignObserver;
     private CHHapticEngine? engine;
     private ICHHapticPatternPlayer? player;
+    private bool playbackReported;
 
     internal static void Configure()
     {
@@ -23,14 +24,22 @@ internal sealed class DeviceVibration : IVibrationOutput
 
     public bool TryStart(TimeSpan duration)
     {
-        if (!CHHapticEngine.GetHardwareCapabilities().SupportsHaptics)
+        try
         {
-            // Older iPhones still expose the system vibration pulse even when
-            // they cannot play Core Haptics patterns. iPads have no device motor.
-            if (!UIDevice.CurrentDevice.Model.StartsWith("iPhone", StringComparison.OrdinalIgnoreCase)) return false;
-            SystemSound.Vibrate.PlaySystemSound();
-            return true;
+            return TryStartHaptics(duration);
         }
+        catch (Exception error)
+        {
+            // Native interop failures must reach the same phone fallback as
+            // NSError failures, rather than disappearing in the shared router.
+            return Failed(error.ToString());
+        }
+    }
+
+    private bool TryStartHaptics(TimeSpan duration)
+    {
+        if (!CHHapticEngine.GetHardwareCapabilities().SupportsHaptics)
+            return TrySystemVibration();
         Stop();
         if (engine is null)
         {
@@ -51,7 +60,25 @@ internal sealed class DeviceVibration : IVibrationOutput
         player = engine.CreatePlayer(pattern, out var playerError);
         if (playerError is not null || player is null) return Failed(playerError?.LocalizedDescription);
         if (!player.Start(0, out var playError)) return Failed(playError?.LocalizedDescription);
+        ReportPlayback("core-haptics");
         return true;
+    }
+
+    private bool TrySystemVibration()
+    {
+        // iPads have no device motor. This fixed pulse is also a fallback when
+        // supported Core Haptics hardware cannot start its engine or player.
+        if (!UIDevice.CurrentDevice.Model.StartsWith("iPhone", StringComparison.OrdinalIgnoreCase)) return false;
+        SystemSound.Vibrate.PlaySystemSound();
+        ReportPlayback("system-vibration");
+        return true;
+    }
+
+    private void ReportPlayback(string output)
+    {
+        if (playbackReported) return;
+        playbackReported = true;
+        GameTrace.Write("device-vibration-playback=" + output);
     }
 
     public void Stop()
@@ -65,9 +92,21 @@ internal sealed class DeviceVibration : IVibrationOutput
     private bool Failed(string? reason)
     {
         GameTrace.Write("device-vibration-unavailable=" + reason);
-        Stop();
-        engine?.Dispose();
+        // A broken player must not prevent the independent system pulse.
+        var failedPlayer = player;
+        var failedEngine = engine;
+        player = null;
         engine = null;
-        return false;
+        try
+        {
+            failedPlayer?.Stop(0, out _);
+            failedPlayer?.Dispose();
+            failedEngine?.Dispose();
+        }
+        catch (Exception error)
+        {
+            GameTrace.Write("device-vibration-cleanup-failed=" + error.Message);
+        }
+        return TrySystemVibration();
     }
 }
