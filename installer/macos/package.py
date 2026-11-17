@@ -6,9 +6,7 @@ import json
 import pathlib
 import shutil
 import subprocess
-import tarfile
 import tempfile
-import zipfile
 
 repo = pathlib.Path(__file__).resolve().parents[2]
 pin = json.loads((repo / 'config/macos-packaging.json').read_text())
@@ -18,18 +16,12 @@ inputs = repo / 'private/macos-inputs'
 publish = repo / 'private/macos-publish'
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--output', type=pathlib.Path, default=repo / 'out/macos/packages',
-                    help='Destination directory for the app, installer, and FFmpeg source ZIP')
+                    help='Destination directory for the app and installer')
 output = parser.parse_args().output.resolve()
 output.mkdir(parents=True, exist_ok=True)
-source_dir = repo / 'private/ffmpeg-macos/source'
-source_hashes = {
-    'libogg-1.3.6.tar.gz': '83e6704730683d004d20e21b8f7f55dcb3383cdf84c0daedf30bde175f774638',
-    'libvorbis-1.3.7.tar.xz': 'b33cc4934322bcbf6efcbacf49e3ca01aadbea4114ec9589d1b1e9d20f72954b',
-    'ffmpeg-239f2c733d.tar.gz': '11b3259addbc18cfb5cf4b198a746e8bd34828419f4284a3d00599abaadd0244',
-}
-for name, expected in source_hashes.items():
-    if hashlib.sha256((source_dir / name).read_bytes()).hexdigest() != expected:
-        raise SystemExit(f'FFmpeg source archive hash mismatch: {name}')
+obsolete_source = output / 'FFmpeg-8.1.1-macos-source.zip'
+if obsolete_source.is_file():
+    obsolete_source.unlink()
 with tempfile.TemporaryDirectory(prefix='z0mb1es-macos-') as temporary:
     stage = pathlib.Path(temporary) / 'stage'
     app = stage / 'Z0MB1ES.app'
@@ -45,7 +37,7 @@ with tempfile.TemporaryDirectory(prefix='z0mb1es-macos-') as temporary:
         shutil.copy2(publish / name / executable, tools / executable)
     shutil.copytree(publish / 'abi', tools / 'abi', dirs_exist_ok=True)
     shutil.copy2(inputs / 'Port.AssetImporter', tools / 'Port.AssetImporter')
-    shutil.copy2(inputs / 'ffmpeg', tools / 'ffmpeg')
+    shutil.copy2(repo / 'out/audio-converter/release/port-audio-converter', tools / 'port-audio-converter')
     for name in pin['requiredNativeFiles']:
         shutil.copy2(repo / 'out/deps/native/osx-arm64' / name, macos / name)
     for name in ('SDL3', 'FNA3D', 'FAudio'):
@@ -53,8 +45,8 @@ with tempfile.TemporaryDirectory(prefix='z0mb1es-macos-') as temporary:
     config = macos / 'config'
     config.mkdir()
     shutil.copy2(repo / 'config/supported-versions.json', config)
-    converter_hash = hashlib.sha256((tools / 'ffmpeg').read_bytes()).hexdigest()
-    (config / 'macos-converter.sha256').write_text(converter_hash + '  ffmpeg\n')
+    converter_hash = hashlib.sha256((tools / 'port-audio-converter').read_bytes()).hexdigest()
+    (config / 'macos-converter.sha256').write_text(converter_hash + '  port-audio-converter\n')
     shutil.copy2(repo / 'installer/macos/dialogs.applescript', macos)
     shutil.copy2(repo / 'installer/macos/launch.sh', macos)
     shutil.copy2(repo / 'installer/macos/Info.plist', app / 'Contents/Info.plist')
@@ -76,24 +68,13 @@ with tempfile.TemporaryDirectory(prefix='z0mb1es-macos-') as temporary:
         ('out/deps/fna-26.11/FNA/lib/FAudio/LICENSE', 'FAudio-LICENSE.txt'),
         ('out/deps/fna-26.11/FNA/lib/Theorafile/licenses/LICENSE', 'Theorafile-LICENSE.txt')):
         shutil.copy2(repo / source, notices / target)
-    for archive, member, target in (
-        ('ffmpeg-239f2c733d.tar.gz', 'FFmpeg-239f2c733d/COPYING.LGPLv2.1', 'FFmpeg-LGPL-2.1.txt'),
-        ('ffmpeg-239f2c733d.tar.gz', 'FFmpeg-239f2c733d/LICENSE.md', 'FFmpeg-LICENSE.md'),
-        ('libogg-1.3.6.tar.gz', 'libogg-1.3.6/COPYING', 'libogg-COPYING.txt'),
-        ('libvorbis-1.3.7.tar.xz', 'libvorbis-1.3.7/COPYING', 'libvorbis-COPYING.txt')):
-        with tarfile.open(source_dir / archive) as source:
-            with source.extractfile(member) as license_file:
-                (notices / target).write_bytes(license_file.read())
-    (notices / 'FFmpeg-source.txt').write_text(
-        'FFmpeg 8.1.1 (239f2c733d), built with libogg 1.3.6 and libvorbis 1.3.7.\n'
-        'Corresponding source and build recipe: FFmpeg-8.1.1-macos-source.zip,\n'
-        'distributed beside the macOS installer.\n'
-        f'Converter SHA-256: {converter_hash}\n')
+    shutil.copy2(repo / 'tools/audio-converter/vendor/gameframe-wma/LICENSE-APACHE', notices / 'gameframe-wma-LICENSE-APACHE')
+    shutil.copy2(repo / 'tools/audio-converter/vendor/qoaudio/LICENSE', notices / 'qoaudio-LICENSE')
     for path in app.rglob('*'):
-        if path.is_file() and (path.suffix.lower() in ('.xap', '.xnb', '.wma', '.ogg')
+        if path.is_file() and (path.suffix.lower() in ('.xap', '.xnb', '.wma', '.ogg', '.qoa')
                                or path.name == 'ZombiesWP7.dll'):
             raise SystemExit(f'Proprietary file in package: {path}')
-    for path in (macos / 'Z0MB1ES', macos / 'launch.sh', tools / 'ffmpeg', tools / 'Port.AssetImporter',
+    for path in (macos / 'Z0MB1ES', macos / 'launch.sh', tools / 'port-audio-converter', tools / 'Port.AssetImporter',
                  tools / 'inspect_assembly', tools / 'decode_360_xnb', tools / 'abi/abi_check'):
         path.chmod(0o755)
     app_destination = output / 'Z0MB1ES-1.0.0-osx-arm64.app'
@@ -106,9 +87,3 @@ with tempfile.TemporaryDirectory(prefix='z0mb1es-macos-') as temporary:
                     '--identifier', 'io.github.z0mb1esrec0mp1led.game', '--version', '1.0.0',
                     str(destination)], check=True)
     print(f'{hashlib.sha256(destination.read_bytes()).hexdigest()}  {destination}')
-    source = output / 'FFmpeg-8.1.1-macos-source.zip'
-    with zipfile.ZipFile(source, 'w', compression=zipfile.ZIP_DEFLATED) as archive:
-        for name in source_hashes:
-            archive.write(source_dir / name, name)
-        archive.write(repo / 'installer/macos/build-ffmpeg.sh', 'build-ffmpeg.sh')
-    print(f'{hashlib.sha256(source.read_bytes()).hexdigest()}  {source}')

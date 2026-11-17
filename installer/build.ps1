@@ -1,5 +1,5 @@
 param(
-    [Parameter(Mandatory = $true)][string]$FfmpegPath,
+    [Parameter(Mandatory = $true)][string]$AudioConverterPath,
     [string]$RuntimePackSource = 'https://api.nuget.org/v3/index.json',
     [string]$IsccPath = 'ISCC.exe',
     [string]$PyInstallerRoot = 'private/tooling/pyinstaller'
@@ -10,15 +10,17 @@ $repo = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $payload = Join-Path $PSScriptRoot 'out/payload'
 $cache = Join-Path $repo 'out/deps/cache'
 $packPins = Get-Content -Raw (Join-Path $PSScriptRoot 'config/runtime-packs.json') | ConvertFrom-Json
-$expected = (Get-Content -Raw (Join-Path $repo 'config/content-tools.json') | ConvertFrom-Json).ffmpeg.executableSha256
-$converter = (Resolve-Path -LiteralPath $FfmpegPath).Path
+$expected = (Get-Content -Raw (Join-Path $repo 'config/content-tools.json') | ConvertFrom-Json).audioConverter.executableSha256
+$converter = (Resolve-Path -LiteralPath $AudioConverterPath).Path
 if ((Get-FileHash -LiteralPath $converter -Algorithm SHA256).Hash -ine $expected) {
-    throw 'FFmpeg does not match the pinned converter.'
+    throw 'Audio converter does not match the pinned binary.'
 }
-python (Join-Path $PSScriptRoot 'ffmpeg/package-source.py') --ffmpeg-path $converter
-if ($LASTEXITCODE -ne 0) { throw 'FFmpeg source bundle or license packaging failed.' }
 $priorSetup = Join-Path $PSScriptRoot 'out/Z0MB1ES-1.0.0.exe'
 if (Test-Path -LiteralPath $priorSetup) { Remove-Item -LiteralPath $priorSetup -Force }
+foreach ($obsolete in @('FFmpeg-8.1.1-source.zip','FFmpeg-8.1.1-linux-source.zip')) {
+    $obsoletePath = Join-Path $PSScriptRoot "out/$obsolete"
+    if (Test-Path -LiteralPath $obsoletePath) { Remove-Item -LiteralPath $obsoletePath -Force }
+}
 
 $expectedPayload = [System.IO.Path]::GetFullPath((Join-Path $repo 'installer/out/payload'))
 if ([System.IO.Path]::GetFullPath($payload) -ne $expectedPayload) {
@@ -106,9 +108,8 @@ $runtimeNoticeRoot = Join-Path $env:USERPROFILE ".nuget/packages/microsoft.netco
 foreach ($name in @('LICENSE.TXT','THIRD-PARTY-NOTICES.TXT')) {
     Copy-Item -LiteralPath (Join-Path $runtimeNoticeRoot $name) -Destination (Join-Path $notices "dotnet-$name") -Force
 }
-& $converter -L | Set-Content -Path (Join-Path $notices 'FFmpeg-LICENSE.txt')
-if ($LASTEXITCODE -ne 0) { throw 'Could not capture FFmpeg license.' }
-Copy-Item -Path (Join-Path $PSScriptRoot 'out/ffmpeg-notices/*') -Destination $notices -Force
+Copy-Item -LiteralPath (Join-Path $repo 'tools/audio-converter/vendor/gameframe-wma/LICENSE-APACHE') -Destination (Join-Path $notices 'gameframe-wma-LICENSE-APACHE') -Force
+Copy-Item -LiteralPath (Join-Path $repo 'tools/audio-converter/vendor/qoaudio/LICENSE') -Destination (Join-Path $notices 'qoaudio-LICENSE') -Force
 $tools = Join-Path $payload 'tools'
 New-Item -ItemType Directory -Force -Path $tools | Out-Null
 $oldAbi = Join-Path $tools 'abi_check.exe'
@@ -125,7 +126,7 @@ foreach ($intermediate in @('abi','inspect','decoder')) {
     }
     Remove-Item -LiteralPath $target -Recurse -Force
 }
-Copy-Item -LiteralPath $converter -Destination (Join-Path $tools 'ffmpeg.exe') -Force
+Copy-Item -LiteralPath $converter -Destination (Join-Path $tools 'port-audio-converter.exe') -Force
 $pyInstallerPath = [IO.Path]::GetFullPath((Join-Path $repo $PyInstallerRoot))
 if (-not (Test-Path -LiteralPath (Join-Path $pyInstallerPath 'PyInstaller/__main__.py'))) {
     throw 'PyInstaller is required under the configured ignored tooling path.'
@@ -164,10 +165,8 @@ $allowedRuntime = @(
     'notices/Mono.Cecil-NOTICE.txt','notices/xnb-parse-LICENSE',
     'notices/Python-LICENSE.txt','notices/Pillow-LICENSE','notices/NumPy-LICENSE.txt',
     'notices/PyInstaller-COPYING.txt','notices/dotnet-LICENSE.TXT',
-    'notices/dotnet-THIRD-PARTY-NOTICES.TXT','notices/FFmpeg-LICENSE.txt',
-    'notices/FFmpeg-COPYING.LGPLv2.1','notices/FFmpeg-LICENSE.md',
-    'notices/FFmpeg-libogg-COPYING','notices/FFmpeg-libvorbis-COPYING',
-    'notices/FFmpeg-SOURCE.txt'
+    'notices/dotnet-THIRD-PARTY-NOTICES.TXT',
+    'notices/gameframe-wma-LICENSE-APACHE','notices/qoaudio-LICENSE'
 )
 foreach ($folder in @('helper','runtime','tools','config')) {
     $folderPath = Join-Path $payload $folder
@@ -178,7 +177,7 @@ foreach ($folder in @('helper','runtime','tools','config')) {
             'runtime' { $relative -in $allowedRuntime }
             'config' { $relative -eq 'supported-versions.json' }
             'tools' {
-                $relative -in @('ffmpeg.exe','inspect_assembly.exe','decode_360_xnb.exe','Port.AssetImporter.exe') -or
+                $relative -in @('port-audio-converter.exe','inspect_assembly.exe','decode_360_xnb.exe','Port.AssetImporter.exe') -or
                 ($relative -match '^abi/[^/]+$' -and $file.Extension -in @('.dll','.exe','.json'))
             }
         }
@@ -186,7 +185,7 @@ foreach ($folder in @('helper','runtime','tools','config')) {
     }
 }
 
-foreach ($forbidden in @('ZombiesWP7.dll','*.xap','*.xnb','*.wma')) {
+foreach ($forbidden in @('ZombiesWP7.dll','*.xap','*.xnb','*.wma','*.ogg','*.qoa')) {
     if (Get-ChildItem -LiteralPath $payload -Recurse -File -Filter $forbidden) {
         throw "Game data found in installer payload: $forbidden"
     }

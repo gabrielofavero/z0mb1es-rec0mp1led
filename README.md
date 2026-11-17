@@ -65,7 +65,7 @@ I recreated the game's cover as an SVG and adapted it for the icon and installer
 
 ## License
 
-The code I wrote for this port is licensed under the [GNU General Public License, version 2](LICENSE). The separately bundled FFmpeg converter is built under LGPL 2.1 or later, with its matching source and license delivery instructions [here](installer/ffmpeg/README.md). The original game and other third-party dependencies belong to their respective owners and have their own terms.
+The code I wrote for this port is licensed under the [GNU General Public License, version 2](LICENSE). The offline audio converter uses vendored [gameframe-wma](tools/audio-converter/vendor/gameframe-wma/LICENSE-APACHE) and [qoaudio](tools/audio-converter/vendor/qoaudio/LICENSE) code under their respective licenses. The original game and other third-party dependencies belong to their respective owners and have their own terms.
 
 ## Was AI used?
 

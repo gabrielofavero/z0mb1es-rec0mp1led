@@ -62,24 +62,25 @@ function build-game {
     [CmdletBinding()]
     param(
         [string]$XapPath = (Join-Path $script:DevRoot 'game/Z0MB1ES (on teh ph0ne) v1.0.0.0.xap'),
-        [string]$FfmpegPath = (Join-Path $script:DevRoot $(if ($IsMacOS) { 'private/macos-inputs/ffmpeg' } else { 'private/tooling/ffmpeg.exe' })),
+        [string]$AudioConverterPath = '',
         [string]$ArtStorePath = (Join-Path $script:DevRoot 'private/asset-swap/prepared')
     )
     $ErrorActionPreference = 'Stop'
+    if (-not $AudioConverterPath) {
+        if ($IsWindows) { $AudioConverterPath = Join-Path $script:DevRoot 'out/audio-converter/release/port-audio-converter.exe' }
+        else { $AudioConverterPath = Join-Path $script:DevRoot 'out/audio-converter/release/port-audio-converter' }
+    }
     $xap = (Resolve-Path -LiteralPath $XapPath).Path
-    $ffmpeg = (Resolve-Path -LiteralPath $FfmpegPath).Path
+    $converter = (Resolve-Path -LiteralPath $AudioConverterPath).Path
     $localArt = $null
     if ($PSBoundParameters.ContainsKey('ArtStorePath') -or (Test-Path -LiteralPath $ArtStorePath)) {
         $localArt = (Resolve-Path -LiteralPath $ArtStorePath).Path
         if (-not (Test-Path -LiteralPath $localArt -PathType Container)) { throw 'ArtStorePath must be a prepared artwork directory.' }
     }
-    $expectedFfmpeg = (Get-Content -Raw -LiteralPath (Join-Path $script:DevRoot 'config/content-tools.json') | ConvertFrom-Json).ffmpeg.executableSha256
-    if ($IsMacOS) {
-        $expectedFfmpeg = (Get-Content -Raw -LiteralPath (Join-Path $script:DevRoot 'config/macos-packaging.json') | ConvertFrom-Json).artifactHashes.'private/macos-inputs/ffmpeg'
-        if ([string]::IsNullOrWhiteSpace($expectedFfmpeg)) { throw 'Missing macOS FFmpeg SHA-256 pin in config/macos-packaging.json.' }
-    }
-    if ((Get-FileHash -LiteralPath $ffmpeg -Algorithm SHA256).Hash -ine $expectedFfmpeg) {
-        throw 'FFmpeg does not match the pinned conversion tool configuration.'
+    $expectedConverter = (Get-Content -Raw -LiteralPath (Join-Path $script:DevRoot 'config/content-tools.json') | ConvertFrom-Json).audioConverter.executableSha256
+    if (-not $IsWindows) { $expectedConverter = (Get-FileHash -LiteralPath $converter -Algorithm SHA256).Hash }
+    if ((Get-FileHash -LiteralPath $converter -Algorithm SHA256).Hash -ine $expectedConverter) {
+        throw 'Audio converter does not match the pinned conversion tool configuration.'
     }
 
     $buildId = [guid]::NewGuid().ToString('N').Substring(0, 12)
@@ -108,8 +109,8 @@ function build-game {
         New-Item -ItemType Directory -Path $work | Out-Null
         Invoke-DevDotnet -Arguments @($prepareCli, '--xap', $xap, '--output', $preparation)
         Invoke-DevDotnet -Arguments @((Join-Path $script:DevRoot 'tools/content-prepare/bin/Release/net10.0/content-prepare.dll'),
-            '--xap', $xap, '--preparation', $preparation, '--ffmpeg', $ffmpeg, '--output', $content,
-            '--ffmpeg-sha256', $expectedFfmpeg)
+            '--xap', $xap, '--preparation', $preparation, '--converter', $converter, '--output', $content,
+            '--converter-sha256', $expectedConverter)
         Invoke-DevDotnet -Arguments @((Join-Path $script:DevRoot 'tools/inspect_assembly/bin/Release/net10.0/inspect_assembly.dll'),
             '--json', '--xap', $xap, '--output', $inventory)
 
@@ -174,7 +175,7 @@ function run-game {
 function build-installer {
     [CmdletBinding()]
     param(
-        [string]$FfmpegPath = (Join-Path $script:DevRoot 'private/tooling/ffmpeg.exe'),
+        [string]$AudioConverterPath = (Join-Path $script:DevRoot 'out/audio-converter/release/port-audio-converter.exe'),
         [string]$RuntimePackSource = (Join-Path $script:DevRoot 'out/deps/cache'),
         [string]$IsccPath = 'ISCC.exe',
         [string]$PyInstallerRoot = 'private/tooling/pyinstaller'
@@ -182,7 +183,7 @@ function build-installer {
     $ErrorActionPreference = 'Stop'
     Push-Location $script:DevRoot
     try {
-        & (Join-Path $script:DevRoot 'installer/build.ps1') -FfmpegPath $FfmpegPath `
+        & (Join-Path $script:DevRoot 'installer/build.ps1') -AudioConverterPath $AudioConverterPath `
             -RuntimePackSource $RuntimePackSource -IsccPath $IsccPath -PyInstallerRoot $PyInstallerRoot
         if ($LASTEXITCODE -ne 0) { throw "Installer build failed with exit code $LASTEXITCODE." }
     } finally {

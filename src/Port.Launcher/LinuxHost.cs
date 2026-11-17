@@ -30,7 +30,7 @@ internal static class LinuxHost
                 Path.Combine(program, "config", "supported-versions.json"),
                 Path.Combine(program, "FNA.dll"), Path.Combine(program, "Port.Bridge.dll"),
                 Path.Combine(program, "Port.Hooks.dll"),
-                Path.Combine(program, "tools", "ffmpeg"), LinuxConverterHash(program));
+                Path.Combine(program, "tools", "port-audio-converter"), LinuxConverterHash(program));
             IOptionalArtImporter? art = null;
             var artTool = Path.Combine(program, "tools", "Port.AssetImporter");
             if (File.Exists(artTool))
@@ -82,7 +82,7 @@ internal static class LinuxHost
         var hash = File.ReadAllText(config).Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries)[0];
         if (hash.Length != 64 || !hash.All(Uri.IsHexDigit))
             throw new InvalidDataException("Invalid packaged converter hash.");
-        var path = Path.Combine(program, "tools", "ffmpeg");
+        var path = Path.Combine(program, "tools", "port-audio-converter");
         using var stream = File.OpenRead(path);
         if (!Convert.ToHexString(SHA256.HashData(stream)).Equals(hash, StringComparison.OrdinalIgnoreCase))
             throw new InvalidDataException("Packaged Linux converter differs from its manifest.");

@@ -35,6 +35,8 @@ public static class IlRewriter
     private const string PlatformAbiReportHash = "c42954104fdb13957d4ece6111d914fc6590e691285b306a4e4539a2f0d874d4";
     private const string LinuxAbiReportHash = "cbb04820ba4740ef2f4ad36330274b5fd32342e9914de7fb53dd0ec4ddbbbb02";
     private const string CurrentWindowsAbiReportHash = "a35b3018ca7442944c307ce0635468f6537b7c98a897bc89d563377c7f701977";
+    // .NET 10.0.10 regenerates the same resolved Windows ABI inventory.
+    private const string AudioConverterWindowsAbiReportHash = "ac90ed7cf53434e667b5322443a688f99f6930c70e9ad3233f004b75d2e2618e";
     private const string MacAbiReportHash = "b78e590569d168fbbc340f8ce83d38b3ea065697c6a816efc20e0773198c7d57";
     private const string CurrentMacAbiReportHash = "3838d37aa8925623eb3b0c4cba3710a8cecc6b841a7e192bdf191776aeeb2174";
     private const string CurrentMacBridgeHash = "e40a275e09bad067bd0e01368c51b78ae9e6d5b0cdbdd16aca4d9235115f9a63";
@@ -55,6 +57,7 @@ public static class IlRewriter
     private const string UpdatedBridgeHash = "8795bbb5e50b2d3ec51cd80da7e17caa811547685b50fcfa5a7954efb3765522";
     private const string PlatformBridgeHash = "547d9dfed584d123f96ea78e8398e15c390b78835a69ef1e1a78149eb968704b";
     private const string CurrentSourceBridgeHash = "709fa5d053d4d44374735634b570a082650e52d75e43ea3d6b8516dc20ff9660";
+    private const string AudioConverterWindowsBridgeHash = "714d7d3d963120880b7942a36827e9e8696498644aaf02b880d674b417e1ec60";
     private const string MacBridgeHash = "22f8f4f5f42d1a8499a979e44c3b31c71a4a335f1739baec57ce12f0724fa803";
     private static readonly string[] LegacyAssemblies =
     [
@@ -70,7 +73,7 @@ public static class IlRewriter
         var root = document.RootElement;
         var reportHash = Hash(reportPath);
         var fnaHash = Hash(fnaPath);
-        if (reportHash is not (AbiReportHash or BridgeAbiReportHash or CurrentBridgeAbiReportHash or LatestBridgeAbiReportHash or RestartBridgeAbiReportHash or RestoredBridgeAbiReportHash or PictureButtonAbiReportHash or SessionAbiReportHash or UpdatedBridgeAbiReportHash or PlatformAbiReportHash or LinuxAbiReportHash or CurrentWindowsAbiReportHash or MacAbiReportHash or CurrentMacAbiReportHash or StableMacAbiReportHash or IosAbiReportHash or VibrationAbiReportHash or IosVibrationAbiReportHash) ||
+        if (reportHash is not (AbiReportHash or BridgeAbiReportHash or CurrentBridgeAbiReportHash or LatestBridgeAbiReportHash or RestartBridgeAbiReportHash or RestoredBridgeAbiReportHash or PictureButtonAbiReportHash or SessionAbiReportHash or UpdatedBridgeAbiReportHash or PlatformAbiReportHash or LinuxAbiReportHash or CurrentWindowsAbiReportHash or AudioConverterWindowsAbiReportHash or MacAbiReportHash or CurrentMacAbiReportHash or StableMacAbiReportHash or IosAbiReportHash or VibrationAbiReportHash or IosVibrationAbiReportHash) ||
             root.GetProperty("schemaVersion").GetInt32() != 1 ||
             root.GetProperty("input").GetProperty("dllSha256").GetString() != OriginalDllHash ||
             root.GetProperty("input").GetProperty("fnaSha256").GetString() != fnaHash ||
@@ -79,9 +82,9 @@ public static class IlRewriter
             fnaHash is not (FnaHash or MacFnaHash))
             throw new PreparationException("ABI report or FNA does not match the pinned input.");
         var bridgeHash = Hash(bridgePath);
-        if (bridgeHash is not (BridgeHash or CurrentBridgeHash or LatestBridgeHash or RestartBridgeHash or RestoredBridgeHash or PictureButtonBridgeHash or SessionBridgeHash or UpdatedBridgeHash or PlatformBridgeHash or CurrentSourceBridgeHash or MacBridgeHash or CurrentMacBridgeHash or StableMacBridgeHash or VibrationBridgeHash))
+        if (bridgeHash is not (BridgeHash or CurrentBridgeHash or LatestBridgeHash or RestartBridgeHash or RestoredBridgeHash or PictureButtonBridgeHash or SessionBridgeHash or UpdatedBridgeHash or PlatformBridgeHash or CurrentSourceBridgeHash or AudioConverterWindowsBridgeHash or MacBridgeHash or CurrentMacBridgeHash or StableMacBridgeHash or VibrationBridgeHash))
             throw new PreparationException($"Bridge DLL differs from the pinned supported bridge: {bridgeHash}.");
-        if (reportHash is BridgeAbiReportHash or CurrentBridgeAbiReportHash or LatestBridgeAbiReportHash or RestartBridgeAbiReportHash or RestoredBridgeAbiReportHash or PictureButtonAbiReportHash or SessionAbiReportHash or UpdatedBridgeAbiReportHash or PlatformAbiReportHash or LinuxAbiReportHash or CurrentWindowsAbiReportHash or MacAbiReportHash or CurrentMacAbiReportHash or StableMacAbiReportHash or IosAbiReportHash or VibrationAbiReportHash or IosVibrationAbiReportHash &&
+        if (reportHash is BridgeAbiReportHash or CurrentBridgeAbiReportHash or LatestBridgeAbiReportHash or RestartBridgeAbiReportHash or RestoredBridgeAbiReportHash or PictureButtonAbiReportHash or SessionAbiReportHash or UpdatedBridgeAbiReportHash or PlatformAbiReportHash or LinuxAbiReportHash or CurrentWindowsAbiReportHash or AudioConverterWindowsAbiReportHash or MacAbiReportHash or CurrentMacAbiReportHash or StableMacAbiReportHash or IosAbiReportHash or VibrationAbiReportHash or IosVibrationAbiReportHash &&
             root.GetProperty("input").GetProperty("bridgeSha256").GetString() != bridgeHash)
             throw new PreparationException("Bridge DLL differs from the verified ABI report.");
 

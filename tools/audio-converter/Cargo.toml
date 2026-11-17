@@ -1,0 +1,8 @@
+[package]
+name = "port-audio-converter"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+gameframe-wma = { path = "vendor/gameframe-wma" }
+qoaudio = { path = "vendor/qoaudio" }

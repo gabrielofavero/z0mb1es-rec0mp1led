@@ -572,7 +572,7 @@ begin
     begin
       WizardForm.StatusLabel.Caption := 'Unpacking preparation tools...';
       WizardForm.StatusLabel.Refresh;
-      ExtractTemporaryFiles('{tmp}\port-payload\tools\ffmpeg.exe');
+      ExtractTemporaryFiles('{tmp}\port-payload\tools\port-audio-converter.exe');
       AdvanceProgress(130);
       ExtractTemporaryFiles('{tmp}\port-payload\tools\inspect_assembly.exe');
       AdvanceProgress(150);

@@ -14,10 +14,6 @@
     "libFAudio.so.0": "d713dfbc7b8c0fb835e9bff380cb01afff7746bec3ed9f6e2dbf68f4c7832b66",
     "libtheorafile.so": "c7b16205cfe70f428487ae6548dceedf59288a68130939c89b4a1141a14319fb"
   },
-  "ffmpegVersion": "8.1.1-source-239f2c733d-linux-x64",
-  "ffmpegSha256": "7895c3b0687e340f7bee2d2ac5d7049b7a91eec003b042db1263555131c7c562",
-  "ffmpegBaseSourceBundleSha256": "46a2190c1331786596aac7ec4943fed4099710dea5a5974926697fc4e8765360",
-  "ffmpegSourceBundleSha256": "d4bb7ce367d898b0f09b599c6486148f30f66dd6af414bbd65d427be7f2868b3",
   "nfpmVersion": "2.48.0",
   "nfpmArchiveSha256": "6d7f9a28b2f397934403950fcbba83f598b08d02edbe79a0815b3b4897341750",
   "pythonBuild": "3.8.10",

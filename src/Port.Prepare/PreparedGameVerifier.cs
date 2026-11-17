@@ -17,7 +17,7 @@ public static class PreparedGameVerifier
         var sourceDll = patch.RootElement.GetProperty("sourceSha256").GetString();
         var preparedDll = patch.RootElement.GetProperty("preparedSha256").GetString();
         using var manifest = JsonDocument.Parse(File.ReadAllText(Path.Combine(content, "content-manifest.json")));
-        if (manifest.RootElement.GetProperty("SchemaVersion").GetInt32() != 1)
+        if (manifest.RootElement.GetProperty("SchemaVersion").GetInt32() is not (1 or 2))
             throw new InvalidDataException("Unsupported content manifest.");
         var sourceXap = manifest.RootElement.GetProperty("SourceXapSha256").GetString();
         if (sourceXap is null || sourceDll is null ||

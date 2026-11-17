@@ -4,9 +4,9 @@ Before importing assets or starting animated game content, the app shows a one-t
 
 The macOS host uses the shared first-launch import and Settings → Graphics → Assets → Reimport flow. It stores imported assets, saves, and creator photos in `~/Library/Application Support/z0mb1es-rec0mp1led/`, logs in `~/Library/Logs/z0mb1es-rec0mp1led/`, and keeps all generated content outside the app bundle. The first launch asks for the supported phone XAP; I MAED and Time Viking art are optional. Once import succeeds, the original packages may be removed. The app bundle and package must contain no XAP, phone DLL, XNB, or generated assets.
 
-`build.sh` packages Apple Silicon only. The pinned toolchain is .NET SDK 10.0.302, runtime 10.0.10, and FNA 26.11. It accepts Xcode 27.1 or Apple Command Line Tools 14.3.1 with SDK 13.3. The first local build was completed on macOS Ventura 13.5 with an Apple M1 and the Command Line Tools. Exact input hashes are recorded in `config/macos-packaging.json`.
+`build.sh` packages Apple Silicon only. The pinned toolchain is .NET SDK 10.0.302, runtime 10.0.10, and FNA 26.11. It accepts Xcode 27.1 or Apple Command Line Tools 14.3.1 with SDK 13.3. The earlier FFmpeg-based build ran on macOS Ventura 13.5 with an Apple M1 and the Command Line Tools. The Rust-converter package path still needs a macOS build and import test. Exact input hashes are recorded in `config/macos-packaging.json`.
 
-Runtime packs go in `out/deps/cache`, native libraries in `out/deps/native/osx-arm64`, and converter/importer binaries in `private/macos-inputs`. The native libraries came from the official FNA Apple daily archive dated 2026-11-06. Build the FFmpeg 8.1.1 converter with `build-ffmpeg.sh` after downloading the three pinned archives listed in [the FFmpeg guide](../ffmpeg/README.md) into `private/ffmpeg-macos/source`. This requires `make`, Clang, and `pkg-config`. Build the frozen optional-art importer with `build-art.sh` using `installer/linux/requirements-build.txt` and the initialized sibling extractor checkout. The local build used Python 3.9.6 and macholib 1.16.4. Review and pin replacement inputs before packaging; hashes are specific to the exact binaries.
+Runtime packs go in `out/deps/cache`, native libraries in `out/deps/native/osx-arm64`, and the optional-art importer in `private/macos-inputs`. The native libraries came from the official FNA Apple daily archive dated 2026-11-06. Rust 1.100.0 builds the audio converter offline from vendored source during packaging. Build the frozen optional-art importer with `build-art.sh` using `installer/linux/requirements-build.txt` and the initialized sibling extractor checkout. The local build used Python 3.9.6 and macholib 1.16.4. Review and pin replacement inputs before packaging; hashes are specific to the exact binaries.
 
 Run `sh installer/macos/build.sh` from the repository root with the pinned SDK on `PATH`. If using this checkout's local tools:
 
@@ -17,7 +17,7 @@ sh installer/macos/build.sh
 pwsh -NoProfile -Command '. .\dev.ps1; build-game'
 ```
 
-The script verifies hashes and architectures, publishes self-contained tools, audits bundle payloads, and builds `Z0MB1ES-1.0.0-osx-arm64.app`, `Z0MB1ES-1.0.0-osx-arm64.pkg`, and `FFmpeg-8.1.1-macos-source.zip` in `out/macos/packages`. Ship the matching FFmpeg source ZIP beside the installer. Archive the previous app before repackaging. The ABI checker remains a directory publish so it can inspect the runtime assembly catalog. The package has no interactive install script; file selection occurs in the app on first launch.
+The script verifies hashes and architectures, publishes self-contained tools, audits bundle payloads, and builds `Z0MB1ES-1.0.0-osx-arm64.app` and `Z0MB1ES-1.0.0-osx-arm64.pkg` in `out/macos/packages`. Archive the previous app before repackaging. The ABI checker remains a directory publish so it can inspect the runtime assembly catalog. The package has no interactive install script; file selection occurs in the app on first launch.
 
 The installer uses `components.plist` to disable bundle relocation and install at `/Applications/Z0MB1ES.app`, even when a development or extracted ZIP copy with the same bundle identifier exists elsewhere. Reinstalling replaces the app at that destination while persistent player data remains outside the bundle.
 
@@ -33,7 +33,7 @@ For a new-user test, install the `.pkg` and launch from Finder in a fresh macOS 
 
 ## Direct CLI build without an installer
 
-`dev.ps1` provides the direct build strategy on Apple Silicon: `build-game` prepares the supplied XAP and stages a runnable game in ignored `private/run/current/`; `run-game` launches it without installing a `.pkg` or importing assets through the app. The build includes the pinned macOS native libraries and the creator photo picker. It requires PowerShell, the pinned .NET SDK, managed FNA and the local NuGet cache prepared by `scripts/bootstrap-fna.ps1`, the native libraries above, and the pinned converter at `private/macos-inputs/ffmpeg`. It does not require building the installer or the optional-art importer for a phone-textures-only build.
+`dev.ps1` provides the direct build strategy on Apple Silicon: `build-game` prepares the supplied XAP and stages a runnable game in ignored `private/run/current/`; `run-game` launches it without installing a `.pkg` or importing assets through the app. The build includes the pinned macOS native libraries and the creator photo picker. It requires PowerShell, the pinned .NET SDK, managed FNA and the local NuGet cache prepared by `scripts/bootstrap-fna.ps1`, the native libraries above, and the converter built at `out/audio-converter/release/port-audio-converter`. It does not require building the installer or the optional-art importer for a phone-textures-only build.
 
 From the repository root, with those prerequisites available:
 

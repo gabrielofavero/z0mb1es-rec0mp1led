@@ -18,7 +18,7 @@ internal static class StandaloneImportChecks
             Path.Combine(program, "tools/abi/abi_check"), program,
             Path.Combine(program, "config/supported-versions.json"), Path.Combine(program, "FNA.dll"),
             Path.Combine(program, "Port.Bridge.dll"), Path.Combine(program, "Port.Hooks.dll"),
-            Path.Combine(program, "tools/ffmpeg"), converterHash);
+            Path.Combine(program, "tools/port-audio-converter"), converterHash);
         var data = Path.Combine(root, "app-data");
         var importer = new ExternalOptionalArtImporter(Path.Combine(program, "tools/Port.AssetImporter"),
             Path.Combine(program, "tools/decode_360_xnb"), Path.Combine(program, "FNA.dll"),

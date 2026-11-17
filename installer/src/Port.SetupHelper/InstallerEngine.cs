@@ -8,7 +8,7 @@ internal static class InstallerEngine
 {
     private const string XapHash = "6b88c7fbd95444d2560b4b11e6f35d40a6c0f7abc30706155dcbccd18bc333fe";
     private const string DllHash = "7b819cb562826ae4d2592ff741877e76da0e57bfbe48192aabb79319fdb36823";
-    private const string FfmpegHash = "e2e148a514b188a08102ec71c03f970ad1273316fab430e4c95065b0650fb306";
+    private const string AudioConverterHash = "2b44c9fa7b25cc74580ccb785eb2fbff50732f014c826c8e6e94d5aeb29607e8";
     private sealed record FileRow(string Path, long Bytes, string Sha256);
     private sealed record InstallManifest(int Format, string SourceXapSha256, FileRow[] Files);
 
@@ -178,7 +178,7 @@ internal static class InstallerEngine
                         Path.Combine(source, "config", "supported-versions.json"),
                         Path.Combine(staged, "FNA.dll"), Path.Combine(staged, "Port.Bridge.dll"),
                         Path.Combine(staged, "Port.Hooks.dll"),
-                        Path.Combine(source, "tools", "ffmpeg.exe"), FfmpegHash),
+                        Path.Combine(source, "tools", "port-audio-converter.exe"), AudioConverterHash),
                     step =>
                     {
                         Console.WriteLine($"STAGE {step}");

@@ -25,7 +25,7 @@ else:
         raise SystemExit(f'Unpinned Apple Command Line Tools SDK: {sdk}')
 checks = pin['artifactHashes']
 required = [f'out/deps/native/osx-arm64/{name}' for name in pin['requiredNativeFiles']]
-required += ['private/macos-inputs/ffmpeg', 'private/macos-inputs/Port.AssetImporter']
+required += ['private/macos-inputs/Port.AssetImporter']
 required += [f'out/deps/cache/microsoft.netcore.app.{kind}.osx-arm64.{pin["dotnetRuntime"]}.nupkg'
              for kind in ('runtime', 'host')]
 required += [f'out/deps/cache/microsoft.aspnetcore.app.runtime.osx-arm64.{pin["dotnetRuntime"]}.nupkg']
@@ -35,6 +35,7 @@ for name in required:
     actual = hashlib.sha256((repo / name).read_bytes()).hexdigest()
     if actual != expected: raise SystemExit(f'Hash mismatch: {name}')
 PY
+CARGO_TARGET_DIR=out/audio-converter cargo build --release --offline --manifest-path tools/audio-converter/Cargo.toml
 mkdir -p private/macos-publish/game private/macos-publish/inspect \
   private/macos-publish/abi private/macos-publish/decode out/macos/packages
 for spec in 'src/Port.Launcher/Port.Launcher.csproj game' \
@@ -52,7 +53,7 @@ for spec in 'src/Port.Launcher/Port.Launcher.csproj game' \
 done
 for binary in private/macos-publish/game/Z0MB1ES private/macos-publish/inspect/inspect_assembly \
               private/macos-publish/abi/abi_check private/macos-publish/decode/decode_360_xnb \
-              private/macos-inputs/ffmpeg private/macos-inputs/Port.AssetImporter \
+               out/audio-converter/release/port-audio-converter private/macos-inputs/Port.AssetImporter \
               out/deps/native/osx-arm64/*.dylib; do
   lipo -archs "$binary" | grep -qw arm64 || { echo "Missing arm64 slice: $binary" >&2; exit 1; }
   if otool -L "$binary" | grep -Eq '/opt/homebrew|/usr/local'; then

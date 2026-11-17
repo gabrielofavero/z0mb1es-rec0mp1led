@@ -20,9 +20,6 @@ foreach ($property in $pin.runtimePacks.PSObject.Properties) {
 }
 $nativeArchive = Join-Path $cache 'fnalibs-2026-11-06.zip'
 Assert-Hash $nativeArchive $pin.nativeArchiveSha256
-Assert-Hash (Join-Path $root 'private/tooling/ffmpeg-linux') $pin.ffmpegSha256
-Assert-Hash (Join-Path $root 'installer/out/FFmpeg-8.1.1-source.zip') $pin.ffmpegBaseSourceBundleSha256
-Assert-Hash (Join-Path $root 'installer/out/FFmpeg-8.1.1-linux-source.zip') $pin.ffmpegSourceBundleSha256
 Assert-Hash (Join-Path $root 'private/tooling/nfpm_2.48.0_Linux_x86_64.tar.gz') $pin.nfpmArchiveSha256
 if (-not (Test-Path -LiteralPath (Join-Path $root 'private/linux-art/dist/Port.AssetImporter'))) {
     throw 'Build the Linux art importer with installer/linux/build-art.sh first.'

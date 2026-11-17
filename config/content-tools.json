@@ -1,11 +1,9 @@
 {
   "schemaVersion": 1,
-  "ffmpeg": {
+  "audioConverter": {
     "host": "win-x64",
-    "version": "8.1.1-source-239f2c733d-mingw-win32",
-    "executableSha256": "e2e148a514b188a08102ec71c03f970ad1273316fab430e4c95065b0650fb306",
-    "license": "LGPL-2.1-or-later (this exact build, per ffmpeg -L)",
-    "sourceBundle": "FFmpeg-8.1.1-source.zip",
-    "purpose": "local WMA to Ogg Vorbis conversion"
+    "version": "0.1.0-rust-wmav2-qoa",
+    "executableSha256": "2b44c9fa7b25cc74580ccb785eb2fbff50732f014c826c8e6e94d5aeb29607e8",
+    "purpose": "local WMA v2 to QOA conversion"
   }
 }

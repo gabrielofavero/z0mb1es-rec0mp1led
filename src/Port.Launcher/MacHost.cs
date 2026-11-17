@@ -29,7 +29,7 @@ internal static class MacHost
                 Path.Combine(program, "config", "supported-versions.json"),
                 Path.Combine(program, "FNA.dll"), Path.Combine(program, "Port.Bridge.dll"),
                 Path.Combine(program, "Port.Hooks.dll"),
-                Path.Combine(program, "tools", "ffmpeg"), ConverterHash(program));
+                Path.Combine(program, "tools", "port-audio-converter"), ConverterHash(program));
             IOptionalArtImporter? art = null;
             var artTool = Path.Combine(program, "tools", "Port.AssetImporter");
             if (File.Exists(artTool))
@@ -78,7 +78,7 @@ internal static class MacHost
             .Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries)[0];
         if (hash.Length != 64 || !hash.All(Uri.IsHexDigit))
             throw new InvalidDataException("Invalid packaged converter hash.");
-        using var input = File.OpenRead(Path.Combine(program, "tools", "ffmpeg"));
+        using var input = File.OpenRead(Path.Combine(program, "tools", "port-audio-converter"));
         if (!Convert.ToHexString(SHA256.HashData(input)).Equals(hash, StringComparison.OrdinalIgnoreCase))
             throw new InvalidDataException("Packaged macOS converter differs from its manifest.");
         return hash.ToLowerInvariant();
