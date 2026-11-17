@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-android36.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <SupportedOSPlatformVersion>24</SupportedOSPlatformVersion>
+    <RuntimeIdentifier>android-arm64</RuntimeIdentifier>
+    <ApplicationId>org.z0mb1es.recompiled.experimental</ApplicationId>
+    <ApplicationTitle>Z0MB1ES Experimental</ApplicationTitle>
+    <ApplicationVersion>1</ApplicationVersion>
+    <ApplicationDisplayVersion>0.1</ApplicationDisplayVersion>
+    <AndroidPackageFormats>apk</AndroidPackageFormats>
+    <AndroidPackageFormat>apk</AndroidPackageFormat>
+    <RunAOTCompilation>false</RunAOTCompilation>
+    <PublishTrimmed>false</PublishTrimmed>
+    <EmbedAssembliesIntoApk>true</EmbedAssembliesIntoApk>
+    <AndroidUseAssemblyStore>false</AndroidUseAssemblyStore>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <JsonSerializerIsReflectionEnabledByDefault>true</JsonSerializerIsReflectionEnabledByDefault>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="FNA.NET" Version="[2.2.11.2602]" />
+    <Reference Include="Port.Bridge"><HintPath>../Port.AndroidBridge/bin/Release/net10.0/Port.Bridge.dll</HintPath></Reference>
+    <Reference Include="Port.Hooks"><HintPath>../Port.AndroidHooks/bin/Release/net10.0/Port.Hooks.dll</HintPath></Reference>
+    <Compile Include="../Port.IosBundled/CaseMappedContentManager.cs" Link="CaseMappedContentManager.cs" />
+    <Compile Include="../Port.Prepare/FirstLaunchWarning.cs" Link="FirstLaunchWarning.cs" />
+    <AndroidAsset Include="$(BundledPayloadDirectory)/**/*" Link="preinstalled/%(RecursiveDir)%(Filename)%(Extension)" Condition="'$(BundledPayloadDirectory)' != ''" />
+    <AndroidResource Include="../../out/android/resources/drawable/icon.png" Link="Resources/drawable/icon.png" />
+    <AndroidAsset Include="../../out/android/fna-package/LICENSE" Link="notices/FNA.NET.txt" />
+  </ItemGroup>
+  <Target Name="RequirePersonalPayload" BeforeTargets="PrepareForBuild">
+    <Error Condition="!Exists('$(BundledPayloadDirectory)/bundled-manifest.json')" Text="Build the personal APK using installer/android/build.ps1." />
+  </Target>
+  <!-- The package's RID fallback also selects Linux .so files on Android.
+       Android must use the five Bionic libraries from its AAR exclusively. -->
+  <Target Name="ExcludeFnaDesktopNativeAssets" AfterTargets="ResolvePackageAssets">
+    <ItemGroup>
+      <NativeCopyLocalItems Remove="@(NativeCopyLocalItems)" Condition="'%(NativeCopyLocalItems.NuGetPackageId)' == 'FNA.NET.NativeAssets'" />
+    </ItemGroup>
+  </Target>
+</Project>

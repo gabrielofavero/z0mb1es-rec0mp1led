@@ -1,0 +1,28 @@
+{
+  "dotnetSdk": "10.0.302",
+  "dotnetSdkWinX64Sha512": "7d170ed75fa9af34c00646621d92011dbd71943952e2787cd15df9be78e6452b55dadef34d7eff77b802e6af4959e071a55855ac649afeac70901c3a2a258716",
+  "androidWorkload": "36.1.2",
+  "dotnetRuntime": "10.0.10",
+  "targetApi": 36,
+  "buildToolsVersion": "36.1.0",
+  "targetFramework": "net10.0-android36.0",
+  "runtimeIdentifier": "android-arm64",
+  "minimumApi": 24,
+  "fnaPackageVersion": "2.2.11.2602",
+  "fnaSourceCommit": "e361cbc5ac00d69730a9c5d413a68fe6c9bc8cd7",
+  "fnaPackageSha256": "a84879819ceb81f782ad70f9b7994fc1c61e5e069bae39487aaa9b58fe55d735",
+  "fnaAndroidAssemblySha256": "c61c68d357bfcb0b09fe8016291634f0781d919fbc379b9ce67e8569f877c036",
+  "nativePackageVersion": "2.1.2.2602",
+  "nativePackageSha256": "a06c43d2f0cf69802933e89e0163bb8d2076ab7be5374d0a4d8b4a888026aeb5",
+  "sdlBindingsVersion": "3.4.0",
+  "sdlBindingsPackageSha256": "64ab7d554799e17de2cb3b057281e8afc1b60e45330a94c7a6d47cc3f393b5a7",
+  "applicationId": "org.z0mb1es.recompiled.experimental",
+  "applicationVersion": 1,
+  "nativeLibraries": {
+    "libFAudio.so": "5ca765bfc5d56f7967e9c3822e766bec390a3e14b72fb632fb6f425c28efcb74",
+    "libFNA3D.so": "1bc011837d8dfaabe469bd7ff8c4a3f0ead8fff524f758181befa1f4f3bb1c3f",
+    "libtheorafile.so": "88db733700a4994e18c363c52924987b354b21c1939b1381f9e57c8b7a78389b",
+    "libSDL3.so": "d911b065f4a90b8abdb77fa10ae94538c899a05c57ba9dbc42c4ada6f0bcfd0e",
+    "libdav1dfile.so": "43aaff8f004d7a6405b5d68f2a49167560dd368cb4537bb643684fe66bf270d9"
+  }
+}

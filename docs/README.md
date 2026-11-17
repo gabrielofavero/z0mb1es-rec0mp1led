@@ -4,6 +4,8 @@ Start with the [architecture](foundation/architecture.md) and the [plan index](p
 
 The [Linux x64 package guide](../installer/linux/README.md) covers the in-progress `.deb` and `.rpm` build and first-launch import flow.
 
+The [personal Android APK guide](../installer/android/README.md) covers the experimental FNA.NET CLI build with locally bundled assets and the remaining physical-device checks.
+
 ## Foundation
 
 - [Architecture](foundation/architecture.md): project boundaries and folder ownership.

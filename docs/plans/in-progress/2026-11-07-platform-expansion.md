@@ -49,6 +49,8 @@ Treat Android as a host/framework adaptation with compatibility risk to measure,
 
 This strategy selects an investigation order only. Neither Android host nor imported original-game execution has been proven, and the prototype does not replace Prompt 10's all-mode gate or Prompts 11–12's release checks.
 
+**Personal APK experiment (2026-11-16):** At the user's request, the isolated [FNA.NET Android CLI](../../../installer/android/README.md) packages the locally prepared game and artwork inside a privately signed ARM64 APK for initial device testing. This personal bundled path precedes on-device importer work and stays under ignored `private/android/`; it is not a distributable content-free APK. Static framework/reference and payload checks do not establish physical-device execution or complete Prompts 10–12.
+
 ## Shared import and runtime contract
 
 1. Split the current desktop host into platform-neutral preparation, content, manifest, save, and game-facing services plus platform-specific window/input/display, file picker, photo picker, storage, and native library adapters. Keep the original phone DLL and proprietary files out of public release artifacts. Plan 2 may generate a personal IPA containing compiled original game code locally on the player’s compatible Mac, keeping proprietary inputs/output in ignored local storage; it must never become a public release download. Version-pin all supported input fingerprints and tool/native dependencies for each platform.

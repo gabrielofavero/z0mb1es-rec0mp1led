@@ -191,6 +191,11 @@ function build-installer {
     }
 }
 
+function build-apk {
+    # Parameters are forwarded to the Android CLI; run Get-Help on that script.
+    & (Join-Path $script:DevRoot 'installer/android/build.ps1') @args
+}
+
 function run-installer {
     [CmdletBinding()]
     param([string]$InstallerPath = (Join-Path $script:DevRoot 'installer/out/Z0MB1ES-0.1.0.exe'))

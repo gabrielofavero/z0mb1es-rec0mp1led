@@ -1,0 +1,46 @@
+{
+  "version": 1,
+  "dependencies": {
+    "net10.0-android36.0": {
+      "FNA.NET": {
+        "type": "Direct",
+        "requested": "[2.2.11.2602, 2.2.11.2602]",
+        "resolved": "2.2.11.2602",
+        "contentHash": "ZOYrsL43Jl+RrE0hoaZluuDvImGR/j3JE7K7oi6txkhM2I7qZ0EZJUFOMzW0GuPSSzxDARB6mTFVI3P9+SvBBg==",
+        "dependencies": {
+          "FNA.NET.NativeAssets": "2.1.2.2602",
+          "NVorbis": "0.10.5",
+          "SDLDroidSharp-JBindings": "3.4.0"
+        }
+      },
+      "Microsoft.NET.ILLink.Tasks": {
+        "type": "Direct",
+        "requested": "[10.0.10, )",
+        "resolved": "10.0.10",
+        "contentHash": "f5VCIE7AJpd5YvzNTeMGVzQIgyE9tX+AreTYwQF+REbu+DZo/2Ae+jNSwhPEYrVz6RRkd7y8ubXjk6Nn6Ka+Cg=="
+      },
+      "FNA.NET.NativeAssets": {
+        "type": "Transitive",
+        "resolved": "2.1.2.2602",
+        "contentHash": "jhc9NZf2FTDHwivTGocvSs2I8Ai/8ZElnUJAJRDIWFxltK8Q7LxMmFnfOcfzx8Tcv11OFDSWgzK9mYGQ+ZOZfw=="
+      },
+      "NVorbis": {
+        "type": "Transitive",
+        "resolved": "0.10.5",
+        "contentHash": "o+IptCG4Avze39HrGeztC+xIp6fOOwGVAwkoa1J++4Ji1WmZ+KIKlFl5wsgxsXqBkmdpfs/vFSUproiLKYa2bw=="
+      },
+      "SDLDroidSharp-JBindings": {
+        "type": "Transitive",
+        "resolved": "3.4.0",
+        "contentHash": "W+tIX7OOV10Jv+jq7Rtwu+P6P/pHYN4Ivj6J6aUhWsBPctVn/v1jUZ/RHBmTENbQHubBLs2jrn4hUK6z99CV2A=="
+      }
+    },
+    "net10.0-android36.0/android-arm64": {
+      "FNA.NET.NativeAssets": {
+        "type": "Transitive",
+        "resolved": "2.1.2.2602",
+        "contentHash": "jhc9NZf2FTDHwivTGocvSs2I8Ai/8ZElnUJAJRDIWFxltK8Q7LxMmFnfOcfzx8Tcv11OFDSWgzK9mYGQ+ZOZfw=="
+      }
+    }
+  }
+}
