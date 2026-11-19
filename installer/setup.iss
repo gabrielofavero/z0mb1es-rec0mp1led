@@ -5,10 +5,10 @@
 AppId={{F393AB61-549B-416A-B34E-E1AB2E96AF07}
 AppName=Z0MB1ES (on teh ph0ne)
 AppVersion=1.0.0
-DefaultDirName={autopf}\Z0MB1ES on teh ph0ne
+DefaultDirName={localappdata}\Programs\Z0MB1ES on teh ph0ne
 DisableDirPage=yes
 DefaultGroupName=Z0MB1ES (on teh ph0ne)
-PrivilegesRequired=admin
+PrivilegesRequired=lowest
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 OutputDir=out
@@ -709,8 +709,8 @@ begin
   Total := 0;
   Key := 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{F393AB61-549B-416A-B34E-E1AB2E96AF07}_is1';
   if not InstalledBytes(ExpandConstant('{app}'), Total) or
-     (Total div 1024 > 2147483647) or not RegKeyExists(HKLM64, Key) or
-     not RegWriteDWordValue(HKLM64, Key, 'EstimatedSize', Cardinal((Total + 1023) div 1024)) then
+     (Total div 1024 > 2147483647) or not RegKeyExists(HKCU64, Key) or
+     not RegWriteDWordValue(HKCU64, Key, 'EstimatedSize', Cardinal((Total + 1023) div 1024)) then
     Log('Could not update the installed size in Control Panel.')
   else
     Log('INSTALL_SIZE_BYTES ' + Int64ToStr(Total));
