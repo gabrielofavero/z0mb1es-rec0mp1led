@@ -18,6 +18,22 @@ The configured desktop targets are Windows x64, Linux x64, and macOS ARM64. Inte
 
 The game executables and app labels are **Z0MB1ES**. Installer and package filenames can include versions, platforms, or a longer description.
 
+## Device development scripts
+
+Like Blitz Recomp, platform commands live under `scripts/dev/`, with root entry points for everyday use. Load one target per shell. PowerShell scripts are dot-sourced; the Unix entry point supports Bash and zsh, either sourced or executed with an action. Loading a script does not build or launch anything.
+
+| Target | Load commands | Main commands |
+| --- | --- | --- |
+| Windows x64 | `. ./scripts/dev/dev-windows.ps1` | `build-game`, `run-game`, `build-installer`, `run-installer` |
+| macOS ARM64 | `source ./dev.sh --platform mac` | `build-game`, `run-game`, `build-installer`, `run-installer`, `dev-help` |
+| Linux x64 | `source ./dev.sh --platform linux` | `build-game`, `build-installer`, `run-game`, `dev-help` |
+| Android ARM64 (Windows host) | `. ./scripts/dev/dev-android.ps1` | `bootstrap-android`, `build-apk`, `install-apk`, `run-android`, `log-android` |
+| iOS ARM64 (Mac host) | `source ./dev.sh --platform ios` | `build-game`, `build-bundled`, `dev-help` |
+
+`. ./dev.ps1` remains compatible: on Windows it loads desktop and Android commands; on macOS it loads the prepared desktop commands. `source ./dev.sh` detects macOS or Linux. Select iOS explicitly on its Mac build host. For a single command without changing your shell, use `bash ./dev.sh --platform mac build-installer` or `bash ./dev.sh --platform ios build-game`.
+
+The commands wrap the platform recipes below and retain their prerequisites, audits, and output locations. On Windows/macOS, `build-game` prepares a personal desktop folder. On Linux, it publishes the self-contained host/tools to `private/linux-publish/`; preparing personal assets remains the explicit CLI workflow below. Linux `run-game` opens the installed importer. On iOS, `build-game` produces the content-free unsigned IPA; signing/installing remains a sideloading step.
+
 ## Shared prerequisites
 
 Install .NET SDK **10.0.302**; [global.json](global.json) disables SDK roll-forward. Desktop projects target `net10.0`. Dependency and packaging pins live in:
@@ -74,7 +90,7 @@ In addition to shared prerequisites, install Inno Setup with `ISCC.exe` availabl
 Supply the .NET **10.0.10** runtime packs pinned in `installer/config/runtime-packs.json`; the script verifies their archives in the user's NuGet package cache after restore. `-RuntimePackSource` can point to a package directory or NuGet source.
 
 ```powershell
-. ./dev.ps1
+. ./scripts/dev/dev-windows.ps1
 build-installer
 ```
 
@@ -100,7 +116,7 @@ After installation, use the Z0MB1ES shortcut. The [Windows installer guide](inst
 ### Personal folder with prepared assets
 
 ```powershell
-. ./dev.ps1
+. ./scripts/dev/dev-windows.ps1
 build-game -XapPath 'D:/Games/phone.xap'
 run-game
 ```
@@ -110,7 +126,7 @@ run-game
 For a subsequent shell session:
 
 ```powershell
-. ./dev.ps1
+. ./scripts/dev/dev-windows.ps1
 run-game -List
 run-game -Build current
 ```
@@ -121,7 +137,7 @@ The helper uses `Documents/Z0MB1ES on teh ph0ne/Saves` and `Pictures`, with opti
 
 ### Native and packaging inputs
 
-Use an Apple Silicon Mac, the shared SDK/FNA setup, Python 3, Rust 1.100.0, and PowerShell 7 for `dev.ps1`. Desktop packaging accepts the exact Xcode **27.1** pin or the pinned Apple Command Line Tools **14.3.1** installation with SDK **13.3**, as checked in `config/macos-packaging.json`. The iOS toolchain below uses a different Xcode selection.
+Use an Apple Silicon Mac, the shared SDK/FNA setup, Python 3, Rust 1.100.0, and PowerShell 7 for the prepared desktop helper. Desktop packaging accepts the exact Xcode **27.1** pin or the pinned Apple Command Line Tools **14.3.1** installation with SDK **13.3**, as checked in `config/macos-packaging.json`. The iOS toolchain below uses a different Xcode selection.
 
 Provide the four reviewed ARM64 libraries in `out/deps/native/osx-arm64/`: `libSDL3.0.dylib`, `libFNA3D.0.dylib`, `libFAudio.0.dylib`, and `libtheorafile.dylib`. Their exact hashes are in the macOS pin file; the source is the FNA Apple daily archive dated 2026-11-06. Provide the pinned .NET 10.0.10 macOS runtime/host/ASP.NET runtime packages in `out/deps/cache/`.
 
@@ -138,7 +154,7 @@ This writes `private/macos-inputs/Port.AssetImporter`. Packaging verifies its ex
 With the pinned SDK on `PATH`:
 
 ```sh
-sh installer/macos/build.sh
+bash ./dev.sh --platform mac build-installer
 ```
 
 Outputs in `out/macos/packages/`:
@@ -149,7 +165,7 @@ Outputs in `out/macos/packages/`:
 The script builds the Rust converter, publishes self-contained game/tools, checks native dependencies, and assembles the app and installer. Archive an existing app output before reusing the same destination, or choose a fresh one:
 
 ```sh
-sh installer/macos/build.sh --output out/macos/rebuilt-packages
+bash ./dev.sh --platform mac build-installer --output out/macos/rebuilt-packages
 ```
 
 Open the uninstalled app or install the package:
@@ -170,20 +186,15 @@ First launch imports the phone XAP and optional enhanced art. Later launches use
 
 ### Personal folder with prepared assets
 
-Build the macOS desktop converter and provide the native libraries above. Then, in PowerShell on the Mac:
+Build the macOS desktop converter and provide the native libraries above. Then load the Mac commands in Bash or zsh:
 
-```powershell
-. ./dev.ps1
+```sh
+source ./dev.sh --platform mac
 build-game -XapPath '/path/to/phone.xap'
 run-game
 ```
 
-Or invoke PowerShell from a Unix shell:
-
-```sh
-pwsh -NoProfile -Command '. ./dev.ps1; build-game -XapPath "/path/to/phone.xap"'
-pwsh -NoProfile -Command '. ./dev.ps1; run-game'
-```
+The prepared desktop commands invoke PowerShell 7 and accept its parameter names. You can also keep using `. ./dev.ps1` from PowerShell on the Mac.
 
 This creates `private/run/current/` with macOS native libraries and the creator photo picker. It needs the .NET runtime and uses `~/Documents/Z0MB1ES on teh ph0ne/Saves` and `Pictures`, separately from the packaged app. It does not create an asset-inclusive `.app` or `.pkg`.
 
@@ -216,22 +227,14 @@ On Windows with WSL, after preparing those Linux-side inputs, run:
 
 It cross-publishes the game and tools to `private/linux-publish/`, then invokes `package.sh` in WSL. Rust, Python, nFPM, and the artwork helper must be usable inside WSL, and the checkout must be accessible there.
 
-For a native Linux build, publish the same four projects yourself:
+For a native Linux build, the Linux helper publishes the four host/tool projects and assembles both packages:
 
 ```sh
-for spec in 'src/Port.Launcher game' 'tools/inspect_assembly inspect' \
-            'tools/abi_check abi' 'tools/decode_360_xnb decode'; do
-  project=${spec% *}
-  name=${spec#* }
-  single_file=false
-  if [ "$name" = inspect ] || [ "$name" = decode ]; then single_file=true; fi
-  dotnet restore "$project" -r linux-x64 --source out/deps/cache -p:NuGetAudit=false
-  dotnet publish "$project" -c Release -r linux-x64 --self-contained true --no-restore \
-    -p:PublishTrimmed=false -p:PublishSingleFile="$single_file" \
-    -o "private/linux-publish/$name"
-done
-sh installer/linux/package.sh
+source ./dev.sh --platform linux
+build-installer
 ```
+
+Use `build-game` in that shell to publish the host/tools without packaging. After installing a package, `run-game` launches `/opt/z0mb1es-rec0mp1led/launch.sh`.
 
 Keep the ABI checker as a directory publish: it needs its runtime assembly catalog. Packaging builds the Rust converter and writes:
 
@@ -375,8 +378,8 @@ The supported packaging host is Windows x64 with PowerShell 7. In addition to sh
 Bootstrap the isolated Android .NET SDK/workload and pinned FNA.NET package, then build:
 
 ```powershell
-./installer/android/bootstrap.ps1
-. ./dev.ps1
+. ./scripts/dev/dev-android.ps1
+bootstrap-android
 build-apk -JavaSdkDirectory 'C:/Program Files/Java/jdk-17' `
     -AndroidSdkDirectory "$env:LOCALAPPDATA/Android/Sdk" `
     -NdkDirectory 'out/android/ndk/android-ndk-r27d'
@@ -391,11 +394,12 @@ Output: `out/android/Z0MB1ES.apk`. The app ID is `org.z0mb1es.recompiled`; it re
 Install/start from PowerShell with a connected device authorized for USB debugging:
 
 ```powershell
-$adb = "$env:LOCALAPPDATA/Android/Sdk/platform-tools/adb.exe"
-& $adb install -r out/android/Z0MB1ES.apk
-& $adb shell monkey -p org.z0mb1es.recompiled -c android.intent.category.LAUNCHER 1
-& $adb logcat -s Z0MB1ES SDL AndroidRuntime
+install-apk
+run-android
+log-android
 ```
+
+For multiple connected devices, pass `-Serial '<adb-device-serial>'` to each device command. Use `-AdbPath '<sdk>/platform-tools/adb.exe'` for a custom SDK, and `install-apk -ApkPath '<path.apk>'` for a different APK. Installation uses `adb install -r` to preserve app data; `log-android` streams until interrupted.
 
 The launcher command opens the Android app; it does not run gameplay on the desktop. Choose the XAP and optional artwork using the app's package pickers. Prepared assets and saves persist in private app storage between updates; uninstalling removes them. Session diagnostics are also written to `files/android-session.log`.
 
@@ -408,7 +412,7 @@ Android already has an implemented bundled build pipeline. The [implementation l
 The bundled CLI implementation provides these commands after Android bootstrap and desktop converter setup:
 
 ```powershell
-. ./dev.ps1
+. ./scripts/dev/dev-android.ps1
 build-apk -XapPath 'D:/Games/phone.xap'
 ```
 
@@ -464,7 +468,8 @@ Their source locations and checksums are in [the converter source table](install
 ### Importer IPA
 
 ```sh
-sh installer/ios/build-game.sh
+source ./dev.sh --platform ios
+build-game
 ```
 
 Output: `src/Port.IosGame/bin/Release/net10.0-ios26.0/ios-arm64/Z0MB1ES.ipa`. The script stages inputs, rebuilds the app, checks the actual packaged managed code, and runs the content-free IPA audit. It reads no phone XAP or optional artwork as build inputs. The runtime uses the interpreter for the dynamically prepared game.
@@ -476,7 +481,8 @@ Sign and install the unsigned IPA using your sideloading tool. Then launch **Z0M
 Use the same prerequisites, including the repository-local SDK. Supply the phone XAP and **both** supported Xbox 360 packages:
 
 ```sh
-sh installer/ios/build-bundled.sh \
+source ./dev.sh --platform ios
+build-bundled \
   '/path/to/phone.xap' '/path/to/zombies-360' '/path/to/time-viking-360'
 ```
 
@@ -492,7 +498,19 @@ Both IPAs are unsigned build outputs. Their scripts do not sign, install, or lau
 
 ## Checks and troubleshooting
 
-No builds were executed while writing this guide. The commands describe the current scripts and configured targets; successful packaging is separate from device or graphical gameplay validation.
+The device helpers reuse the platform scripts and configured targets. Passing a desktop build or checking command dispatch does not validate another platform's packaging or device gameplay.
+
+Check the helper scripts without building packages or contacting devices:
+
+```powershell
+pwsh -NoProfile -File tests/DevScripts.Checks.ps1
+```
+
+```sh
+bash tests/dev-scripts-checks.sh
+```
+
+The shell checks require Bash (Git Bash works on Windows). They cover platform selection, argument forwarding with spaces, and stopping after failed prerequisites. The PowerShell checks cover loading from another directory, Android device selection, and failed `adb` commands.
 
 - For code changes, the repository normally requires `. ./dev.ps1; build-game` in addition to relevant checks. This prepares a personal game and therefore needs the supported XAP and converter. It is not a replacement for a platform package audit.
 - Missing SDK, workload, archive, runtime pack, or hash errors identify a required pinned input. Check the corresponding configuration file and platform script before retrying.
