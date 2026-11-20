@@ -16,8 +16,9 @@
   "nativePackageSha256": "a06c43d2f0cf69802933e89e0163bb8d2076ab7be5374d0a4d8b4a888026aeb5",
   "sdlBindingsVersion": "3.4.0",
   "sdlBindingsPackageSha256": "64ab7d554799e17de2cb3b057281e8afc1b60e45330a94c7a6d47cc3f393b5a7",
-  "applicationId": "org.z0mb1es.recompiled.experimental",
-  "applicationVersion": 1,
+  "applicationId": "org.z0mb1es.recompiled",
+  "applicationVersion": 4,
+  "applicationDisplayVersion": "1.1.0",
   "nativeLibraries": {
     "libFAudio.so": "5ca765bfc5d56f7967e9c3822e766bec390a3e14b72fb632fb6f425c28efcb74",
     "libFNA3D.so": "1bc011837d8dfaabe469bd7ff8c4a3f0ead8fff524f758181befa1f4f3bb1c3f",

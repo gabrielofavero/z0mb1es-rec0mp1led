@@ -14,7 +14,7 @@ Build 19 replaces public-folder scanning with one system file picker per package
 
 Build 18 presents detected optional artwork as **Enhanced** for either supported source platform. Artwork rows toggle Enhanced versus Original/Keep; source selection is handled internally. Verified sources are selected automatically and selected artwork is activated after import.
 
-## Personal build with game and artwork included (build 12)
+## Personal build with game and artwork included (version 1.1.0, build 13)
 
 At the user's request, `Port.IosBundled` is a separate local variant that starts the prepared game directly from read-only bundled resources, bypassing the importer. It keeps `io.github.z0mb1es.executionprobe`, the Z0MB1ES display name, the black icon, and the same app-private Saves/Pictures directories. Install over the current app using the same signing account/bundle-ID options. Bundling does not establish iPhone gameplay support; the user saw the first logo in build 6, then the loading thread aborted on a font filename casing mismatch. Build 7 adds an indexed, case-insensitive XNB loader. The user confirmed it runs and supplied Time Viking title/pause screenshots; all-mode acceptance remains open. Build 8 removes the native tools overlay, centers pause/confirmation groups for the iPhone scene width, and enables touch Back through the original game input path.
 
@@ -49,7 +49,7 @@ sh installer/ios/build-game.sh
 
 Output: `src/Port.IosGame/bin/Release/net10.0-ios26.0/ios-arm64/Z0MB1ES.ipa`. The script rebuilds the package to prevent stale compiled plist metadata, checks the actual packaged managed code, then audits the payload and exported native symbols. Native/metadata pins are in `config/ios-packaging.json`; the exact artifact checksum is in `out/ios/game-audit.json` and the implementation log. No signing account is used by the build.
 
-Install through the user's signing tool with the same Apple ID and bundle-ID options used for the accepted probe. The original bundle identity is deliberately retained, with display name **Z0MB1ES** and bundle version **20**. The game uses separate app-private storage from the historical probe. Do not uninstall to update: uninstall removes the app container. A regular Apple ID can be used with compatible personal-sideloading tools; exact signing, refresh and update behavior still needs recording for this IPA.
+Install through the user's signing tool with the same Apple ID and bundle-ID options used for the accepted probe. The original bundle identity is deliberately retained, with display name **Z0MB1ES**, release version **1.1.0** and bundle version **21**. The game uses separate app-private storage from the historical probe. Do not uninstall to update: uninstall removes the app container. A regular Apple ID can be used with compatible personal-sideloading tools; exact signing, refresh and update behavior still needs recording for this IPA.
 
 ## Import and play
 

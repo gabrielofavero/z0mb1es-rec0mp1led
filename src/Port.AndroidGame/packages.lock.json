@@ -24,6 +24,11 @@
         "resolved": "2.1.2.2602",
         "contentHash": "jhc9NZf2FTDHwivTGocvSs2I8Ai/8ZElnUJAJRDIWFxltK8Q7LxMmFnfOcfzx8Tcv11OFDSWgzK9mYGQ+ZOZfw=="
       },
+      "Mono.Cecil": {
+        "type": "Transitive",
+        "resolved": "0.11.6",
+        "contentHash": "f33RkDtZO8VlGXCtmQIviOtxgnUdym9xx/b1p9h91CRGOsJFxCFOFK1FDbVt1OCf1aWwYejUFa2MOQyFWTFjbA=="
+      },
       "NVorbis": {
         "type": "Transitive",
         "resolved": "0.10.5",
@@ -33,6 +38,26 @@
         "type": "Transitive",
         "resolved": "3.4.0",
         "contentHash": "W+tIX7OOV10Jv+jq7Rtwu+P6P/pHYN4Ivj6J6aUhWsBPctVn/v1jUZ/RHBmTENbQHubBLs2jrn4hUK6z99CV2A=="
+      },
+      "port.analysis": {
+        "type": "Project"
+      },
+      "Port.Art": {
+        "type": "Project",
+        "dependencies": {
+          "Port.Prepare": "[0.6.0, )"
+        }
+      },
+      "port.content": {
+        "type": "Project"
+      },
+      "port.prepare": {
+        "type": "Project",
+        "dependencies": {
+          "Mono.Cecil": "[0.11.6, )",
+          "Port.Analysis": "[1.0.0, )",
+          "Port.Content": "[1.0.0, )"
+        }
       }
     },
     "net10.0-android36.0/android-arm64": {

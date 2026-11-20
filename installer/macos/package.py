@@ -77,13 +77,13 @@ with tempfile.TemporaryDirectory(prefix='z0mb1es-macos-') as temporary:
     for path in (macos / 'Z0MB1ES', macos / 'launch.sh', tools / 'port-audio-converter', tools / 'Port.AssetImporter',
                  tools / 'inspect_assembly', tools / 'decode_360_xnb', tools / 'abi/abi_check'):
         path.chmod(0o755)
-    app_destination = output / 'Z0MB1ES-1.0.0-osx-arm64.app'
+    app_destination = output / 'Z0MB1ES-1.1.0-osx-arm64.app'
     if app_destination.exists():
         raise SystemExit(f'Remove or archive the existing app before repackaging: {app_destination}')
     shutil.copytree(app, app_destination)
-    destination = output / 'Z0MB1ES-1.0.0-osx-arm64.pkg'
+    destination = output / 'Z0MB1ES-1.1.0-osx-arm64.pkg'
     subprocess.run(['pkgbuild', '--root', str(stage), '--install-location', '/Applications',
                     '--component-plist', str(repo / 'installer/macos/components.plist'),
-                    '--identifier', 'io.github.z0mb1esrec0mp1led.game', '--version', '1.0.0',
+                    '--identifier', 'io.github.z0mb1esrec0mp1led.game', '--version', '1.1.0',
                     str(destination)], check=True)
     print(f'{hashlib.sha256(destination.read_bytes()).hexdigest()}  {destination}')

@@ -1,5 +1,5 @@
-//! Convert the supported phone XAP's ASF/WMA v2 songs to QOA for FNA.
-//! This intentionally accepts only the known packet layout; callers verify the XAP identity.
+// Convert the supported phone XAP's ASF/WMA v2 songs to QOA for FNA.
+// This intentionally accepts only the known packet layout; callers verify the XAP identity.
 use gameframe_wma::{Decoder, Params, WMAV2};
 use qoaudio::{QoaDesc, QoaEncoder, QOA_FRAME_LEN};
 use std::{env, fs, io::{self, Write}};

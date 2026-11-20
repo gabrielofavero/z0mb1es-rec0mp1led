@@ -473,7 +473,8 @@ public static partial class DesktopDisplay
             RefreshLabels();
             return true;
         }
-        if (mobile && (text.StartsWith("RES0LUTI0N:", StringComparison.Ordinal) ||
+        if (mobile && (text.StartsWith("M0DE:", StringComparison.Ordinal) ||
+                       text.StartsWith("RES0LUTI0N:", StringComparison.Ordinal) ||
                        text.StartsWith("VSYNC:", StringComparison.Ordinal))) return true;
         if (text.StartsWith("M0DE:", StringComparison.Ordinal))
         {
@@ -990,7 +991,7 @@ public static partial class DesktopDisplay
     }
 
     // Keep each visible row's original horizontal stagger on both hosts.
-    private static ReadOnlySpan<int> DisplayRows => mobile ? [0, 7, 3, 4, 5, 6] : [0, 1, 2, 3, 4, 5, 6];
+    private static ReadOnlySpan<int> DisplayRows => mobile ? [7, 3, 4, 5, 6] : [0, 1, 2, 3, 4, 5, 6];
 
     private static DisplayPreferences MobilePreferences(DisplayPreferences requested) =>
         mobile ? requested with { Auto = true, VSync = true } : requested;

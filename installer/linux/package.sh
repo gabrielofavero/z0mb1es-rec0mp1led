@@ -63,8 +63,8 @@ for path in root.rglob('*'):
         raise SystemExit(f'Proprietary file in package: {path}')
 PY
 sed "s|out/linux/stage/app/|$stage/|" installer/linux/nfpm.yaml > "$work/nfpm.yaml"
-private/tooling/nfpm pkg --config "$work/nfpm.yaml" --packager deb --target "$packages/z0mb1es-rec0mp1led_1.0.0_amd64.deb"
-private/tooling/nfpm pkg --config "$work/nfpm.yaml" --packager rpm --target "$packages/z0mb1es-rec0mp1led-1.0.0-1.x86_64.rpm"
+private/tooling/nfpm pkg --config "$work/nfpm.yaml" --packager deb --target "$packages/z0mb1es-rec0mp1led_1.1.0_amd64.deb"
+private/tooling/nfpm pkg --config "$work/nfpm.yaml" --packager rpm --target "$packages/z0mb1es-rec0mp1led-1.1.0-1.x86_64.rpm"
 rm -f "$output/FFmpeg-8.1.1-source.zip" "$output/FFmpeg-8.1.1-linux-source.zip"
 cp "$packages"/* "$output/"
 sha256sum "$output"/*

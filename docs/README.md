@@ -1,10 +1,12 @@
 # Documentation
 
+For build prerequisites, all platform variants, and terminal launch commands, see [Build and run Z0MB1ES](../build-and-run.md).
+
 Start with the [architecture](foundation/architecture.md) and the [plan index](plans/done/2026-11-06-initial-implementation/implementation-prompts.md). The [installer design](../installer/README.md) describes player-facing setup.
 
 The [Linux x64 package guide](../installer/linux/README.md) covers the in-progress `.deb` and `.rpm` build and first-launch import flow.
 
-The [personal Android APK guide](../installer/android/README.md) covers the experimental FNA.NET CLI build with locally bundled assets and the remaining physical-device checks.
+The [Android APK guide](../installer/android/README.md) covers Z0MB1ES (on teh ph0ne), its content-free player package and on-device import based on the iOS setup flow.
 
 ## Foundation
 

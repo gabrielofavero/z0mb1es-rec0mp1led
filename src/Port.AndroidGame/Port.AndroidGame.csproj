@@ -2,18 +2,25 @@
   <PropertyGroup>
     <TargetFramework>net10.0-android36.0</TargetFramework>
     <OutputType>Exe</OutputType>
+    <AssemblyName>Z0MB1ES</AssemblyName>
+    <RootNamespace>Port.AndroidGame</RootNamespace>
+    <Version>1.1.0</Version>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <SupportedOSPlatformVersion>24</SupportedOSPlatformVersion>
     <RuntimeIdentifier>android-arm64</RuntimeIdentifier>
-    <ApplicationId>org.z0mb1es.recompiled.experimental</ApplicationId>
-    <ApplicationTitle>Z0MB1ES Experimental</ApplicationTitle>
-    <ApplicationVersion>1</ApplicationVersion>
-    <ApplicationDisplayVersion>0.1</ApplicationDisplayVersion>
+    <ApplicationId>org.z0mb1es.recompiled</ApplicationId>
+    <ApplicationTitle>Z0MB1ES</ApplicationTitle>
+    <ApplicationVersion>4</ApplicationVersion>
+    <ApplicationDisplayVersion>1.1.0</ApplicationDisplayVersion>
     <AndroidPackageFormats>apk</AndroidPackageFormats>
     <AndroidPackageFormat>apk</AndroidPackageFormat>
     <RunAOTCompilation>false</RunAOTCompilation>
     <PublishTrimmed>false</PublishTrimmed>
     <EmbedAssembliesIntoApk>true</EmbedAssembliesIntoApk>
     <AndroidUseAssemblyStore>false</AndroidUseAssemblyStore>
+    <!-- SDL's bound callbacks are omitted from the LLVM marshal table. Use
+         runtime JNI registration so OnCreate/GetLibraries/Main can start. -->
+    <AndroidEnableMarshalMethods>false</AndroidEnableMarshalMethods>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
     <JsonSerializerIsReflectionEnabledByDefault>true</JsonSerializerIsReflectionEnabledByDefault>
   </PropertyGroup>
@@ -22,13 +29,21 @@
     <Reference Include="Port.Bridge"><HintPath>../Port.AndroidBridge/bin/Release/net10.0/Port.Bridge.dll</HintPath></Reference>
     <Reference Include="Port.Hooks"><HintPath>../Port.AndroidHooks/bin/Release/net10.0/Port.Hooks.dll</HintPath></Reference>
     <Compile Include="../Port.IosBundled/CaseMappedContentManager.cs" Link="CaseMappedContentManager.cs" />
-    <Compile Include="../Port.Prepare/FirstLaunchWarning.cs" Link="FirstLaunchWarning.cs" />
+    <ProjectReference Include="../Port.Prepare/Port.Prepare.csproj" />
+    <ProjectReference Include="../Port.AndroidArt/Port.AndroidArt.csproj" />
+    <Compile Include="../Port.IosGame/FolderSetup.cs" Link="FolderSetup.cs" />
+    <Compile Include="../Port.IosGame/FolderInstallerGame.cs" Link="FolderInstallerGame.cs" />
+    <Compile Include="../Port.IosGame/SetupFont.cs" Link="SetupFont.cs" />
+    <AndroidAsset Include="../../out/android/import-inputs/**/*" Link="preparation/%(RecursiveDir)%(Filename)%(Extension)" />
+    <AndroidAsset Include="../../out/android/native/converter-identity.txt" Link="converter-identity.txt" />
+    <AndroidAsset Include="../../out/android/native/notices/*" Link="notices/audio/%(Filename)%(Extension)" />
+    <AndroidNativeLibrary Include="../../out/android/native/libport_audio_converter.so" Abi="arm64-v8a" />
     <AndroidAsset Include="$(BundledPayloadDirectory)/**/*" Link="preinstalled/%(RecursiveDir)%(Filename)%(Extension)" Condition="'$(BundledPayloadDirectory)' != ''" />
     <AndroidResource Include="../../out/android/resources/drawable/icon.png" Link="Resources/drawable/icon.png" />
     <AndroidAsset Include="../../out/android/fna-package/LICENSE" Link="notices/FNA.NET.txt" />
   </ItemGroup>
-  <Target Name="RequirePersonalPayload" BeforeTargets="PrepareForBuild">
-    <Error Condition="!Exists('$(BundledPayloadDirectory)/bundled-manifest.json')" Text="Build the personal APK using installer/android/build.ps1." />
+  <Target Name="RequireImportInputs" BeforeTargets="PrepareForBuild">
+    <Error Condition="!Exists('../../out/android/import-inputs/inputs-manifest.json')" Text="Build the APK using installer/android/build.ps1." />
   </Target>
   <!-- The package's RID fallback also selects Linux .so files on Android.
        Android must use the five Bionic libraries from its AAR exclusively. -->

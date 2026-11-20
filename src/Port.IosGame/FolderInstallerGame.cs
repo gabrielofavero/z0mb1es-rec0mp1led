@@ -102,8 +102,9 @@ internal sealed class FolderInstallerGame : Game
         TouchPanel.DisplayHeight = GraphicsDevice.PresentationParameters.BackBufferHeight;
         if (lastPage != setup.Page) { scroll = 0; focus = 0; pressed = false; lastPage = setup.Page; }
         Layout();
-        // UIKit owns input while its file picker is presented or dismissing.
-        if (PickerOpen) { pressed = false; finger = null; return; }
+        // The system picker owns input, but components must keep running:
+        // Android delivers picker completion through a queued game component.
+        if (PickerOpen) { pressed = false; finger = null; base.Update(gameTime); return; }
         var touches = TouchPanel.GetState();
         if (finger is null)
             foreach (var touch in touches)

@@ -10,6 +10,12 @@ using Mono.Cecil;
 using Port.Art;
 using Port.IosGame;
 
+if (args is ["--picker-callback-check", var pickerNative])
+{
+    PickerCallbackChecks.Run(pickerNative);
+    return;
+}
+
 if (args is ["--files-setup-flow", var filesXap, var filesInputs, var filesRoot, var filesAudio, var filesNormal, var filesViking])
 {
     FolderSetupChecks.Flow(filesXap, filesInputs, filesRoot, filesAudio, filesNormal, filesViking);
@@ -94,8 +100,8 @@ if (args is ["--content-case-check", var contentRoot])
 if (args is ["--bundled-ipa", var personalIpa])
 {
     using var zip = ZipFile.OpenRead(personalIpa);
-    var entry = zip.Entries.Single(e => e.FullName.EndsWith(".app/Port.IosBundled.dll", StringComparison.Ordinal));
-    var prefix = entry.FullName[..^"Port.IosBundled.dll".Length];
+    var entry = zip.Entries.Single(e => e.FullName.EndsWith(".app/Z0MB1ES.dll", StringComparison.Ordinal));
+    var prefix = entry.FullName[..^"Z0MB1ES.dll".Length];
     using var input = entry.Open();
     using var memory = new MemoryStream();
     input.CopyTo(memory);
@@ -167,8 +173,8 @@ if (args is ["--art-decode", var phoneRoot, var pixelOutput])
 if (args is ["--game-bundle", var ipa])
 {
     using var zip = ZipFile.OpenRead(ipa);
-    var entry = zip.Entries.Single(e => e.FullName.EndsWith(".app/Port.IosGame.dll", StringComparison.Ordinal));
-    var prefix = entry.FullName[..^"Port.IosGame.dll".Length];
+    var entry = zip.Entries.Single(e => e.FullName.EndsWith(".app/Z0MB1ES.dll", StringComparison.Ordinal));
+    var prefix = entry.FullName[..^"Z0MB1ES.dll".Length];
     foreach (var name in new[] { "FNA", "Port.Bridge", "Port.Hooks", "Port.Prepare", "Port.Analysis", "Port.Art", "Port.Content", "Mono.Cecil" })
         if (zip.GetEntry(prefix + name + ".dll") is null) throw new Exception("Missing packaged host dependency: " + name);
     using var input = entry.Open();

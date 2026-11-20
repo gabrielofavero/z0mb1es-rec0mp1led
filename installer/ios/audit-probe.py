@@ -47,7 +47,8 @@ with zipfile.ZipFile(ipa) as archive:
     if hashlib.sha256(native.read_bytes()).hexdigest() != converter:
         raise SystemExit('Converter identity differs from native input')
     if args.game_host:
-        if info['CFBundleVersion'] != '20' or info['CFBundleDisplayName'] != 'Z0MB1ES':
+        if (info['CFBundleShortVersionString'] != '1.1.0' or info['CFBundleVersion'] != '21'
+                or info['CFBundleDisplayName'] != 'Z0MB1ES' or info['CFBundleExecutable'] != 'Z0MB1ES'):
             raise SystemExit('Unexpected original-game host build number')
         if not info.get('UIFileSharingEnabled') or not info.get('LSSupportsOpeningDocumentsInPlace'):
             raise SystemExit('Game logs must be accessible from Files')

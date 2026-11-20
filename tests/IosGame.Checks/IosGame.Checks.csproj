@@ -9,6 +9,7 @@
     <Compile Include="../../src/Port.IosGame/FolderSetup.cs" Link="FolderSetup.cs" />
     <Compile Include="../../src/Port.IosGame/FolderInstallerGame.cs" Link="FolderInstallerGame.cs" />
     <Compile Include="../../src/Port.IosGame/SetupFont.cs" Link="SetupFont.cs" />
+    <Compile Include="../../src/Port.AndroidGame/PendingActions.cs" Link="PendingActions.cs" />
     <Reference Include="FNA"><HintPath>$(FnaDependencyDirectory)/managed/FNA.dll</HintPath><Private>true</Private></Reference>
   </ItemGroup>
 </Project>

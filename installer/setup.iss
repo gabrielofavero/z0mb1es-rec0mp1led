@@ -4,7 +4,7 @@
 [Setup]
 AppId={{F393AB61-549B-416A-B34E-E1AB2E96AF07}
 AppName=Z0MB1ES (on teh ph0ne)
-AppVersion=1.0.0
+AppVersion=1.1.0
 DefaultDirName={localappdata}\Programs\Z0MB1ES on teh ph0ne
 DisableDirPage=yes
 DefaultGroupName=Z0MB1ES (on teh ph0ne)
@@ -12,7 +12,7 @@ PrivilegesRequired=lowest
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 OutputDir=out
-OutputBaseFilename=Z0MB1ES-1.0.0
+OutputBaseFilename=Z0MB1ES-1.1.0
 Compression=lzma2/fast
 SolidCompression=no
 WizardStyle=modern
@@ -45,11 +45,11 @@ Name: "startmenu"; Description: "Start Menu shortcut"; Flags: checkedonce
 Name: "desktop"; Description: "Desktop shortcut"; Flags: unchecked
 
 [Icons]
-Name: "{autoprograms}\Z0MB1ES (on teh ph0ne)"; Filename: "{app}\current\Z0MB1ES.exe"; Parameters: "--run ""{app}\current\ZombiesWP7.dll"" --content ""{app}\current"" --save-dir ""{code:SaveDirectory}"" --pictures-dir ""{code:PicturesDirectory}"""; WorkingDir: "{app}\current"; Tasks: startmenu
-Name: "{autodesktop}\Z0MB1ES (on teh ph0ne)"; Filename: "{app}\current\Z0MB1ES.exe"; Parameters: "--run ""{app}\current\ZombiesWP7.dll"" --content ""{app}\current"" --save-dir ""{code:SaveDirectory}"" --pictures-dir ""{code:PicturesDirectory}"""; WorkingDir: "{app}\current"; Tasks: desktop
+Name: "{autoprograms}\Z0MB1ES"; Filename: "{app}\current\Z0MB1ES.exe"; Parameters: "--run ""{app}\current\ZombiesWP7.dll"" --content ""{app}\current"" --save-dir ""{code:SaveDirectory}"" --pictures-dir ""{code:PicturesDirectory}"""; WorkingDir: "{app}\current"; Tasks: startmenu
+Name: "{autodesktop}\Z0MB1ES"; Filename: "{app}\current\Z0MB1ES.exe"; Parameters: "--run ""{app}\current\ZombiesWP7.dll"" --content ""{app}\current"" --save-dir ""{code:SaveDirectory}"" --pictures-dir ""{code:PicturesDirectory}"""; WorkingDir: "{app}\current"; Tasks: desktop
 
 [Run]
-Filename: "{app}\current\Z0MB1ES.exe"; Parameters: "--run ""{app}\current\ZombiesWP7.dll"" --content ""{app}\current"" --save-dir ""{code:SaveDirectory}"" --pictures-dir ""{code:PicturesDirectory}"""; Description: "Launch Z0MB1ES (on teh ph0ne)"; Flags: nowait postinstall skipifsilent unchecked
+Filename: "{app}\current\Z0MB1ES.exe"; Parameters: "--run ""{app}\current\ZombiesWP7.dll"" --content ""{app}\current"" --save-dir ""{code:SaveDirectory}"" --pictures-dir ""{code:PicturesDirectory}"""; Description: "Launch Z0MB1ES"; Flags: nowait postinstall skipifsilent unchecked
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}\current"

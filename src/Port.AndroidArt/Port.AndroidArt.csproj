@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>Port.Art</AssemblyName>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../Port.Art/*.cs" />
+    <ProjectReference Include="../Port.Prepare/Port.Prepare.csproj" />
+    <Reference Include="FNA.NET"><HintPath>../../out/android/fna-package/lib/net9.0-android35.0/FNA.NET.dll</HintPath></Reference>
+    <EmbeddedResource Include="../../docs/records/asset-swap-inventory.json;../../docs/records/zombies-360-inventory.json;../../docs/records/viking-360-inventory.json;../../docs/records/asset-swap-mappings/*.json;../../config/supported-steam-versions.json;../../config/supported-360-versions.json" LogicalName="Port.Art.Data.%(Filename)%(Extension)" />
+  </ItemGroup>
+</Project>

@@ -165,12 +165,12 @@ internal static class MobileMenuChecks
             Click("GRAPH1CS");
             CheckAnimatedRows(Items());
             var labels = Labels();
-            Assert(labels.Length == 6 && labels[0].StartsWith("M0DE:") && labels[1] == "AUTO R0TATE: OFF" && labels[2].StartsWith("R3DUCE FLASH1NG:") && labels[3] == "SAFE AREA: ON" && labels[4] == "ASSETS" && labels[5] == "BACK", "Mobile Graphics rows differ.");
+            Assert(labels.Length == 5 && labels[0] == "AUTO R0TATE: OFF" && labels[1].StartsWith("R3DUCE FLASH1NG:") && labels[2] == "SAFE AREA: ON" && labels[3] == "ASSETS" && labels[4] == "BACK", "Mobile Graphics rows differ.");
             Click("SAFE AREA: ON");
-            Assert(!DesktopDisplay.SafeAreaEnabled && Labels()[3] == "SAFE AREA: OFF", "Mobile safe area toggle failed.");
+            Assert(!DesktopDisplay.SafeAreaEnabled && Labels()[2] == "SAFE AREA: OFF", "Mobile safe area toggle failed.");
             Click("SAFE AREA: OFF");
             Assert(DesktopDisplay.SafeAreaEnabled && Labels().SequenceEqual(labels), "Safe area did not restore immediately.");
-            var offsets = new[] { -60f, 30f, -50f, 35f, -55f, 10f };
+            var offsets = new[] { 30f, -50f, 35f, -55f, 10f };
             for (var i = 0; i < offsets.Length; i++)
             {
                 var item = Items()[i];
@@ -182,7 +182,7 @@ internal static class MobileMenuChecks
             void OrientationChanged(bool enabled) => notified = enabled;
             DesktopDisplay.ResponsiveOrientationChanged += OrientationChanged;
             Click("AUTO R0TATE: OFF");
-            Assert(DesktopDisplay.ResponsiveOrientationEnabled && notified && Labels()[1] == "AUTO R0TATE: ON", "Auto rotate did not enable immediately.");
+            Assert(DesktopDisplay.ResponsiveOrientationEnabled && notified && Labels()[0] == "AUTO R0TATE: ON", "Auto rotate did not enable immediately.");
             var saved = File.ReadAllText(Path.Combine(DesktopStorage.SaveDirectory, "display.json"));
             Assert(saved.Contains("\"ResponsiveOrientation\":true"), "Auto rotate was not saved.");
             var reloaded = hooks.GetMethod("Load", statics)!.Invoke(null, null)!;
@@ -191,10 +191,14 @@ internal static class MobileMenuChecks
             DesktopDisplay.ResponsiveOrientationChanged -= OrientationChanged;
             Assert(!DesktopDisplay.ResponsiveOrientationEnabled && !notified, "Auto rotate did not return to the landscape default.");
             if (height > width)
-                Assert(((Vector2)location.GetValue(Items()[5])!).Y * scale > height * 0.55f &&
-                    ((Vector2)location.GetValue(Items()[5])!).Y * scale < height * 0.9f, "Portrait options do not form a centered panel.");
+                Assert(((Vector2)location.GetValue(Items()[4])!).Y * scale > height * 0.55f &&
+                    ((Vector2)location.GetValue(Items()[4])!).Y * scale < height * 0.9f, "Portrait options do not form a centered panel.");
+            var beforeHiddenControls = hooks.GetField("preferences", statics)!.GetValue(null);
+            Click("M0DE: FULLSCREEN");
             Click("VSYNC: OFF");
             Click("RES0LUTI0N: 600 X 360");
+            Assert(Equals(beforeHiddenControls, hooks.GetField("preferences", statics)!.GetValue(null)),
+                "Hidden display controls changed mobile preferences.");
             Assert(Labels().SequenceEqual(labels), "Hidden display controls changed mobile settings.");
             Click("ASSETS");
             CheckAnimatedRows(Items());
@@ -277,7 +281,7 @@ internal static class MobileMenuChecks
         hooks.GetMethod("AttachSettingsMenu", statics, [typeof(Assembly)])!.Invoke(null, [assembly]);
         Click("GRAPH1CS");
         Assert(DesktopDisplay.ResponsiveOrientationEnabled && !Labels().Any(label => label.StartsWith("AUTO R0TATE:")), "Desktop must support portrait without the mobile switch.");
-        Assert(Labels().Length == 7 && Labels().Any(label => label.StartsWith("RES0LUTI0N:")) && Labels().Any(label => label.StartsWith("VSYNC:")) && Labels().Contains("SAFE AREA: ON"), "Desktop display controls missing.");
+        Assert(Labels().Length == 7 && Labels().Any(label => label.StartsWith("M0DE:")) && Labels().Any(label => label.StartsWith("RES0LUTI0N:")) && Labels().Any(label => label.StartsWith("VSYNC:")) && Labels().Contains("SAFE AREA: ON"), "Desktop display controls missing.");
         var desktopOffsets = new[] { -60f, 40f, -45f, 50f, -35f, 55f, -10f };
         for (var i = 0; i < desktopOffsets.Length; i++)
         {

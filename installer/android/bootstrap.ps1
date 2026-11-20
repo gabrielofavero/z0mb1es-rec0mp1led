@@ -35,7 +35,7 @@ try {
     if ((Get-FileHash (Join-Path $work 'fna-package/lib/net9.0-android35.0/FNA.NET.dll')).Hash -ine $pin.fnaAndroidAssemblySha256) {
         throw 'FNA.NET Android assembly checksum differs.'
     }
-    Write-Host 'Android SDK/workload and experimental FNA.NET are ready.'
+    Write-Host 'Android SDK/workload and FNA.NET are ready.'
     Write-Host 'Also supply Android SDK platform 36 / build-tools 36.1.0 and JDK 17 or 21. See installer/android/README.md.'
 } finally {
     $env:DOTNET_CLI_HOME = $oldCliHome

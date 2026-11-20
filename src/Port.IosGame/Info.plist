@@ -3,9 +3,9 @@
 <plist version="1.0"><dict>
   <key>CFBundleIdentifier</key><string>io.github.z0mb1es.executionprobe</string>
   <key>CFBundleDisplayName</key><string>Z0MB1ES</string>
-  <key>CFBundleName</key><string>Port.IosGame</string>
-  <key>CFBundleShortVersionString</key><string>0.1.0</string>
-  <key>CFBundleVersion</key><string>20</string>
+  <key>CFBundleName</key><string>Z0MB1ES</string>
+  <key>CFBundleShortVersionString</key><string>1.1.0</string>
+  <key>CFBundleVersion</key><string>21</string>
   <key>UIApplicationSupportsIndirectInputEvents</key><true/>
   <key>CFBundleIcons</key><dict><key>CFBundlePrimaryIcon</key><dict>
     <key>CFBundleIconFiles</key><array><string>AppIcon60x60</string></array>

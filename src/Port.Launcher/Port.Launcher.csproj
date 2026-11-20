@@ -3,7 +3,7 @@
     <OutputType>Exe</OutputType>
     <OutputType Condition="'$(Configuration)' == 'Release' and '$(RuntimeIdentifier)' != 'linux-x64' and '$(RuntimeIdentifier)' != 'osx-arm64' and '$(RuntimeIdentifier)' != 'osx-x64'">WinExe</OutputType>
     <AssemblyName>Z0MB1ES</AssemblyName>
-    <Version>1.0.0</Version>
+    <Version>1.1.0</Version>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <ApplicationIcon Condition="'$(RuntimeIdentifier)' == '' or '$(RuntimeIdentifier)' == 'win-x64'">../../assets/icon/icon.ico</ApplicationIcon>
   </PropertyGroup>

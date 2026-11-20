@@ -23,9 +23,11 @@ with zipfile.ZipFile(args.ipa) as archive:
     info_name = next(n for n in names if n.endswith('.app/Info.plist') and n.count('/') == 2)
     prefix = info_name[:-len('Info.plist')]
     info = plistlib.loads(archive.read(info_name))
-    if info['CFBundleIdentifier'] != 'io.github.z0mb1es.executionprobe' or info['CFBundleVersion'] != '12':
-        raise SystemExit('Personal build must retain the original bundle identity and version 12')
-    if info['CFBundleDisplayName'] != 'Z0MB1ES' or not info.get('UIFileSharingEnabled'):
+    if (info['CFBundleIdentifier'] != 'io.github.z0mb1es.executionprobe'
+            or info['CFBundleShortVersionString'] != '1.1.0' or info['CFBundleVersion'] != '13'):
+        raise SystemExit('Personal build must retain the original bundle identity, version 1.1.0 and build 13')
+    if (info['CFBundleDisplayName'] != 'Z0MB1ES' or info['CFBundleExecutable'] != 'Z0MB1ES'
+            or not info.get('UIFileSharingEnabled')):
         raise SystemExit('Missing player identity or Files diagnostics')
     executable = archive.read(prefix + info['CFBundleExecutable'])
     if executable[:4] != b'\xcf\xfa\xed\xfe' or struct.unpack_from('<I', executable, 4)[0] != 0x100000c:

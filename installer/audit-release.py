@@ -209,7 +209,7 @@ def negative_controls() -> None:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--payload", type=Path, default=ROOT / "installer/out/payload")
-    parser.add_argument("--setup", type=Path, default=ROOT / "installer/out/Z0MB1ES-1.0.0.exe")
+    parser.add_argument("--setup", type=Path, default=ROOT / "installer/out/Z0MB1ES-1.1.0.exe")
     parser.add_argument("--xap", type=Path, help="local supported XAP for exact-byte checks")
     args = parser.parse_args()
     negative_controls()

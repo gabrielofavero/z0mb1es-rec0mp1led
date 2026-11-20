@@ -680,3 +680,118 @@ At the user's request, added a separate ARM64 Android host and `build-apk` CLI w
 The CLI retains a private RSA update key, signs automatically, audits every embedded asset against the local receipt, verifies all five native Android library hashes, and runs `apksigner verify`. Fixed the package's Linux ARM64 RID fallback overriding Android's `libtheorafile.so`; only the AAR's Bionic libraries are included, all with 16 KB ELF segment alignment. Negative audit checks rejected a modified payload and substitution of the Linux library. The host verifies/extracts versioned assets into app-private storage, retains saves separately, presents the shared flashing warning, and uses the shared mobile display/input/settings hooks. First-launch XAP import, native photos/haptics, foldable/safe-area and full device behavior remain later work.
 
 The required `. .\dev.ps1; build-game` passed after closing a hidden desktop game instance with the user's permission. The APK CLI then passed with 788 bundled files and APK signature schemes v2/v3, preserving the existing signing certificate. Artifact: ignored `private/android/Z0MB1ES-experimental.apk`, 172294378 bytes, SHA-256 `362de4582a4bd0ae0b5fa0a18646bc44f8c0b4d5710988260df6fbb30f19da57`. Receipts: `out/android/final-build.log`, `out/android/final-apk.log` and `private/android/build-47573b1a0705/android-abi-report.json`. This is a personal proprietary-content test APK, not a content-free release. No Android device installation or gameplay test was performed. See [the Android CLI guide](../../installer/android/README.md).
+
+### Android emulator probe and startup JNI repair (2026-11-19)
+
+Tested the personal APK using the installed Android emulator 37.3.10.0 and
+`Medium_Phone_API_37.0` AVD (API 37, x86_64, `libndk_translation.so`, advertised
+ARM64 support). The original APK installed successfully but immediately crashed
+with `UnsatisfiedLinkError` for `MainActivity.n_onCreate`. The user also reported
+a boot crash on physical hardware; no phone logs or repaired-phone execution
+were observed in this session.
+
+The generated Java activity called four native callbacks, but the LLVM marshal
+table contained only `OnDestroy` for this activity. Disabled
+`AndroidEnableMarshalMethods` in the Android host so runtime JNI registration
+includes `GetLibraries`, `OnCreate`, `Main` and `OnDestroy`. Switching the mode
+initially left a duplicate `android.app.ActivityTracker` Java class in the
+intermediate output; cleaning the Android project and rebuilding resolved it.
+
+The corrected APK installed as an update with the existing signing certificate.
+The flashing warning appeared; enabling Reduce Flashing and continuing loaded
+the verified payload, indexed 96 XNBs, initialized graphics/audio and reached
+`original-game=first-frame` and `original-menu=loaded`. A full emulator restart
+retained acknowledgment and loaded the original menu again without the warning.
+Background/resume emitted SDL `onPause`/`onResume` without a crash. Both software
+SwiftShader (ES 3.0) and host NVIDIA GTX 970 (ES 3.1) translation rendered a black
+game image and logged unimplemented OpenGL ES calls. Visible gameplay, all-mode
+behavior, audio quality/timing, touch/controller play and phone acceptance remain
+unverified. The emulator started for this test was shut down afterward.
+
+The clean `build-apk -SkipGameBuild` passed the 788-file payload/native audit and
+v2/v3 signature verification. Final APK: `private/android/Z0MB1ES-experimental.apk`,
+172237034 bytes, SHA-256
+`a9d6b22425f63fe0266a1e052df591eaecbd7d69e94079f1cd19359b9e1e1e2a`.
+The required `. .\dev.ps1; build-game` passed after the source change on its final
+standalone rerun; an earlier overlapping check hit access denied moving the
+staged current folder. Receipts and screenshots are under ignored
+`out/android/emulator-test/`, especially `build-apk-clean.log`,
+`build-game-acceptance.log`, `launch-logcat.log`, `game-logcat.log` and
+`host-lifecycle-logcat.log`. The original crashing APK is retained privately as
+`private/android/Z0MB1ES-before-jni-fix.apk`. No proprietary payload was added to
+tracked files.
+
+### Android controller events for Quest panels and gamepads (2026-11-19)
+
+The user confirmed that the repaired APK boots and renders on Meta Quest 3 as a
+2D Android app, but neither Quest controllers in gamepad mode nor a paired Xbox
+controller supplied game input. No Quest debugging connection or input log was
+available. The pinned SDL Android path rejects negative virtual device IDs in
+its joystick classifier and compares generic-motion sources with exact equality;
+these are concrete limitations of that path, not a measured cause on this Quest.
+
+Added an Android host adapter for controller key and joystick motion events,
+including combined source flags and explicit gamepad keys tagged as keyboard
+input. It normalizes device axis ranges/flats, supports Z/RZ and RX/RY right
+sticks, LTRIGGER/RTRIGGER and BRAKE/GAS triggers, digital triggers, D-pad keys and
+hats. Button and motion updates preserve each other. The most recently active
+device supplies player one; idle events/releases from another device cannot
+take it over. Removal, device changes, pause and window focus loss clear held
+state. Discovery, first-event routing and player-one activity transitions are
+logged privately with the existing `Z0MB1ES` tag.
+
+The Android hooks use a project-local global alias for all shared gamepad polls,
+with SDL retained as a fallback. Compiled IL inspection confirmed the adapter
+in `DesktopInput.GetGamePadState`, `GetState`, `ControllerActive` and
+`DesktopDisplay.StartEditingName`/`Update`. Desktop hook sources and Settings
+positions are unchanged. The manifest marks the app as a game with optional
+gamepad support; no VR/OpenXR runtime or Bluetooth permission was added.
+
+Portable `AndroidInput.Checks` passed button/motion merging, independent D-pad
+sources, digital/analog triggers, controller switching, negative virtual IDs,
+neutral release, disconnect/focus reset and axis normalization. Existing
+`Input.Checks` passed mapping, keyboard, photo mapper, portrait camera/display
+and menu navigation checks. The required `. .\dev.ps1; build-game` passed with
+the unchanged hooked DLL hash `3f1b2342353c781cdb496a972603c706d8dcc3a693a4e4ff1a5430131cdadeb0`.
+
+### Android player naming and on-device import (2026-11-19)
+
+The user confirmed that the Android port works. The launcher/activity name is
+now **Z0MB1ES (on teh ph0ne)**, with version code 2 / version 1.0. The existing
+application ID and local signing key/alias remain unchanged so updates retain
+app-private saves. Current Android documentation no longer describes the port
+as an experiment; historical records and update identifiers are retained.
+
+`build-apk` now produces a content-free player at
+`out/android/Z0MB1ES-on-teh-ph0ne.apk`. It reuses the iOS FNA setup screen,
+flashing warning, source verification, optional artwork preparation and atomic
+persistent asset store. Android's document picker supplies private copies of
+selected XAP/Steam ZIP/Xbox 360 files; originals remain unchanged. Preparation,
+guarded IL rewriting, Android ABI adaptation and WMA-to-QOA conversion all run
+on the device. Settings' existing Reimport assets action saves/closes the game
+and opens setup; completed reimport requests a fresh app session. Settings row
+positions and the Android controller adapter are preserved.
+
+The native audio library exports the repository converter through a C ABI,
+retaining its exact guarded WMA decoder and QOA encoder. Android uses NDK r27d,
+Rust 1.100.0 and 16 KB ELF alignment. Both vendored audio license notices are
+packaged. Desktop framework/runtime DLLs are bundled only as metadata inputs
+for the existing reviewed rewrite plan, then the prepared assembly is checked
+against the actual Android framework, bridge and hooks. The importer APK audit
+checks every preparation file, native hashes/alignment, converter identity and
+absence of original/prepared game content; the CLI also checks the packaged
+label, version, application ID and v2/v3 signatures.
+
+The signed APK is 56,456,732 bytes, SHA-256
+`d7c83c5782898e0ad3810e8c2d1cdef425d062389eef27f3a045f5fc3082c820`.
+The real-XAP phone import checks passed native conversion and byte-for-byte
+parity with all desktop content outputs, framework/member adaptation, source
+preservation, private-selection cleanup, cancellation/save preservation and
+damaged-asset repair detection. Android controller checks also passed.
+The new system picker/import-to-game handoff still requires a physical-device
+check; preceding bundled-port acceptance does not establish that new flow.
+
+On 2026-11-20 the user explicitly limited acceptance to Android and waived the
+Windows build for this task. No further Windows build retry is required for
+this delivery. The signed, content-free Android APK and its audit are complete;
+physical-device validation of the new picker flow remains open.
