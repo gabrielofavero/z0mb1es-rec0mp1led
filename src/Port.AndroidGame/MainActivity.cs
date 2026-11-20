@@ -32,6 +32,7 @@ public sealed class MainActivity : SDLActivity
     private const int PackageRequest = 42;
     private string dataRoot = "";
     private AndroidControllerInput? controllers;
+    private PhotoPicker? photos;
     private static readonly object logLock = new();
 
     protected override string[] GetLibraries() => ["SDL3"];
@@ -157,6 +158,7 @@ public sealed class MainActivity : SDLActivity
     protected override void OnActivityResult(int requestCode, Result resultCode, Intent? data)
     {
         base.OnActivityResult(requestCode, resultCode, data);
+        if (photos?.HandleResult(requestCode, resultCode, data) == true) return;
         if (requestCode != PackageRequest) return;
         var slot = pickerSlot;
         pickerSlot = null;
@@ -216,7 +218,8 @@ public sealed class MainActivity : SDLActivity
         var root = active.Root;
         var saves = Path.Combine(dataRoot, "Saves");
         DesktopStorage.Configure(saves);
-        DesktopPictures.Configure(Path.Combine(dataRoot, "Pictures"));
+        var pictures = Path.Combine(dataRoot, "Pictures");
+        DesktopPictures.Configure(pictures, managePhotos: true);
         PlayerIdentity.Configure(saves);
         GameContent.Configure(Path.Combine(root, "content"));
         AssetChoices.Initialize(Directory.Exists(Path.Combine(root, "optional-art")) ? Path.Combine(root, "optional-art") : null,
@@ -237,6 +240,17 @@ public sealed class MainActivity : SDLActivity
         DesktopAchievements.Configure();
         var session = new AndroidSession(game, type, !File.Exists(Path.Combine(saves, "savegame")));
         game.Components.Add(session);
+        photos = new PhotoPicker(this, pictures, () => session.Enqueue(() =>
+        {
+            var custom = type.GetField("custom", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)!.GetValue(null);
+            if (custom is not null && DesktopPictures.ImportFolder(custom, pictures))
+                DesktopStorage.ReapplyCustom(custom);
+        }), lifetime.Token);
+        DesktopPictures.PhotoSelectionRequested = () =>
+        {
+            RunOnUiThread(() => photos?.Show());
+            return Array.Empty<string>();
+        };
         var reimport = false;
         DesktopDisplay.ReimportRequested = () =>
         {
@@ -248,7 +262,13 @@ public sealed class MainActivity : SDLActivity
         };
         game.Deactivated += (_, _) => { session.Pause(); session.Save(); };
         try { Log("original-game=starting"); game.Run(); }
-        finally { DesktopDisplay.ResponsiveOrientationChanged -= Orientation; DesktopDisplay.ReimportRequested = null; }
+        finally
+        {
+            DesktopDisplay.ResponsiveOrientationChanged -= Orientation;
+            DesktopDisplay.ReimportRequested = null;
+            DesktopPictures.PhotoSelectionRequested = null;
+            photos = null;
+        }
         Log("original-game=ended");
         return reimport;
     }
@@ -267,6 +287,8 @@ public sealed class MainActivity : SDLActivity
 internal sealed class AndroidSession(Game game, Type type, bool firstSave) : DrawableGameComponent(game)
 {
     private const BindingFlags Flags = BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
+    private readonly ConcurrentQueue<Action> pending = new();
+    internal void Enqueue(Action action) => pending.Enqueue(action);
     private bool ready;
     private int updates;
     private int frames;
@@ -282,6 +304,11 @@ internal sealed class AndroidSession(Game game, Type type, bool firstSave) : Dra
 
     public override void Update(GameTime gameTime)
     {
+        while (pending.TryDequeue(out var action))
+        {
+            try { action(); }
+            catch (Exception error) { MainActivity.Log("player-action-failure=" + error); }
+        }
         var pad = AndroidGamePad.GetState(PlayerIndex.One);
         var active = pad.IsConnected && (pad.ThumbSticks.Left.LengthSquared() > 0.04f ||
             pad.ThumbSticks.Right.LengthSquared() > 0.04f || pad.Buttons != default || pad.DPad != default ||

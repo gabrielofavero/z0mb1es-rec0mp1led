@@ -2,7 +2,7 @@
 
 Welcome! This is a recompilation project for Z0MB1ES (on teh ph0ne), a Windows Phone 7 game that brought together three games by James Silva: I MAED A GAM3 W1TH Z0MB1ES 1N IT!!!1 (IMAGWZII), TIME VIKING, and ZOMBIES ENDLESS. The first two were also released as Xbox 360 Indie Games, while Endless was exclusive to Windows Phone.
 
-The target platforms are desktop (Windows, macOS, and Linux) and mobile (iOS and Android). I don't plan to make console versions (Switch, PlayStation, or Xbox), but you are free to fork this project if you wish.
+The target platforms are desktop (Windows, macOS, and Linux) and mobile (iOS and Android). I don't plan to make console versions (Switch, PlayStation, or Xbox), but you are free to fork this project and do it if you wish.
 
 Oh, and if you only want to play IMAGWZII, keep in mind that a brilliant, free version is available on [Steam](https://store.steampowered.com/app/1800730/I_MAED_A_GAM3_W1TH_Z0MB1ES_1N_IT1/) and [Xbox](https://www.xbox.com/en-US/games/store/z0mb1es-remastered/9PDG3T78XMQR).
 
@@ -19,13 +19,13 @@ The additions are pretty basic. They focus mainly on making the game accessible 
 * Many layout adjustments for both desktop and mobile.
 * Portrait mode. This is the only drastic change from the original design. I added it because many devices with large screens work well in portrait orientation, making gameplay more accessible. It is disabled by default; enable it in Settings if you want to try it out.
 
-## How to install
+## How to run
 
 All game versions are available on the [Releases page](https://github.com/gabrielofavero/z0mb1es-rec0mp1led/releases). Desktop packages ask you to select the game assets during installation or on first launch. Mobile apps ask for the assets on first launch, then prepare and store them on your device for future sessions.
 
-You can also build the games from the terminal. See [Build and run Z0MB1ES](build-and-run.md) for instructions for every platform, desktop terminal commands, and supported builds with assets already included to skip on-device import. The guide also explains the current limitations of each build route. The [documentation index](docs/README.md) covers the project's architecture and implementation.
+You can also build the games from the terminal. See [Build and run](build-and-run.md) for instructions for every platform, including how to build for mobile with assets already included to skip on-device import.
 
-## More about asset swapping
+## Asset swapping
 
 Although the WP7 package is all you need to play, its artwork has half the resolution of the artwork on other platforms. With that in mind, the installer can import artwork from supported copies:
 
@@ -36,23 +36,21 @@ You can then choose the artwork for each game under **Settings → ASSETS**. If 
 
 The table below shows the proportion of mapped visual elements that use imported artwork:
 
-| Copies supplied                      | IMAGWZII      | TIME VIKING   | ZOMBIES ENDLESS |
-| ------------------------------------ | ------------- | ------------- | --------------- |
-| IMAGWZII (Steam)                     | 69% (120/175) | -             | 49% (113/230)   |
-| IMAGWZII (360)                       | 69% (120/175) | -             | 49% (113/230)   |
-| TIME VIKING (360)                    | -             | 57% (102/178) | 73% (168/230)   |
-| IMAGWZII (Steam) + TIME VIKING (360) | 69% (120/175) | 57% (102/178) | 74% (171/230)   |
-| IMAGWZII (360) + TIME VIKING (360)   | 69% (120/175) | 57% (102/178) | 74% (171/230)   |
+| Copies supplied         | IMAGWZII      | TIME VIKING   | ZOMBIES ENDLESS |
+| ----------------------- | ------------- | ------------- | --------------- |
+| IMAGWZII (Steam or 360) | 69% (120/175) | -             | 49% (113/230)   |
+| TIME VIKING (360)       | -             | 57% (102/178) | 73% (168/230)   |
+| Both                    | 69% (120/175) | 57% (102/178) | 74% (171/230)   |
 
-## How is original content handled?
+## How is content handled?
 
-No original game code or assets are included in the repository or installer. The port patches and hooks into the code from the XAP you provide and prepares its assets on your device.
+No game code or assets are included in the repository or installer. The port patches and hooks into the code from the packages you provide and prepares its assets on your device.
 
-I recreated the game's cover as an SVG and adapted it for the icon and installer art. Those images are based on the original cover; they aren't a replacement for the game's assets.
+I recreated the game's cover as an SVG and adapted it for the icon and installer art. Those images are based on the original cover; they aren't a copy-paste from the game's assets.
 
 ## Project status and future support
 
-I currently consider this project complete. I don't have any additional features planned, and I've tested all intended platforms on real devices. I will continue to address bugs reported in the [Issues section](https://github.com/gabrielofavero/z0mb1es-rec0mp1led/issues). Testing this many platforms as a single person, with access to only a limited range of devices, is bound to leave some bugs undiscovered. I want everyone to have a good experience, so please report any problems you find. I'll do my best to fix them when possible.
+I currently consider this project complete. I don't have any additional features planned, and I've tested all intended platforms on real devices. I will continue to fix bugs reported in the [Issues section](https://github.com/gabrielofavero/z0mb1es-rec0mp1led/issues). Testing this many platforms as a single dev is bound to leave some bugs behind. I want everyone to have a good experience, so please report any problems you find and I'll do my best to fix them when possible.
 
 ## Flashing lights warning
 

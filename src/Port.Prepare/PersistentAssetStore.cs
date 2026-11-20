@@ -58,7 +58,11 @@ public sealed class PersistentAssetStore(string assetDirectory, string saveDirec
         // Includes old active set, new set, extraction workspace and converter scratch.
         var estimate = checked(previousBytes * 2 +
             (phone?.UncompressedBytes ?? previousBytes) * 3 + sourceBytes * 2);
-        var drive = new DriveInfo(Path.GetPathRoot(root)!);
+        // On Unix, / can be a different (read-only) filesystem from app data.
+        // A first import may not have created the asset directory yet.
+        var directory = new DirectoryInfo(root);
+        while (!directory.Exists && directory.Parent is { } parent) directory = parent;
+        var drive = new DriveInfo(directory.FullName);
         return new AssetImportPreview(phone?.SupportedVersion ?? manifest!.PhoneVersion,
             sourceBytes, estimate, drive.AvailableFreeSpace,
             normalInfo?.Version, vikingInfo?.Version);

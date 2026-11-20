@@ -33,6 +33,13 @@ installed if you need its data. The signing identity is retained. Saves and
 pictures remain in `files/Saves/` and `files/Pictures/`, separate from imported
 assets. Uninstalling removes app data.
 
+In the zombie creator, **Choose Photos** / **Add Photos** opens Android's system
+photo picker, with an image document picker fallback on older devices. Choose up
+to 32 photos at a time (256 total). The app keeps only private, orientation-correct
+sRGB PNG thumbnails up to 400 pixels; imported photos appear immediately.
+**Remove Photo** deletes only the app's copy. Canceling keeps existing photos,
+and no photo library or broad storage permission is required.
+
 ## Build
 
 From PowerShell 7 at the repository root:
