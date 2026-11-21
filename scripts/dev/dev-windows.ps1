@@ -22,7 +22,7 @@ function build-installer {
 
 function run-installer {
     [CmdletBinding()]
-    param([string]$InstallerPath = (Join-Path $script:DevRoot 'installer/out/Z0MB1ES-1.1.0.exe'))
+    param([string]$InstallerPath = (Join-Path $script:DevRoot 'installer/out/Z0MB1ES-1.1.0-x64-windows.exe'))
 
     $ErrorActionPreference = 'Stop'
     if (-not (Test-Path -LiteralPath $InstallerPath -PathType Leaf)) {

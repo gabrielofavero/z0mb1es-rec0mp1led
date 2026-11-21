@@ -27,6 +27,6 @@ dotnet run --project tools/ios-bundle-prepare -c Release -- "$1" out/ios/game "$
     out/ios/checks/native/libz0audio.dylib "$2" "$3"
 dotnet build src/Port.IosBundled -t:Rebuild -c Release -p:NuGetAudit=false \
     "-p:BundledPayloadDirectory=$personal_payload/preinstalled" -bl:private/ios-bundled/build.binlog
-personal_ipa="$repo/private/ios-bundled/bin/Release/net10.0-ios26.0/ios-arm64/Z0MB1ES-personal-preinstalled.ipa"
+personal_ipa="$repo/private/ios-bundled/bin/Release/net10.0-ios26.0/ios-arm64/Z0MB1ES-1.1.0-arm64-ios.ipa"
 dotnet run --project tests/IosGame.Checks -c Release -- --bundled-ipa "$personal_ipa"
 python3 installer/ios/audit-bundled.py "$personal_ipa" "$personal_payload/preinstalled"

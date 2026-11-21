@@ -17,7 +17,7 @@ sh installer/macos/build.sh
 pwsh -NoProfile -Command '. .\dev.ps1; build-game'
 ```
 
-The script verifies hashes and architectures, publishes self-contained tools, audits bundle payloads, and builds `Z0MB1ES-1.1.0-osx-arm64.app` and `Z0MB1ES-1.1.0-osx-arm64.pkg` in `out/macos/packages`. Archive the previous app before repackaging. The ABI checker remains a directory publish so it can inspect the runtime assembly catalog. The package has no interactive install script; file selection occurs in the app on first launch.
+The script verifies hashes and architectures, publishes self-contained tools, audits bundle payloads, and builds `Z0MB1ES-1.1.0-arm64-macos.app` and `Z0MB1ES-1.1.0-arm64-macos.pkg` in `out/macos/packages`. Archive the previous app before repackaging. The ABI checker remains a directory publish so it can inspect the runtime assembly catalog. The package has no interactive install script; file selection occurs in the app on first launch.
 
 The installer uses `components.plist` to disable bundle relocation and install at `/Applications/Z0MB1ES.app`, even when a development or extracted ZIP copy with the same bundle identifier exists elsewhere. Reinstalling replaces the app at that destination while persistent player data remains outside the bundle.
 
@@ -45,7 +45,7 @@ pwsh -NoProfile -Command '. ./dev.ps1; build-game'
 pwsh -NoProfile -Command '. ./dev.ps1; run-game'
 ```
 
-The default XAP is `game/Z0MB1ES (on teh ph0ne) v1.0.0.0.xap`. To supply another path, use `build-game -XapPath "/path/to/game.xap"`. CLI saves and creator pictures use `~/Documents/Z0MB1ES on teh ph0ne/Saves` and `Pictures`, separately from the packaged app's data. The first run shows the flashing lights warning.
+The default XAP is `game/Z0MB1ES (on teh ph0ne) v1.0.0.0.xap`. To supply another path, use `build-game -XapPath "/path/to/game.xap"`. CLI saves and creator pictures use `~/Documents/Z0MB1ES/Saves` and `Pictures`, separately from the packaged app's data. The first run shows the flashing lights warning.
 
 Prepared optional textures at `private/asset-swap/prepared/` are automatically copied into the build. You can also supply another prepared store, including textures previously imported by the packaged macOS app:
 

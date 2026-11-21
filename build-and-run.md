@@ -34,6 +34,8 @@ Like Blitz Recomp, platform commands live under `scripts/dev/`, with root entry 
 
 The commands wrap the platform recipes below and retain their prerequisites, audits, and output locations. On Windows/macOS, `build-game` prepares a personal desktop folder. On Linux, it publishes the self-contained host/tools to `private/linux-publish/`; preparing personal assets remains the explicit CLI workflow below. Linux `run-game` opens the installed importer. On iOS, `build-game` produces the content-free unsigned IPA; signing/installing remains a sideloading step.
 
+Generated packages and installers use `Z0MB1ES-<version>-<architecture>-<os>.<extension>`. Architecture is `x64` for Windows/Linux and `arm64` for macOS/Android/iOS; OS names are `windows`, `linux`, `macos`, `android`, and `ios`. This naming applies to package filenames, including the exported macOS `.app`; installed app names and developer output folders keep their existing names.
+
 ## Shared prerequisites
 
 Install .NET SDK **10.0.302**; [global.json](global.json) disables SDK roll-forward. Desktop projects target `net10.0`. Dependency and packaging pins live in:
@@ -103,12 +105,12 @@ build-installer -AudioConverterPath 'out/audio-converter/release/port-audio-conv
     -PyInstallerRoot 'private/tooling/pyinstaller'
 ```
 
-Output: `installer/out/Z0MB1ES-1.1.0.exe`. It includes the runtime, converter, and artwork importer. The player's machine does not need .NET, Python, Rust, or an SDK. The XAP and optional art are selected during installation.
+Output: `installer/out/Z0MB1ES-1.1.0-x64-windows.exe`. It includes the runtime, converter, and artwork importer. The player's machine does not need .NET, Python, Rust, or an SDK. The XAP and optional art are selected during installation.
 
 Run setup from PowerShell using its explicit output path:
 
 ```powershell
-run-installer -InstallerPath 'installer/out/Z0MB1ES-1.1.0.exe'
+run-installer -InstallerPath 'installer/out/Z0MB1ES-1.1.0-x64-windows.exe'
 ```
 
 After installation, use the Z0MB1ES shortcut. The [Windows installer guide](installer/README.md) documents silent installation and optional artwork switches.
@@ -131,7 +133,7 @@ run-game -List
 run-game -Build current
 ```
 
-The helper uses `Documents/Z0MB1ES on teh ph0ne/Saves` and `Pictures`, with optional artwork from the staged `optional-art/` folder or the developer artwork store. See the shared desktop CLI and artwork sections below for explicit paths and controls.
+The helper uses `Documents/Z0MB1ES/Saves` and `Pictures`, with optional artwork from the staged `optional-art/` folder or the developer artwork store. See the shared desktop CLI and artwork sections below for explicit paths and controls.
 
 ## macOS Apple Silicon
 
@@ -159,8 +161,8 @@ bash ./dev.sh --platform mac build-installer
 
 Outputs in `out/macos/packages/`:
 
-- `Z0MB1ES-1.1.0-osx-arm64.app`
-- `Z0MB1ES-1.1.0-osx-arm64.pkg`
+- `Z0MB1ES-1.1.0-arm64-macos.app`
+- `Z0MB1ES-1.1.0-arm64-macos.pkg`
 
 The script builds the Rust converter, publishes self-contained game/tools, checks native dependencies, and assembles the app and installer. Archive an existing app output before reusing the same destination, or choose a fresh one:
 
@@ -171,8 +173,8 @@ bash ./dev.sh --platform mac build-installer --output out/macos/rebuilt-packages
 Open the uninstalled app or install the package:
 
 ```sh
-open out/macos/packages/Z0MB1ES-1.1.0-osx-arm64.app
-open out/macos/packages/Z0MB1ES-1.1.0-osx-arm64.pkg
+open out/macos/packages/Z0MB1ES-1.1.0-arm64-macos.app
+open out/macos/packages/Z0MB1ES-1.1.0-arm64-macos.pkg
 ```
 
 The installed app is `/Applications/Z0MB1ES.app`. Terminal launches can use either:
@@ -196,7 +198,7 @@ run-game
 
 The prepared desktop commands invoke PowerShell 7 and accept its parameter names. You can also keep using `. ./dev.ps1` from PowerShell on the Mac.
 
-This creates `private/run/current/` with macOS native libraries and the creator photo picker. It needs the .NET runtime and uses `~/Documents/Z0MB1ES on teh ph0ne/Saves` and `Pictures`, separately from the packaged app. It does not create an asset-inclusive `.app` or `.pkg`.
+This creates `private/run/current/` with macOS native libraries and the creator photo picker. It needs the .NET runtime and uses `~/Documents/Z0MB1ES/Saves` and `Pictures`, separately from the packaged app. It does not create an asset-inclusive `.app` or `.pkg`.
 
 ## Linux x64
 
@@ -238,15 +240,15 @@ Use `build-game` in that shell to publish the host/tools without packaging. Afte
 
 Keep the ABI checker as a directory publish: it needs its runtime assembly catalog. Packaging builds the Rust converter and writes:
 
-- `out/linux/packages/z0mb1es-rec0mp1led_1.1.0_amd64.deb`
-- `out/linux/packages/z0mb1es-rec0mp1led-1.1.0-1.x86_64.rpm`
+- `out/linux/packages/Z0MB1ES-1.1.0-x64-linux.deb`
+- `out/linux/packages/Z0MB1ES-1.1.0-x64-linux.rpm`
 
 On the matching distribution, install one package:
 
 ```sh
-sudo apt install ./out/linux/packages/z0mb1es-rec0mp1led_1.1.0_amd64.deb
+sudo apt install ./out/linux/packages/Z0MB1ES-1.1.0-x64-linux.deb
 # Or, on an RPM distribution:
-sudo dnf install ./out/linux/packages/z0mb1es-rec0mp1led-1.1.0-1.x86_64.rpm
+sudo dnf install ./out/linux/packages/Z0MB1ES-1.1.0-x64-linux.rpm
 ```
 
 Launch from the desktop menu or terminal:
@@ -389,7 +391,7 @@ The NDK override is passed to a native build helper; use an absolute path if you
 
 The bootstrap installs .NET 10.0.302 and Android workload **36.1.2** into `out/android/`. The build creates separate Android hooks/artwork/preparation inputs, builds the native QOA converter, publishes the APK, audits it, and verifies its signature. It does not need a XAP or artwork source on the build host.
 
-Output: `out/android/Z0MB1ES.apk`. The app ID is `org.z0mb1es.recompiled`; it requires ARM64, Android API **24+**, and OpenGL ES **3**. Back up `private/android/signing/experimental.keystore` and `password.txt` together; updates need the same signing identity. Their historical filenames do not change the displayed app name.
+Output: `out/android/Z0MB1ES-1.1.0-arm64-android.apk`. The app ID is `org.z0mb1es.recompiled`; it requires ARM64, Android API **24+**, and OpenGL ES **3**. Back up `private/android/signing/experimental.keystore` and `password.txt` together; updates need the same signing identity. Their historical filenames do not change the displayed app name.
 
 Install/start from PowerShell with a connected device authorized for USB debugging:
 
@@ -472,7 +474,7 @@ source ./dev.sh --platform ios
 build-game
 ```
 
-Output: `src/Port.IosGame/bin/Release/net10.0-ios26.0/ios-arm64/Z0MB1ES.ipa`. The script stages inputs, rebuilds the app, checks the actual packaged managed code, and runs the content-free IPA audit. It reads no phone XAP or optional artwork as build inputs. The runtime uses the interpreter for the dynamically prepared game.
+Output: `src/Port.IosGame/bin/Release/net10.0-ios26.0/ios-arm64/Z0MB1ES-1.1.0-arm64-ios.ipa`. The script stages inputs, rebuilds the app, checks the actual packaged managed code, and runs the content-free IPA audit. It reads no phone XAP or optional artwork as build inputs. The runtime uses the interpreter for the dynamically prepared game.
 
 Sign and install the unsigned IPA using your sideloading tool. Then launch **Z0MB1ES**, acknowledge the warning, and select the XAP and optional art through Files. Later launches use the prepared app-private assets. **Settings → Graphics → Assets → Reimport assets** opens setup again. After a completed reimport, reopen the app for a fresh game session.
 
@@ -486,7 +488,7 @@ build-bundled \
   '/path/to/phone.xap' '/path/to/zombies-360' '/path/to/time-viking-360'
 ```
 
-Output: `private/ios-bundled/bin/Release/net10.0-ios26.0/ios-arm64/Z0MB1ES-personal-preinstalled.ipa`.
+Output: `private/ios-bundled/bin/Release/net10.0-ios26.0/ios-arm64/Z0MB1ES-1.1.0-arm64-ios.ipa`.
 
 The recipe prepares the phone game, original art, all three songs, I MAED/Time Viking enhanced art, and composed Endless art before embedding them. It also builds the macOS native converter used during preparation if absent. Payloads, build logs, and audits stay under `private/ios-bundled/`. The app verifies its bundled resources and starts the game without a first-launch asset picker.
 

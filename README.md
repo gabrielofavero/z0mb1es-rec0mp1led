@@ -4,7 +4,7 @@ Welcome! This is a recompilation project for Z0MB1ES (on teh ph0ne), a Windows P
 
 The target platforms are desktop (Windows, macOS, and Linux) and mobile (iOS and Android). I don't plan to make console versions (Switch, PlayStation, or Xbox), but you are free to fork this project and do it if you wish.
 
-Oh, and if you only want to play IMAGWZII, keep in mind that a brilliant, free version is available on [Steam](https://store.steampowered.com/app/1800730/I_MAED_A_GAM3_W1TH_Z0MB1ES_1N_IT1/) and [Xbox](https://www.xbox.com/en-US/games/store/z0mb1es-remastered/9PDG3T78XMQR).
+Oh, and if you only want to play IMAGWZII, keep in mind there are brilliant, free versions available on [Steam (Windows / Linux)](https://store.steampowered.com/app/1800730/I_MAED_A_GAM3_W1TH_Z0MB1ES_1N_IT1/) and [Xbox One / Series](https://www.xbox.com/en-US/games/store/z0mb1es-remastered/9PDG3T78XMQR).
 
 ## Enhancements
 
@@ -21,18 +21,18 @@ The additions are pretty basic. They focus mainly on making the game accessible 
 
 ## How to run
 
-All game versions are available on the [Releases page](https://github.com/gabrielofavero/z0mb1es-rec0mp1led/releases). Desktop packages ask you to select the game assets during installation or on first launch. Mobile apps ask for the assets on first launch, then prepare and store them on your device for future sessions.
+All game versions are available on the [Releases page](https://github.com/gabrielofavero/z0mb1es-rec0mp1led/releases). Windows and Linux packages ask you to select the game assets during installation. Mobile and macOS apps ask for the assets on first launch, then prepare and store them on your device for future sessions.
 
 You can also build the games from the terminal. See [Build and run](build-and-run.md) for instructions for every platform, including how to build for mobile with assets already included to skip on-device import.
 
 ## Asset swapping
 
-Although the WP7 package is all you need to play, its artwork has half the resolution of the artwork on other platforms. With that in mind, the installer can import artwork from supported copies:
+Although the WP7 package is all you need to play, its artwork has half the resolution of other platforms. With that in mind, the installer can import from different supported copies:
 
 * **IMAGWZII**: Steam (desktop only) or Xbox 360
 * **TIME VIKING**: Xbox 360
 
-You can then choose the artwork for each game under **Settings → ASSETS**. If an enhanced texture isn't available, the game uses the original one. Many assets are exclusive to WP7, so some original textures are unavoidable. I haven't added AI upscaling because I don't want to compromise the original artists' vision.
+Once imported, you can choose the artwork for each game in real time under **Settings → ASSETS**. If an enhanced texture isn't available, the game uses the original one. Many assets are exclusive to WP7, so some original / low res textures are unavoidable. I haven't added AI upscaling because I don't want to compromise the original artists' vision.
 
 The table below shows the proportion of mapped visual elements that use imported artwork:
 

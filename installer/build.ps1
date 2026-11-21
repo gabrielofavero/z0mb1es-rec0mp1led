@@ -15,7 +15,7 @@ $converter = (Resolve-Path -LiteralPath $AudioConverterPath).Path
 if ((Get-FileHash -LiteralPath $converter -Algorithm SHA256).Hash -ine $expected) {
     throw 'Audio converter does not match the pinned binary.'
 }
-$priorSetup = Join-Path $PSScriptRoot 'out/Z0MB1ES-1.1.0.exe'
+$priorSetup = Join-Path $PSScriptRoot 'out/Z0MB1ES-1.1.0-x64-windows.exe'
 if (Test-Path -LiteralPath $priorSetup) { Remove-Item -LiteralPath $priorSetup -Force }
 foreach ($obsolete in @('FFmpeg-8.1.1-source.zip','FFmpeg-8.1.1-linux-source.zip')) {
     $obsoletePath = Join-Path $PSScriptRoot "out/$obsolete"

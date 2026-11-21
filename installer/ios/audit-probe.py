@@ -14,7 +14,7 @@ parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--ipa', type=Path, help='Explicit experiment IPA (also useful for audit fixtures)')
 parser.add_argument('--game-host', action='store_true', help='Audit the FNA/original-game host experiment')
 args = parser.parse_args()
-project, package = ('Port.IosGame', 'Z0MB1ES.ipa') if args.game_host else ('Port.IosProbe', 'Z0MB1ES-execution-probe.ipa')
+project, package = ('Port.IosGame', 'Z0MB1ES-1.1.0-arm64-ios.ipa') if args.game_host else ('Port.IosProbe', 'Z0MB1ES-execution-probe.ipa')
 ipas = [args.ipa.resolve()] if args.ipa else list((repo / f'src/{project}/bin/Release').rglob(package))
 if len(ipas) != 1:
     raise SystemExit(f'Expected one fresh probe IPA, found {len(ipas)}')

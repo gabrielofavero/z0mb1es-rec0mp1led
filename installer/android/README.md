@@ -1,4 +1,4 @@
-# Z0MB1ES (on teh ph0ne) for Android
+# Z0MB1ES for Android
 
 The Android port has been confirmed working on a device. The player APK contains
 the port and import tools; users select their own game files on the device.
@@ -7,7 +7,7 @@ transactional asset store.
 
 ## Install and import
 
-1. Install `out/android/Z0MB1ES.apk` from a file manager, allowing it
+1. Install `out/android/Z0MB1ES-1.1.0-arm64-android.apk` from a file manager, allowing it
    to install apps when Android asks. Updates with the same app ID keep saves.
 2. Launch **Z0MB1ES** and acknowledge the flashing warning. The
    optional **Enable Reduce Flashing** choice is saved with your preferences.
@@ -102,7 +102,7 @@ preceding bundled port has been confirmed working.
 Session events go to `files/android-session.log` and the `Z0MB1ES` log tag:
 
 ```powershell
-& "$env:LOCALAPPDATA/Android/Sdk/platform-tools/adb.exe" install -r out/android/Z0MB1ES.apk
+& "$env:LOCALAPPDATA/Android/Sdk/platform-tools/adb.exe" install -r out/android/Z0MB1ES-1.1.0-arm64-android.apk
 & "$env:LOCALAPPDATA/Android/Sdk/platform-tools/adb.exe" logcat -s Z0MB1ES SDL AndroidRuntime
 ```
 

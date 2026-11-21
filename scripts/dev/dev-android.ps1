@@ -22,7 +22,10 @@ function Invoke-DevAdb {
 function install-apk {
     [CmdletBinding()]
     param(
-        [string]$ApkPath = (Join-Path $script:AndroidDevRoot 'out/android/Z0MB1ES.apk'),
+        [string]$ApkPath = (Join-Path $script:AndroidDevRoot (
+            'out/android/Z0MB1ES-{0}-arm64-android.apk' -f (
+                Get-Content -Raw (Join-Path $script:AndroidDevRoot 'config/android-packaging.json') |
+                    ConvertFrom-Json).applicationDisplayVersion)),
         [string]$Serial,
         [string]$AdbPath = "$env:LOCALAPPDATA/Android/Sdk/platform-tools/adb.exe"
     )

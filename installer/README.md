@@ -8,7 +8,7 @@ Build from the repository root after dependency bootstrap:
 ./installer/build.ps1 -AudioConverterPath 'out/audio-converter/release/port-audio-converter.exe'
 ```
 
-The converter is built from the vendored Rust source in `tools/audio-converter` and must match `config/content-tools.json`. The build checks the .NET runtime-pack hashes in `installer/config/runtime-packs.json` and writes one `installer/out/Z0MB1ES-1.1.0.exe`. The player needs setup, their XAP, and any optional Steam/360 source they choose. For automated testing, setup accepts `/XAP="C:\path\to\game.xap"` together with Inno Setup's `/VERYSILENT` and `/DIR` switches. Silent setup accepts `/SAVEDIR=<path>` and `/PICTURESDIR=<path>` for the data folders. It requires `/ACCEPTFLASHINGWARNING=1`; `/REDUCEFLASHING=1` enables the first-start preference. Silent optional import uses `/ARTNORMAL=steam|360`, `/ARTNORMALSOURCE=<path>`, `/ARTVIKING=360`, and `/ARTVIKINGSOURCE=<path>`; `keep` and `none` support later updates and removal.
+The converter is built from the vendored Rust source in `tools/audio-converter` and must match `config/content-tools.json`. The build checks the .NET runtime-pack hashes in `installer/config/runtime-packs.json` and writes one `installer/out/Z0MB1ES-1.1.0-x64-windows.exe`. The player needs setup, their XAP, and any optional Steam/360 source they choose. For automated testing, setup accepts `/XAP="C:\path\to\game.xap"` together with Inno Setup's `/VERYSILENT` and `/DIR` switches. Silent setup accepts `/SAVEDIR=<path>` and `/PICTURESDIR=<path>` for the data folders. It requires `/ACCEPTFLASHINGWARNING=1`; `/REDUCEFLASHING=1` enables the first-start preference. Silent optional import uses `/ARTNORMAL=steam|360`, `/ARTNORMALSOURCE=<path>`, `/ARTVIKING=360`, and `/ARTVIKINGSOURCE=<path>`; `keep` and `none` support later updates and removal.
 
 ## User experience
 
@@ -16,7 +16,7 @@ The converter is built from the vendored Rust source in `tools/audio-converter` 
 | --- | --- |
 | Welcome | Introduces the fan-made PC port and says the player's own XAP is required. |
 | Flashing lights warning | Explains that the original art style includes flashes and that Reduce Flashing cannot remove them all. Agree continues; Disagree cancels setup. The optional first-start Reduce Flashing checkbox starts unchecked. Existing display preferences are preserved on reinstall. |
-| Folders | Choose installation, saves, and pictures together. The 64-bit installer installs for the current user, defaults to `%LOCALAPPDATA%\Programs\Z0MB1ES on teh ph0ne`, and does not request administrator access. Choose a folder writable by the current user when overriding the default. Saves and pictures default to `Documents\Z0MB1ES on teh ph0ne\Saves` and `Documents\Z0MB1ES on teh ph0ne\Pictures`. Setup remembers the choices on reinstall and reads PNG/JPEG files from the pictures folder and its subfolders. |
+| Folders | Choose installation, saves, and pictures together. The 64-bit installer installs for the current user, defaults to `%LOCALAPPDATA%\Programs\Z0MB1ES`, and does not request administrator access. Choose a folder writable by the current user when overriding the default. Saves and pictures default to `Documents\Z0MB1ES\Saves` and `Documents\Z0MB1ES\Pictures`. Setup remembers the choices on reinstall and reads PNG/JPEG files from the pictures folder and its subfolders. |
 | Game XAP | Browse to a `.xap`; Next checks the exact supported package SHA-256 without starting the .NET helper. Full DLL, manifest, and entry checks run during local preparation. Explain wrong versions clearly. |
 | I MAED A GAM3 W1TH Z0MB1ES 1N IT!!!1 artwork | Choose no import, Steam, or an Xbox 360 package. Keep and remove appear when this install contains imported artwork. Original artwork stays available in game settings. |
 | Steam artwork folder | When Steam import is selected, setup reads the user's Steam registry location, library list, and app manifest for app 1800730. It fills the folder only after the pinned executable and textures pass validation. If discovery fails, the field stays blank and Browse remains available. |
@@ -53,9 +53,9 @@ installer/out/                     # ignored: built payload and setup executable
 {user install}/current/optional-art/  # verified optional generations and route manifests
 {user install}/current/install-manifest.json
 {user install}/current/install-report.txt
-{chosen saves folder}/savegame         # defaults to Documents/Z0MB1ES on teh ph0ne/Saves
+{chosen saves folder}/savegame         # defaults to Documents/Z0MB1ES/Saves
 {chosen saves folder}/savegame.bak     # backup
-{chosen pictures folder}/              # defaults to Documents/Z0MB1ES on teh ph0ne/Pictures
+{chosen pictures folder}/              # defaults to Documents/Z0MB1ES/Pictures
 ```
 
 The helper exposes `validate-xap`, `validate-art`, `verify-installed`, and `install`. The wizard uses an exact SHA-256 check on Next; the helper performs full XAP verification during installation. Setup unpacks the runtime and only the tools needed for fresh preparation or selected artwork. It generates the ABI report locally, reuses `Port.Prepare` and `Port.Content`, converts the three music tracks concurrently, prepares selected art with the bundled offline importer, hashes every staged file, then commits. The progress bar follows completed files and audio conversion; stage labels explain the current work. On update, the previous `current/` directory is kept as `current.previous/` until Inno finishes. If Inno fails later, `DeinitializeSetup` restores it. An interrupted preparation cannot create a successful install manifest at the destination. A forced process kill can leave an abandoned work directory; a later build or manual cleanup can remove that ignored directory.

@@ -87,7 +87,7 @@ try {
         throw 'The APK identity, version or display name differs from the player package.'
     }
     Invoke-ApkTool (Join-Path $AndroidSdkDirectory "build-tools/$($pin.buildToolsVersion)/apksigner.bat") @('verify', '--verbose', '--print-certs', $apk)
-    $destination = Join-Path $root 'out/android/Z0MB1ES.apk'
+    $destination = Join-Path $root "out/android/Z0MB1ES-$($pin.applicationDisplayVersion)-arm64-android.apk"
     Copy-Item -LiteralPath $apk -Destination "$destination.tmp" -Force
     Move-Item -LiteralPath "$destination.tmp" -Destination $destination -Force
     Write-Host "APK_READY $destination"

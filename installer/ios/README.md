@@ -47,7 +47,7 @@ export DEVELOPER_DIR=/Applications/Xcode_26.0.1.app/Contents/Developer
 sh installer/ios/build-game.sh
 ```
 
-Output: `src/Port.IosGame/bin/Release/net10.0-ios26.0/ios-arm64/Z0MB1ES.ipa`. The script rebuilds the package to prevent stale compiled plist metadata, checks the actual packaged managed code, then audits the payload and exported native symbols. Native/metadata pins are in `config/ios-packaging.json`; the exact artifact checksum is in `out/ios/game-audit.json` and the implementation log. No signing account is used by the build.
+Output: `src/Port.IosGame/bin/Release/net10.0-ios26.0/ios-arm64/Z0MB1ES-1.1.0-arm64-ios.ipa`. The script rebuilds the package to prevent stale compiled plist metadata, checks the actual packaged managed code, then audits the payload and exported native symbols. Native/metadata pins are in `config/ios-packaging.json`; the exact artifact checksum is in `out/ios/game-audit.json` and the implementation log. No signing account is used by the build.
 
 Install through the user's signing tool with the same Apple ID and bundle-ID options used for the accepted probe. The original bundle identity is deliberately retained, with display name **Z0MB1ES**, release version **1.1.0** and bundle version **21**. The game uses separate app-private storage from the historical probe. Do not uninstall to update: uninstall removes the app container. A regular Apple ID can be used with compatible personal-sideloading tools; exact signing, refresh and update behavior still needs recording for this IPA.
 

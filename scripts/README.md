@@ -8,8 +8,8 @@ This folder contains repeatable build and staging scripts. Release audits must i
 
 Device commands live in `scripts/dev/`, following the Blitz Recomp layout. See [build and run](../build-and-run.md#device-development-scripts) for platform setup, examples, and output paths.
 
-- `dev-windows.ps1`: dot-source for `build-game`, `run-game`, `build-installer`, and `run-installer`. Prepared builds use `private/run/current/`; build options are `-XapPath`, `-AudioConverterPath`, and `-ArtStorePath`. Setup defaults to `installer/out/Z0MB1ES-1.1.0.exe`.
-- `dev-android.ps1`: dot-source on Windows for `bootstrap-android`, `build-apk`, `install-apk`, `run-android`, and `log-android`. Device commands accept `-Serial` and `-AdbPath`. The current builder produces the content-free `out/android/Z0MB1ES.apk`.
+- `dev-windows.ps1`: dot-source for `build-game`, `run-game`, `build-installer`, and `run-installer`. Prepared builds use `private/run/current/`; build options are `-XapPath`, `-AudioConverterPath`, and `-ArtStorePath`. Setup defaults to `installer/out/Z0MB1ES-1.1.0-x64-windows.exe`.
+- `dev-android.ps1`: dot-source on Windows for `bootstrap-android`, `build-apk`, `install-apk`, `run-android`, and `log-android`. Device commands accept `-Serial` and `-AdbPath`. The current builder produces the content-free `out/android/Z0MB1ES-1.1.0-arm64-android.apk`.
 - `dev-mac.sh`: selected by `source ./dev.sh --platform mac`; prepares/runs desktop builds through PowerShell 7 and wraps macOS `.app`/`.pkg` packaging.
 - `dev-linux.sh`: selected by `source ./dev.sh --platform linux`; `build-game` publishes the self-contained host/tools, `build-installer` publishes and packages `.deb`/`.rpm`, and `run-game` launches the installed importer. Personal asset preparation remains the documented CLI workflow.
 - `dev-ios.sh`: selected by `source ./dev.sh --platform ios` on the Mac build host; `build-game` creates the importer IPA and `build-bundled` wraps the personal three-source IPA recipe. Signing and installation use a sideloading tool.

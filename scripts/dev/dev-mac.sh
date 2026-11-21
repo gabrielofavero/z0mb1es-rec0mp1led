@@ -13,7 +13,7 @@ _zombies_action() {
         build-installer) shift; sh installer/macos/build.sh "$@" ;;
         run-installer)
             shift
-            open "${1:-out/macos/packages/Z0MB1ES-1.1.0-osx-arm64.pkg}" ;;
+            open "${1:-out/macos/packages/Z0MB1ES-1.1.0-arm64-macos.pkg}" ;;
         *) printf 'Unknown macOS action: %s\n' "$1" >&2; return 2 ;;
     esac
 }

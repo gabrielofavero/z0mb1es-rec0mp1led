@@ -15,7 +15,7 @@
     <EnableTrimAnalyzer>false</EnableTrimAnalyzer>
     <EnableCodeSigning>false</EnableCodeSigning>
     <BuildIpa>true</BuildIpa>
-    <IpaPackageName>Z0MB1ES.ipa</IpaPackageName>
+    <IpaPackageName>Z0MB1ES-$(Version)-arm64-ios.ipa</IpaPackageName>
     <JsonSerializerIsReflectionEnabledByDefault>true</JsonSerializerIsReflectionEnabledByDefault>
     <!-- FNA resolves static imports with dlsym from the main executable. -->
     <MtouchNoSymbolStrip>true</MtouchNoSymbolStrip>

@@ -44,7 +44,7 @@ function Invoke-DevGame {
     Write-Host "Running $($Build.Name)..."
     $documents = [Environment]::GetFolderPath([Environment+SpecialFolder]::MyDocuments)
     if ([string]::IsNullOrWhiteSpace($documents)) { throw 'Could not locate the Documents folder.' }
-    $userData = Join-Path $documents 'Z0MB1ES on teh ph0ne'
+    $userData = Join-Path $documents 'Z0MB1ES'
     $arguments = @($launcher, '--run', $game, '--content', $Build.FullName,
         '--save-dir', (Join-Path $userData 'Saves'),
         '--pictures-dir', (Join-Path $userData 'Pictures'))

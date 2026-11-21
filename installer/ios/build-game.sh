@@ -21,5 +21,5 @@ test -f out/ios/native/libz0audio.a || sh installer/ios/native/build.sh
 # A fresh package also prevents this pinned SDK reusing an old compiled Info.plist.
 dotnet build src/Port.IosGame -t:Rebuild -c Release -p:NuGetAudit=false -bl:out/ios/game-build.binlog
 dotnet run --project tests/IosGame.Checks -c Release -- --game-bundle \
-  src/Port.IosGame/bin/Release/net10.0-ios26.0/ios-arm64/Z0MB1ES.ipa
+  src/Port.IosGame/bin/Release/net10.0-ios26.0/ios-arm64/Z0MB1ES-1.1.0-arm64-ios.ipa
 python3 installer/ios/audit-probe.py --game-host

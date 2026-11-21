@@ -3,16 +3,16 @@
 
 [Setup]
 AppId={{F393AB61-549B-416A-B34E-E1AB2E96AF07}
-AppName=Z0MB1ES (on teh ph0ne)
+AppName=Z0MB1ES
 AppVersion=1.1.0
-DefaultDirName={localappdata}\Programs\Z0MB1ES on teh ph0ne
+DefaultDirName={localappdata}\Programs\Z0MB1ES
 DisableDirPage=yes
-DefaultGroupName=Z0MB1ES (on teh ph0ne)
+DefaultGroupName=Z0MB1ES
 PrivilegesRequired=lowest
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 OutputDir=out
-OutputBaseFilename=Z0MB1ES-1.1.0
+OutputBaseFilename=Z0MB1ES-1.1.0-x64-windows
 Compression=lzma2/fast
 SolidCompression=no
 WizardStyle=modern
@@ -27,7 +27,7 @@ UsePreviousAppDir=yes
 AllowNoIcons=yes
 
 [Messages]
-WelcomeLabel1=Welcome to Z0MB1ES (on teh ph0ne) setup
+WelcomeLabel1=Welcome to Z0MB1ES setup
 WelcomeLabel2=This fan-made port brings the Windows Phone game to your PC with keyboard, mouse, and controller support.%n%nYou will need your own copy of the game's XAP. Setup prepares it locally.
 WizardSelectTasks=Shortcuts
 SelectTasksDesc=Choose shortcuts
@@ -122,12 +122,12 @@ end;
 
 function DefaultSaveDirectory: String;
 begin
-  Result := AddBackslash(ExpandConstant('{userdocs}')) + 'Z0MB1ES on teh ph0ne\Saves';
+  Result := AddBackslash(ExpandConstant('{userdocs}')) + 'Z0MB1ES\Saves';
 end;
 
 function DefaultPicturesDirectory: String;
 begin
-  Result := AddBackslash(ExpandConstant('{userdocs}')) + 'Z0MB1ES on teh ph0ne\Pictures';
+  Result := AddBackslash(ExpandConstant('{userdocs}')) + 'Z0MB1ES\Pictures';
 end;
 
 function SaveDirectory(Param: String): String;
