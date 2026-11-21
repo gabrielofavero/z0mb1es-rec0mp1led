@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>Port.Bridge</AssemblyName>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <EnableSourceLink>false</EnableSourceLink>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../Port.Bridge/*.cs" />
+    <Reference Include="FNA.NET"><HintPath>../../out/android/fna-package/lib/net9.0-android35.0/FNA.NET.dll</HintPath></Reference>
+  </ItemGroup>
+</Project>

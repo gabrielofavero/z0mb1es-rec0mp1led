@@ -20,6 +20,10 @@ public static class IlRewriter
     public const string Version = "0.6.0";
     private const string OriginalDllHash = "7b819cb562826ae4d2592ff741877e76da0e57bfbe48192aabb79319fdb36823";
     private const string FnaHash = "952ecb3d8a869ad1343bd5b761b8a1d19c3af21e9c3cd2fab3dbc75d6893a89d";
+    private const string MacFnaHash = "5c9ae37965b3d5510c5dec4377bc7a24808c552cacbeb9e41aaf7c88e36babe6";
+    private const string LinuxFnaHash = "67698ea803a4d028ba3bfcff9b7ebd3d6dc1c70f6e00325537f6ceb40dd5ecc3";
+    private const string VibrationAbiReportHash = "a344bb79019f37663312badfe8bd35ac6ccf2acabc96fb58753cc83f99b56d91";
+    private const string IosVibrationAbiReportHash = "91af1af552c3a0f45a53a0840a0d3facf34d34f4e650bbbd9fd8fa217066ca5e";
     private const string AbiReportHash = "2edec771cbbf30e59541ed851e1865463fc26c26a5c79bb54bbc69228301bd44";
     private const string BridgeAbiReportHash = "27dedb6dc2aa1f2b8a32a4f4f82969400091466554253c67f861b8ff9c7dedc6";
     private const string CurrentBridgeAbiReportHash = "d66bb2521301141ccc056d9b79a138cd8ad3457d468d80a64a17105fc1f608a0";
@@ -29,6 +33,23 @@ public static class IlRewriter
     private const string PictureButtonAbiReportHash = "7709d72d3dd18380e54363624c4fb489dcfefcde9030565fea488222c230acd8";
     private const string SessionAbiReportHash = "fdac6a5441707e336aa5868b4713544688928dd4ef20a6ed26821e973fa86668";
     private const string UpdatedBridgeAbiReportHash = "0444b0205fd2fbf0f5a89671002c8f02b97a87fc4ec998d6a4275fe04033e2ee";
+    private const string PlatformAbiReportHash = "c42954104fdb13957d4ece6111d914fc6590e691285b306a4e4539a2f0d874d4";
+    private const string LinuxAbiReportHash = "cbb04820ba4740ef2f4ad36330274b5fd32342e9914de7fb53dd0ec4ddbbbb02";
+    private const string CurrentLinuxAbiReportHash = "461669b51d831e432baca75ab1e48b851b40660b1589d617dbb61075c55a5fa4";
+    private const string CurrentLinuxBridgeHash = "5448b7634b0e0a0fef850083f817a334512e0f70dd124daa29e8181143915a7d";
+    private const string CurrentWindowsAbiReportHash = "a35b3018ca7442944c307ce0635468f6537b7c98a897bc89d563377c7f701977";
+    // .NET 10.0.10 regenerates the same resolved Windows ABI inventory.
+    private const string AudioConverterWindowsAbiReportHash = "ac90ed7cf53434e667b5322443a688f99f6930c70e9ad3233f004b75d2e2618e";
+    private const string MacAbiReportHash = "b78e590569d168fbbc340f8ce83d38b3ea065697c6a816efc20e0773198c7d57";
+    private const string CurrentMacAbiReportHash = "3838d37aa8925623eb3b0c4cba3710a8cecc6b841a7e192bdf191776aeeb2174";
+    private const string CurrentMacBridgeHash = "e40a275e09bad067bd0e01368c51b78ae9e6d5b0cdbdd16aca4d9235115f9a63";
+    // Reviewed desktop build with revision-dependent Source Link disabled.
+    private const string StableMacAbiReportHash = "7fb620c0be040ac6f906b43b2fed662881f153c319056a21f65762cfb3263d33";
+    private const string StableMacBridgeHash = "9ad015606cb0d400fa718515bfe022bdcd48e06c19682fe98ed2e846163390b1";
+    // Metadata-only iOS Mono catalog review: no unresolved references. This is
+    // independent of the desktop runtime's diagnostic assembly binding probes.
+    private const string IosAbiReportHash = "f5779b6bce00ea645e2ed5b252e80a34d59c5c81c8e313befa6df53be6e847b3";
+    private const string VibrationBridgeHash = "393868336e2b90f6beed904104e82064fbd69b06ce7cb199826c75c5ee88afcc";
     private const string BridgeHash = "d7b11e67fcc1c6794f214c4d37b6a6bbc566661a20d8b12414cad3f3a462d5c2";
     private const string CurrentBridgeHash = "c2c478c167eb24178e1808f3940156eb588e1dee92b575b81a4786d85dd51ba0";
     private const string LatestBridgeHash = "9648d82be1ecccc706666d89e24c0571de3754dceba3115d050ee6aefafe2421";
@@ -37,6 +58,10 @@ public static class IlRewriter
     private const string PictureButtonBridgeHash = "4667e14c19737b8f7b7ecad8f7091a02d8f2bd3649ff0c5be6cee1f703b7adf2";
     private const string SessionBridgeHash = "83b34691cc05d4d544950d2758f7faf0d6f0fb6375878993464ccc18dfb98fe0";
     private const string UpdatedBridgeHash = "8795bbb5e50b2d3ec51cd80da7e17caa811547685b50fcfa5a7954efb3765522";
+    private const string PlatformBridgeHash = "547d9dfed584d123f96ea78e8398e15c390b78835a69ef1e1a78149eb968704b";
+    private const string CurrentSourceBridgeHash = "709fa5d053d4d44374735634b570a082650e52d75e43ea3d6b8516dc20ff9660";
+    private const string AudioConverterWindowsBridgeHash = "714d7d3d963120880b7942a36827e9e8696498644aaf02b880d674b417e1ec60";
+    private const string MacBridgeHash = "22f8f4f5f42d1a8499a979e44c3b31c71a4a335f1739baec57ce12f0724fa803";
     private static readonly string[] LegacyAssemblies =
     [
         "Microsoft.Xna.Framework", "Microsoft.Xna.Framework.Game", "Microsoft.Xna.Framework.Graphics",
@@ -50,18 +75,19 @@ public static class IlRewriter
         using var document = JsonDocument.Parse(File.ReadAllBytes(reportPath));
         var root = document.RootElement;
         var reportHash = Hash(reportPath);
-        if (reportHash is not (AbiReportHash or BridgeAbiReportHash or CurrentBridgeAbiReportHash or LatestBridgeAbiReportHash or RestartBridgeAbiReportHash or RestoredBridgeAbiReportHash or PictureButtonAbiReportHash or SessionAbiReportHash or UpdatedBridgeAbiReportHash) ||
+        var fnaHash = Hash(fnaPath);
+        if (reportHash is not (AbiReportHash or BridgeAbiReportHash or CurrentBridgeAbiReportHash or LatestBridgeAbiReportHash or RestartBridgeAbiReportHash or RestoredBridgeAbiReportHash or PictureButtonAbiReportHash or SessionAbiReportHash or UpdatedBridgeAbiReportHash or PlatformAbiReportHash or LinuxAbiReportHash or CurrentLinuxAbiReportHash or CurrentWindowsAbiReportHash or AudioConverterWindowsAbiReportHash or MacAbiReportHash or CurrentMacAbiReportHash or StableMacAbiReportHash or IosAbiReportHash or VibrationAbiReportHash or IosVibrationAbiReportHash) ||
             root.GetProperty("schemaVersion").GetInt32() != 1 ||
             root.GetProperty("input").GetProperty("dllSha256").GetString() != OriginalDllHash ||
-            root.GetProperty("input").GetProperty("fnaSha256").GetString() != FnaHash ||
+            root.GetProperty("input").GetProperty("fnaSha256").GetString() != fnaHash ||
             root.GetProperty("counts").GetProperty("typeRefs").GetInt32() != 146 ||
             root.GetProperty("counts").GetProperty("memberRefs").GetInt32() != 382 ||
-            Hash(fnaPath) != FnaHash)
+            fnaHash is not (FnaHash or MacFnaHash or LinuxFnaHash))
             throw new PreparationException("ABI report or FNA does not match the pinned input.");
         var bridgeHash = Hash(bridgePath);
-        if (bridgeHash is not (BridgeHash or CurrentBridgeHash or LatestBridgeHash or RestartBridgeHash or RestoredBridgeHash or PictureButtonBridgeHash or SessionBridgeHash or UpdatedBridgeHash))
+        if (bridgeHash is not (BridgeHash or CurrentBridgeHash or LatestBridgeHash or RestartBridgeHash or RestoredBridgeHash or PictureButtonBridgeHash or SessionBridgeHash or UpdatedBridgeHash or PlatformBridgeHash or CurrentSourceBridgeHash or CurrentLinuxBridgeHash or AudioConverterWindowsBridgeHash or MacBridgeHash or CurrentMacBridgeHash or StableMacBridgeHash or VibrationBridgeHash))
             throw new PreparationException($"Bridge DLL differs from the pinned supported bridge: {bridgeHash}.");
-        if (reportHash is BridgeAbiReportHash or CurrentBridgeAbiReportHash or LatestBridgeAbiReportHash or RestartBridgeAbiReportHash or RestoredBridgeAbiReportHash or PictureButtonAbiReportHash or SessionAbiReportHash or UpdatedBridgeAbiReportHash &&
+        if (reportHash != AbiReportHash &&
             root.GetProperty("input").GetProperty("bridgeSha256").GetString() != bridgeHash)
             throw new PreparationException("Bridge DLL differs from the verified ABI report.");
 
@@ -95,12 +121,13 @@ public static class IlRewriter
         return new RewritePlan(OriginalDllHash, types, members, targets, "pinned ABI report");
     }
 
-    public static RewriteResult Rewrite(string sourcePath, string outputDirectory, RewritePlan plan)
+    public static RewriteResult Rewrite(string sourcePath, string outputDirectory, RewritePlan plan,
+        string? privatePreparedRoot = null)
     {
         ArgumentNullException.ThrowIfNull(plan);
         var source = Path.GetFullPath(sourcePath);
         var final = Path.GetFullPath(outputDirectory);
-        var privateRoot = Path.GetFullPath(Path.Combine("private", "prepared"));
+        var privateRoot = Path.GetFullPath(privatePreparedRoot ?? Path.Combine("private", "prepared"));
         if (final != privateRoot &&
             !final.StartsWith(privateRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
             throw new PreparationException("Prepared output must be within private/prepared/.");

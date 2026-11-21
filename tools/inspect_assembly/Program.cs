@@ -5,7 +5,7 @@ using System.Security.Cryptography;
 using System.Text.Json;
 
 if (args.Length > 0 && args[0] == "--json")
-    return EvidenceJson.Run(args[1..]);
+    return Port.Analysis.GameAnalysis.InspectCommand(args[1..]);
 
 if (args.Length is < 1 or > 2)
 {

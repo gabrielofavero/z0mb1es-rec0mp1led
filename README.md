@@ -2,65 +2,66 @@
 
 Welcome! This is a recompilation project for Z0MB1ES (on teh ph0ne), a Windows Phone 7 game that brought together three games by James Silva: I MAED A GAM3 W1TH Z0MB1ES 1N IT!!!1 (IMAGWZII), TIME VIKING, and ZOMBIES ENDLESS. The first two were also released as Xbox 360 Indie Games, while Endless was exclusive to Windows Phone.
 
-The goal is to get the game working on desktop (Windows, Linux, and macOS) and, later, mobile (iOS and Android). I'm not trying to expand it or turn it into something different from what the original developer intended. This is a port to help preserve the game.
+The target platforms are desktop (Windows, macOS, and Linux) and mobile (iOS and Android). I don't plan to make console versions (Switch, PlayStation, or Xbox), but you are free to fork this project and do it if you wish.
 
-If you only want to play IMAGWZII, keep in mind that a brilliant, free version is available on [Steam](https://store.steampowered.com/app/1800730/I_MAED_A_GAM3_W1TH_Z0MB1ES_1N_IT1/) and [Xbox](https://www.xbox.com/en-US/games/store/z0mb1es-remastered/9PDG3T78XMQR).
+Oh, and if you only want to play IMAGWZII, keep in mind there are brilliant, free versions available on [Steam (Windows / Linux)](https://store.steampowered.com/app/1800730/I_MAED_A_GAM3_W1TH_Z0MB1ES_1N_IT1/) and [Xbox One / Series](https://www.xbox.com/en-US/games/store/z0mb1es-remastered/9PDG3T78XMQR).
+
+## Enhancements
 
 The additions are pretty basic. They focus mainly on making the game accessible across devices:
 
-* Multiple resolutions, including ultrawide
-* Mouse and keyboard controls for gameplay and menus
-* Controller controls for gameplay and menus
-* Optional higher-resolution textures import
-* A reduced-flashing setting for menus and gameplay (experimental; it may not cover everything)
-* Desktop support for Mega Game Creator 2000
-* Online leaderboards converted to offline leaderboards
+* Multiple resolutions, including ultrawide resolutions on desktop.
+* Mouse, keyboard, and controller support (the original game only supported touch).
+* Optional imports of higher-resolution textures from the Steam and Xbox 360 games.
+* A reduced-flashing setting for menus and gameplay (experimental; it may not cover everything).
+* Adapted support for the Mega Game Creator 2000 tool/minigame.
+* Offline leaderboards to compare your runs (adapted from the now-defunct Xbox LIVE leaderboards).
+* Many layout adjustments for both desktop and mobile.
+* Portrait mode. This is the only drastic change from the original design. I added it because many devices with large screens work well in portrait orientation, making gameplay more accessible. It is disabled by default; enable it in Settings if you want to try it out.
+
+## How to run
+
+Find published builds on the [Releases page](https://github.com/gabrielofavero/z0mb1es-rec0mp1led/releases). The Windows installer asks for the game assets during setup. Linux, macOS, and mobile builds ask for the assets on first launch, then prepare and store them on your device for future sessions.
+
+You can also build the games from the terminal. See [Build and run](docs/build-and-run.md) for instructions for every platform, including how to build for mobile with assets already included to skip on-device import.
+
+## Asset swapping
+
+Although the WP7 package is all you need to play, its artwork has half the resolution of other platforms. With that in mind, the installer can import from different supported copies:
+
+* **IMAGWZII**: Steam (desktop only) or Xbox 360
+* **TIME VIKING**: Xbox 360
+
+Once imported, you can choose the artwork for each game in real time under **Settings → ASSETS**. If an enhanced texture isn't available, the game uses the original one. Many assets are exclusive to WP7, so some original / low res textures are unavoidable. I haven't added AI upscaling because I don't want to compromise the original artists' vision.
+
+The table below shows the proportion of mapped visual elements that use imported artwork:
+
+| Copies supplied         | IMAGWZII      | TIME VIKING   | ZOMBIES ENDLESS |
+| ----------------------- | ------------- | ------------- | --------------- |
+| IMAGWZII (Steam or 360) | 69% (120/175) | -             | 49% (113/230)   |
+| TIME VIKING (360)       | -             | 57% (102/178) | 73% (168/230)   |
+| Both                    | 69% (120/175) | 57% (102/178) | 74% (171/230)   |
+
+## How is content handled?
+
+No game code or assets are included in the repository or installer. The port patches and hooks into the code from the packages you provide and prepares its assets on your device.
+
+I recreated the game's cover as an SVG and adapted it for the icon and installer art. Those images are based on the original cover; they aren't a copy-paste from the game's assets.
+
+## Project status and future support
+
+I currently consider this project complete. I don't have any additional features planned, and I've tested all intended platforms on real devices. I will continue to fix bugs reported in the [Issues section](https://github.com/gabrielofavero/z0mb1es-rec0mp1led/issues). Testing this many platforms as a single dev is bound to leave some bugs behind. I want everyone to have a good experience, so please report any problems you find and I'll do my best to fix them when possible.
 
 ## Flashing lights warning
 
-This game uses flashing visuals as part of its original art style. **Settings → Graphics → Reduce Flashing** reduces some menu and gameplay effects, but flashing can still occur with the setting enabled. The installer can enable it on first launch.
+This game uses flashing visuals as part of its original art style. **Settings → Graphics → Reduce Flashing** reduces some menu and gameplay effects, but flashing can still occur with the setting enabled. Windows setup can enable it for first launch; macOS, iOS, and Android offer the choice in a one-time warning when the app first opens.
 
 The game is not recommended for people with photosensitive epilepsy or other sensitivity to flashing lights.
 
-## How to install
-
-Once a release is available, download the installer from the Releases page. It will ask for your copy of the game's XAP and handle the rest locally. You won't need to install development tools or copy game files yourself.
-
-Setup also lets you choose installation, save, and picture folders. New saves default to `Documents\Z0MB1ES on teh ph0ne\Saves`; put PNG or JPEG images in the chosen picture folder to use them in Edit Monsters.
-
-If you're interested in the technical side, the [docs](docs/README.md) cover the port, its compatibility work, and what has been checked so far.
-
-## Optional asset swapping
-
-Although the WP7 package is all you need to play, its artwork has half the resolution of the artwork on other platforms. The difference may be less noticeable on small screens, but it can be distracting on larger ones.
-
-With that in mind, the installer can import artwork from supported copies:
-
-* **IMAGWZII**: Steam or Xbox 360
-* **TIME VIKING**: Xbox 360
-
-You can then choose the artwork for each game under **Settings → ASSETS**. Unmatched art still comes from the phone package. The percentages below count mapped visual elements that use imported artwork:
-
-| Copies supplied                      | IMAGWZII      | TIME VIKING   | ZOMBIES ENDLESS |
-| ------------------------------------ | ------------- | ------------- | --------------- |
-| IMAGWZII (Steam)                     | 69% (120/175) | -             | 49% (113/230)   |
-| IMAGWZII (360)                       | 69% (120/175) | -             | 49% (113/230)   |
-| TIME VIKING (360)                    | -             | 57% (102/178) | 73% (168/230)   |
-| IMAGWZII (Steam) + TIME VIKING (360) | 69% (120/175) | 57% (102/178) | 74% (171/230)   |
-| IMAGWZII (360) + TIME VIKING (360)   | 69% (120/175) | 57% (102/178) | 74% (171/230)   |
-
-For IMAGWZII, you'll need to choose between the Xbox 360 and PC versions. Both cover the same number of mapped visual elements, so I recommend Steam because it is free and easy to get. ZOMBIES ENDLESS is exclusive to mobile, but most of its visual elements are available in the other games.
-
-## How is proprietary content handled?
-
-No original game code or assets are included in the repository or installer. The port patches and hooks into the code from the XAP you provide, and prepares its assets on your machine.
-
-I recreated the game's cover as an SVG and adapted it for the icon and installer art. Those images are based on the original cover; they aren't a replacement for the game's assets.
-
 ## License
 
-The code I wrote for this port is licensed under the [GNU General Public License, version 2](LICENSE). The separately bundled FFmpeg converter is built under LGPL 2.1 or later, with its matching source and license delivery instructions [here](installer/ffmpeg/README.md). The original game and other third-party dependencies belong to their respective owners and have their own terms.
+The code I wrote for this port is licensed under the [GNU General Public License, version 2](LICENSE). The offline audio converter uses vendored [gameframe-wma](tools/audio-converter/vendor/gameframe-wma/LICENSE-APACHE) and [qoaudio](tools/audio-converter/vendor/qoaudio/LICENSE) code under their respective licenses. The original game and other third-party dependencies belong to their respective owners and have their own terms.
 
 ## Was AI used?
 
-Yes. This is an AI-assisted project.
+Yes. This is an AI-assisted project. I also make changes manually and apply my own software development skills throughout the process.

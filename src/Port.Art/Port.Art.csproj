@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><AssemblyName>Port.Art</AssemblyName></PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="IosGame.Checks" />
+    <ProjectReference Include="../Port.Prepare/Port.Prepare.csproj" />
+    <Reference Include="FNA"><HintPath>$(FnaDependencyDirectory)/managed/FNA.dll</HintPath><Private>true</Private></Reference>
+    <EmbeddedResource Include="../../docs/records/asset-swap-inventory.json;../../docs/records/zombies-360-inventory.json;../../docs/records/viking-360-inventory.json;../../docs/records/asset-swap-mappings/*.json;../../config/supported-steam-versions.json;../../config/supported-360-versions.json" LogicalName="Port.Art.Data.%(Filename)%(Extension)" />
+  </ItemGroup>
+</Project>

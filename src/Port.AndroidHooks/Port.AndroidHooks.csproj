@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>Port.Hooks</AssemblyName>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <EnableSourceLink>false</EnableSourceLink>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../Port.Hooks/*.cs" />
+    <Compile Include="AndroidControllerState.cs" />
+    <Compile Include="AndroidGamePad.cs" />
+    <!-- Route every shared menu/gameplay poll through the Android adapter. -->
+    <Using Include="Port.Hooks.AndroidGamePad" Alias="GamePad" />
+    <ProjectReference Include="../Port.AndroidBridge/Port.AndroidBridge.csproj" />
+    <Reference Include="FNA.NET"><HintPath>../../out/android/fna-package/lib/net9.0-android35.0/FNA.NET.dll</HintPath></Reference>
+  </ItemGroup>
+</Project>

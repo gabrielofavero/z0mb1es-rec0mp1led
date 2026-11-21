@@ -1,0 +1,7 @@
+<Project>
+  <Import Project="../../Directory.Build.props" />
+  <PropertyGroup>
+    <BaseOutputPath>$(MSBuildThisFileDirectory)../../private/ios-bundled/bin/</BaseOutputPath>
+    <BaseIntermediateOutputPath>$(MSBuildThisFileDirectory)../../private/ios-bundled/obj/</BaseIntermediateOutputPath>
+  </PropertyGroup>
+</Project>

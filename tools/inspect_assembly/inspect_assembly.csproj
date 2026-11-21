@@ -6,4 +6,5 @@
     <Nullable>enable</Nullable>
     <NuGetAudit>false</NuGetAudit>
   </PropertyGroup>
+  <ItemGroup><ProjectReference Include="../../src/Port.Analysis/Port.Analysis.csproj" /></ItemGroup>
 </Project>

@@ -11,7 +11,7 @@ public static class DesktopStorage
     private static bool customReapplied;
     public static string SaveDirectory => rootOverride ?? Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-        "Z0MB1ES on teh ph0ne", "Saves");
+        "Z0MB1ES", "Saves");
 
     public static void Configure(string? directory)
     {

@@ -1,5 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup><AssemblyName>Port.Bridge</AssemblyName><InformationalVersion>1.0.0</InformationalVersion><IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion></PropertyGroup>
+  <!-- Exact preparation pins must survive unrelated commits. Source Link changes
+       the PDB checksum embedded in the DLL even when executable IL is unchanged. -->
+  <PropertyGroup><EnableSourceLink>false</EnableSourceLink></PropertyGroup>
   <ItemGroup>
     <Reference Include="FNA"><HintPath>$(FnaDependencyDirectory)/managed/FNA.dll</HintPath><Private>true</Private></Reference>
   </ItemGroup>

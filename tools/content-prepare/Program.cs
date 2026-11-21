@@ -5,10 +5,10 @@ using Port.Content;
 using Port.Prepare;
 
 if ((args.Length != 8 && args.Length != 10) || args[0] != "--xap" ||
-    args[2] != "--preparation" || args[4] != "--ffmpeg" ||
-    args[6] != "--output" || (args.Length == 10 && args[8] != "--ffmpeg-sha256"))
+    args[2] != "--preparation" || args[4] != "--converter" ||
+    args[6] != "--output" || (args.Length == 10 && args[8] != "--converter-sha256"))
 {
-    Console.Error.WriteLine("Usage: content-prepare --xap <supported.xap> --preparation <verified-extraction> --ffmpeg <local-ffmpeg> --output <new-private-directory> [--ffmpeg-sha256 <sha256>]");
+    Console.Error.WriteLine("Usage: content-prepare --xap <supported.xap> --preparation <verified-extraction> --converter <local-converter> --output <new-private-directory> [--converter-sha256 <sha256>]");
     return 2;
 }
 
@@ -40,15 +40,15 @@ try
     using var configStream = Assembly.GetExecutingAssembly().GetManifestResourceStream("content-tools.json")
         ?? throw new InvalidDataException("Pinned conversion tool configuration is missing.");
     using var config = JsonDocument.Parse(configStream);
-    var windowsSha = config.RootElement.GetProperty("ffmpeg").GetProperty("executableSha256").GetString()!;
-    var ffmpegSha = args.Length == 10 ? args[9].ToLowerInvariant() :
+    var windowsSha = config.RootElement.GetProperty("audioConverter").GetProperty("executableSha256").GetString()!;
+    var converterSha = args.Length == 10 ? args[9].ToLowerInvariant() :
         OperatingSystem.IsWindows() ? windowsSha : throw new InvalidOperationException(
-            "This host has no repository-pinned FFmpeg binary; pass --ffmpeg-sha256 for a verified local executable.");
-    if (ffmpegSha.Length != 64 || !ffmpegSha.All(Uri.IsHexDigit))
-        throw new ArgumentException("FFmpeg SHA-256 must be 64 hexadecimal characters.");
-    if (OperatingSystem.IsWindows() && ffmpegSha != windowsSha)
-        throw new InvalidDataException("Windows FFmpeg hash differs from the pinned converter.");
-    var manifestSha = ContentPreparer.Prepare(source, output, args[5], ffmpegSha, identity.XapSha256,
+            "This host has no repository-pinned audio converter; pass --converter-sha256 for a verified local executable.");
+    if (converterSha.Length != 64 || !converterSha.All(Uri.IsHexDigit))
+        throw new ArgumentException("Audio converter SHA-256 must be 64 hexadecimal characters.");
+    if (OperatingSystem.IsWindows() && converterSha != windowsSha)
+        throw new InvalidDataException("Windows audio converter hash differs from the pinned converter.");
+    var manifestSha = ContentPreparer.Prepare(source, output, args[5], converterSha, identity.XapSha256,
         step => Console.WriteLine($"CONTENT_PROGRESS {step.Stage} {step.Completed}/{step.Total}"));
     Console.WriteLine($"CONTENT_PREPARED assets={assets.Count} manifestSha256={manifestSha}");
     return 0;

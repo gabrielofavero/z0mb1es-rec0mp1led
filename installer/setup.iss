@@ -1,18 +1,20 @@
 #define RepoRoot ".."
 #define Payload "out\payload"
+#define AppVersion "1.1.0"
 
 [Setup]
 AppId={{F393AB61-549B-416A-B34E-E1AB2E96AF07}
-AppName=Z0MB1ES (on teh ph0ne)
-AppVersion=1.0.0
-DefaultDirName={autopf}\Z0MB1ES on teh ph0ne
+AppName=Z0MB1ES
+AppVersion={#AppVersion}
+VersionInfoVersion={#AppVersion}
+DefaultDirName={localappdata}\Programs\Z0MB1ES
 DisableDirPage=yes
-DefaultGroupName=Z0MB1ES (on teh ph0ne)
-PrivilegesRequired=admin
+DefaultGroupName=Z0MB1ES
+PrivilegesRequired=lowest
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 OutputDir=out
-OutputBaseFilename=Z0MB1ES-1.0.0
+OutputBaseFilename=Z0MB1ES-{#AppVersion}-x64-windows
 Compression=lzma2/fast
 SolidCompression=no
 WizardStyle=modern
@@ -27,7 +29,7 @@ UsePreviousAppDir=yes
 AllowNoIcons=yes
 
 [Messages]
-WelcomeLabel1=Welcome to Z0MB1ES (on teh ph0ne) setup
+WelcomeLabel1=Welcome to Z0MB1ES setup
 WelcomeLabel2=This fan-made port brings the Windows Phone game to your PC with keyboard, mouse, and controller support.%n%nYou will need your own copy of the game's XAP. Setup prepares it locally.
 WizardSelectTasks=Shortcuts
 SelectTasksDesc=Choose shortcuts
@@ -45,11 +47,11 @@ Name: "startmenu"; Description: "Start Menu shortcut"; Flags: checkedonce
 Name: "desktop"; Description: "Desktop shortcut"; Flags: unchecked
 
 [Icons]
-Name: "{autoprograms}\Z0MB1ES (on teh ph0ne)"; Filename: "{app}\current\Z0MB1ES.exe"; Parameters: "--run ""{app}\current\ZombiesWP7.dll"" --content ""{app}\current"" --save-dir ""{code:SaveDirectory}"" --pictures-dir ""{code:PicturesDirectory}"""; WorkingDir: "{app}\current"; Tasks: startmenu
-Name: "{autodesktop}\Z0MB1ES (on teh ph0ne)"; Filename: "{app}\current\Z0MB1ES.exe"; Parameters: "--run ""{app}\current\ZombiesWP7.dll"" --content ""{app}\current"" --save-dir ""{code:SaveDirectory}"" --pictures-dir ""{code:PicturesDirectory}"""; WorkingDir: "{app}\current"; Tasks: desktop
+Name: "{autoprograms}\Z0MB1ES"; Filename: "{app}\current\Z0MB1ES.exe"; Parameters: "--run ""{app}\current\ZombiesWP7.dll"" --content ""{app}\current"" --save-dir ""{code:SaveDirectory}"" --pictures-dir ""{code:PicturesDirectory}"""; WorkingDir: "{app}\current"; Tasks: startmenu
+Name: "{autodesktop}\Z0MB1ES"; Filename: "{app}\current\Z0MB1ES.exe"; Parameters: "--run ""{app}\current\ZombiesWP7.dll"" --content ""{app}\current"" --save-dir ""{code:SaveDirectory}"" --pictures-dir ""{code:PicturesDirectory}"""; WorkingDir: "{app}\current"; Tasks: desktop
 
 [Run]
-Filename: "{app}\current\Z0MB1ES.exe"; Parameters: "--run ""{app}\current\ZombiesWP7.dll"" --content ""{app}\current"" --save-dir ""{code:SaveDirectory}"" --pictures-dir ""{code:PicturesDirectory}"""; Description: "Launch Z0MB1ES (on teh ph0ne)"; Flags: nowait postinstall skipifsilent unchecked
+Filename: "{app}\current\Z0MB1ES.exe"; Parameters: "--run ""{app}\current\ZombiesWP7.dll"" --content ""{app}\current"" --save-dir ""{code:SaveDirectory}"" --pictures-dir ""{code:PicturesDirectory}"""; Description: "Launch Z0MB1ES"; Flags: nowait postinstall skipifsilent unchecked
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}\current"
@@ -122,12 +124,12 @@ end;
 
 function DefaultSaveDirectory: String;
 begin
-  Result := AddBackslash(ExpandConstant('{userdocs}')) + 'Z0MB1ES on teh ph0ne\Saves';
+  Result := AddBackslash(ExpandConstant('{userdocs}')) + 'Z0MB1ES\Saves';
 end;
 
 function DefaultPicturesDirectory: String;
 begin
-  Result := AddBackslash(ExpandConstant('{userdocs}')) + 'Z0MB1ES on teh ph0ne\Pictures';
+  Result := AddBackslash(ExpandConstant('{userdocs}')) + 'Z0MB1ES\Pictures';
 end;
 
 function SaveDirectory(Param: String): String;
@@ -572,7 +574,7 @@ begin
     begin
       WizardForm.StatusLabel.Caption := 'Unpacking preparation tools...';
       WizardForm.StatusLabel.Refresh;
-      ExtractTemporaryFiles('{tmp}\port-payload\tools\ffmpeg.exe');
+      ExtractTemporaryFiles('{tmp}\port-payload\tools\port-audio-converter.exe');
       AdvanceProgress(130);
       ExtractTemporaryFiles('{tmp}\port-payload\tools\inspect_assembly.exe');
       AdvanceProgress(150);
@@ -709,8 +711,8 @@ begin
   Total := 0;
   Key := 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{F393AB61-549B-416A-B34E-E1AB2E96AF07}_is1';
   if not InstalledBytes(ExpandConstant('{app}'), Total) or
-     (Total div 1024 > 2147483647) or not RegKeyExists(HKLM64, Key) or
-     not RegWriteDWordValue(HKLM64, Key, 'EstimatedSize', Cardinal((Total + 1023) div 1024)) then
+     (Total div 1024 > 2147483647) or not RegKeyExists(HKCU64, Key) or
+     not RegWriteDWordValue(HKCU64, Key, 'EstimatedSize', Cardinal((Total + 1023) div 1024)) then
     Log('Could not update the installed size in Control Panel.')
   else
     Log('INSTALL_SIZE_BYTES ' + Int64ToStr(Total));

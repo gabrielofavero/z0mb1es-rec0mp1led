@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType></PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/Port.Prepare/Port.Prepare.csproj" />
+    <Compile Include="../../src/Port.IosProbe/ExecutionProbe.cs" Link="ExecutionProbe.cs" />
+    <Compile Include="../../src/Port.IosProbe/NativeAudioConverter.cs" Link="NativeAudioConverter.cs" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,9 @@
+[package]
+name = "qoaudio"
+version = "1.0.0"
+edition = "2021"
+
+[dependencies]
+
+[features]
+rodio = []

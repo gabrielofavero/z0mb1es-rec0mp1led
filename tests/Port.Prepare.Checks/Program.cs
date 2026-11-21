@@ -23,6 +23,18 @@ try
 catch (PreparationException error) when (error.Message.StartsWith("Unsupported XAP", StringComparison.Ordinal)) { }
 if (Path.Exists(unknownOutput)) throw new Exception("Unknown XAP created output.");
 
+var unknownWorkspace = Path.Combine(root, "unknown-pipeline");
+try
+{
+    GamePreparationPipeline.Prepare(badXap, unknownWorkspace,
+        new GamePreparationTools("missing-inspector", "missing-abi", "missing-rules",
+            "missing-versions", "missing-fna", "missing-bridge", "missing-hooks",
+            "missing-converter", new string('0', 64)));
+    throw new Exception("Unknown XAP entered the shared pipeline.");
+}
+catch (PreparationException error) when (error.Message.StartsWith("Unsupported XAP", StringComparison.Ordinal)) { }
+if (Path.Exists(unknownWorkspace)) throw new Exception("Unknown XAP created a pipeline workspace.");
+
 var final = Path.Combine(root, "injected-failure");
 try
 {
@@ -66,7 +78,7 @@ try
 catch (PreparationException error) when (error.Message.StartsWith("Output already exists", StringComparison.Ordinal)) { }
 if (File.ReadAllText(sentinel) != "preserve me") throw new Exception("Existing output changed.");
 
-Console.WriteLine("CHECKS_OK: unknown input rejected, failure/cancellation cleaned staging, existing output preserved.");
+Console.WriteLine("CHECKS_OK: unknown input rejected before extraction or pipeline mutation, failure/cancellation cleaned staging, existing output preserved.");
 return 0;
 
 sealed class InjectedFailure : Exception;

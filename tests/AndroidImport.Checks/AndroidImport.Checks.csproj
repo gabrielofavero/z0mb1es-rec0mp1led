@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType></PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/Port.Prepare/Port.Prepare.csproj" />
+    <ProjectReference Include="../../src/Port.AndroidArt/Port.AndroidArt.csproj" />
+    <Compile Include="../../src/Port.IosGame/FolderSetup.cs" Link="FolderSetup.cs" />
+    <Reference Include="FNA.NET"><HintPath>../../out/android/fna-package/lib/net9.0-android35.0/FNA.NET.dll</HintPath></Reference>
+  </ItemGroup>
+</Project>

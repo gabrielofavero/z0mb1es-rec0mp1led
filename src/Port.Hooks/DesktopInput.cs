@@ -4,12 +4,17 @@ using System.Reflection;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
 using Microsoft.Xna.Framework.Input.Touch;
+using Port.Bridge;
 
 namespace Port.Hooks;
 
 /// <summary>Supplies desktop contacts at the original TouchMgr input boundary.</summary>
 public static class DesktopInput
 {
+    // Opted into by the iOS host only; desktop/native touch behavior stays unchanged.
+    public static bool NativeBackButtonEnabled { get; set; }
+    private static readonly TouchBackButton touchBack = new();
+    private static readonly Queue<GestureSample> nativeGestures = new();
     private static Game? game;
     private static readonly Queue<GestureSample> gestures = new();
     private static readonly Contact[] contacts = [new(100), new(101), new(102), new(103)];
@@ -71,6 +76,9 @@ public static class DesktopInput
     public static void Configure(Game runningGame)
     {
         game = runningGame;
+        NativeBackButtonEnabled = false;
+        touchBack.Reset();
+        nativeGestures.Clear();
         gestures.Clear();
         foreach (var contact in contacts) contact.Reset();
         previousAccept = previousBack = false;
@@ -155,10 +163,20 @@ public static class DesktopInput
             return ScreenPosition(characterManager is null ? null :
                 (characters.GetValue(characterManager) as Array)?.GetValue(0), characterLoc, vikingScreen);
         };
+        var player = RequireField(runningGame.GetType(), "player", staticFlags);
+        var settings = RequireField(player.FieldType, "settings", instanceFlags);
+        var vibration = RequireField(settings.FieldType, "vibration", instanceFlags);
+        GameVibration.Configure(runningGame, () =>
+        {
+            var currentPlayer = player.GetValue(null);
+            var currentSettings = currentPlayer is null ? null : settings.GetValue(currentPlayer);
+            return currentSettings is not null && (bool)vibration.GetValue(currentSettings)!;
+        });
     }
 
     public static GamePadState GetGamePadState(PlayerIndex player)
     {
+        DesktopDisplay.RefreshLayout();
         if (DesktopDisplay.CapturesInput) return default;
         var state = GamePad.GetState(player);
         var keyboard = Keyboard.GetState();
@@ -183,7 +201,16 @@ public static class DesktopInput
                                      state.Buttons.Back == ButtonState.Pressed))
                  : state.Buttons.B == ButtonState.Pressed ||
                    state.Buttons.Back == ButtonState.Pressed));
-        var pressed = (back && !previousBack) || mouseBack;
+        var nativeBack = NativeBackButtonEnabled && player == PlayerIndex.One &&
+            touchBack.Sample(TouchPanel.GetState(), DesktopDisplay.SceneSize,
+                game?.IsActive == true && BackButtonVisible());
+        if (nativeBack)
+        {
+            nativeGestures.Clear();
+            gestures.Clear();
+            Console.WriteLine("native-back=pressed");
+        }
+        var pressed = (back && !previousBack) || mouseBack || nativeBack;
         previousBack = back;
         return pressed ? new GamePadState(Vector2.Zero, Vector2.Zero, 0, 0, Buttons.Back) :
             state.Buttons.Back == ButtonState.Pressed ?
@@ -192,11 +219,13 @@ public static class DesktopInput
 
     public static TouchCollection GetState()
     {
+        DesktopDisplay.RefreshLayout();
         var mode = ReadMode();
         RestoreCarouselOnReturn(mode);
         Samples++;
         if (DesktopDisplay.CapturesInput)
         {
+            DesktopPictures.UpdateMapperControls(null, null, false, default, 0);
             var capturedMouse = Mouse.GetState();
             previousWheel = capturedMouse.ScrollWheelValue;
             previousMousePosition = new Point(capturedMouse.X, capturedMouse.Y);
@@ -208,7 +237,9 @@ public static class DesktopInput
         var native = TouchPanel.GetState();
         if (game is null) return native;
         var touches = new List<TouchLocation>(native.Count + contacts.Length);
-        foreach (var touch in native) touches.Add(touch);
+        foreach (var touch in native)
+            if (!NativeBackButtonEnabled || !touchBack.Consumes(touch.Id)) touches.Add(touch);
+        var mapperTouches = new TouchCollection(touches.ToArray());
 
         var active = game.IsActive;
         if (active) ActiveSamples++;
@@ -237,8 +268,7 @@ public static class DesktopInput
         UpdateCursorSource(native.Count > 0, mouse, keyboard, wheelDelta, inside && mode != 0);
         var backClick = inside && pointer is Vector2 backPosition && BackButtonVisible() &&
             BackButtonBounds(size).Contains(new Point((int)backPosition.X, (int)backPosition.Y));
-        var pauseHotspot = pointer is Vector2 point && point.X > size.X - 70 &&
-            point.X < size.X - 10 && point.Y >= 0 && point.Y < 60;
+        var pauseHotspot = pointer is Vector2 point && PauseHitTest(point, size);
         if (inside && (mouse.LeftButton == ButtonState.Pressed || mouse.RightButton == ButtonState.Pressed)) MouseSamples++;
         if (keyboard.IsKeyDown(Keys.W) || keyboard.IsKeyDown(Keys.A) || keyboard.IsKeyDown(Keys.S) ||
             keyboard.IsKeyDown(Keys.D) || keyboard.IsKeyDown(Keys.Enter) ||
@@ -260,7 +290,8 @@ public static class DesktopInput
         DesktopPictures.UpdateMapperControls(
             level?.GetType().FullName == "IMAK3Z0MB1EGAEM.menu.CustomMapper" &&
             (float)menuLevelAlphaField!.GetValue(level)! > 0.9f ? level : null,
-            pointer, pointAndClick, pad, (float)frameTimeField!.GetValue(null)!);
+            pointer, pointAndClick, pad, (float)frameTimeField!.GetValue(null)!,
+            active ? mapperTouches : default);
         var leaderboard = level?.GetType().FullName == "IMAK3Z0MB1EGAEM.menu.Leaderboards";
         if (level?.GetType().FullName is "IMAK3Z0MB1EGAEM.menu.Achievements" or
             "IMAK3Z0MB1EGAEM.menu.Credits")
@@ -364,10 +395,24 @@ public static class DesktopInput
         return new TouchCollection(touches.ToArray());
     }
 
-    public static bool IsGestureAvailable => !DesktopDisplay.CapturesInput &&
-        (TouchPanel.IsGestureAvailable || gestures.Count > 0);
+    public static bool IsGestureAvailable
+    {
+        get
+        {
+            if (DesktopDisplay.CapturesInput) return false;
+            if (!NativeBackButtonEnabled) return TouchPanel.IsGestureAvailable || gestures.Count > 0;
+            while (TouchPanel.IsGestureAvailable)
+            {
+                var gesture = TouchPanel.ReadGesture();
+                if (!touchBack.Consumes(gesture)) nativeGestures.Enqueue(gesture);
+            }
+            return nativeGestures.Count > 0 || gestures.Count > 0;
+        }
+    }
 
-    public static GestureSample ReadGesture() => TouchPanel.IsGestureAvailable
+    public static GestureSample ReadGesture() => NativeBackButtonEnabled
+        ? nativeGestures.Count > 0 ? nativeGestures.Dequeue() : gestures.Dequeue()
+        : TouchPanel.IsGestureAvailable
         ? TouchPanel.ReadGesture()
         : gestures.Dequeue();
 
@@ -380,6 +425,9 @@ public static class DesktopInput
         cursorSource == CursorSource.Mouse;
 
     public static bool ShouldShowTouchPause() => cursorSource == CursorSource.Touch;
+
+    public static bool NeedsScreenKeyboard(bool mobile, bool hasKeyboard) =>
+        mobile || cursorSource == CursorSource.Touch || !hasKeyboard;
 
     private static void UpdateCursorSource(bool touchActive, MouseState mouse,
         KeyboardState keyboard, int wheelDelta, bool inside)
@@ -447,7 +495,7 @@ public static class DesktopInput
     private static void ScrollLongMenu(object level, int wheelDelta, float rightStickY, float frameTime)
     {
         var current = (float)menuLevelScrollField!.GetValue(level)!;
-        var maximum = (float)menuLevelScrollMaxField!.GetValue(level)!;
+        var maximum = DesktopDisplay.MenuScrollLimit((float)menuLevelScrollMaxField!.GetValue(level)!, level);
         menuLevelScrollField.SetValue(level, MenuNavigation.AchievementScroll(
             current, maximum, wheelDelta, rightStickY, frameTime));
     }
@@ -456,7 +504,7 @@ public static class DesktopInput
     {
         if (LeaderboardIsReading(level)) return;
         var current = (float)menuLevelScrollField!.GetValue(level)!;
-        var maximum = (float)menuLevelScrollMaxField!.GetValue(level)!;
+        var maximum = DesktopDisplay.MenuScrollLimit((float)menuLevelScrollMaxField!.GetValue(level)!, level);
         menuLevelScrollField.SetValue(level, MenuNavigation.LeaderboardScroll(current, maximum,
             wheelDelta, verticalStep, rightStickY, (float)frameTimeField!.GetValue(null)!));
     }
@@ -474,7 +522,14 @@ public static class DesktopInput
     public static Vector2 VirtualStickCenter(Vector2 size, float viewScale, bool right)
     {
         var inset = 120f * viewScale;
-        return new Vector2(right ? size.X - inset : inset, size.Y - inset);
+        return right ? DesktopDisplay.SafeRightStickCenter(size.X - inset, size.Y - inset) :
+            DesktopDisplay.SafeLeftStickCenter(inset, size.Y - inset);
+    }
+
+    public static bool PauseHitTest(Vector2 point, Vector2 size)
+    {
+        var center = DesktopDisplay.SafePausePosition(size.X - 40f, 30f);
+        return MathF.Abs(point.X - center.X) < 30f && MathF.Abs(point.Y - center.Y) < 30f;
     }
 
     private static void MoveCarousel(int direction)

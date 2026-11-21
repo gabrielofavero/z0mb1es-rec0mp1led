@@ -120,7 +120,7 @@ internal sealed class MenuProbe
             var centeredX = DesktopDisplay.SceneSize.X / (2f * menuScale);
             if (MathF.Abs(positions[0].X - (centeredX - 85f)) > 0.01f ||
                 MathF.Abs(positions[1].X - (centeredX + 115f)) > 0.01f ||
-                MathF.Abs(positions[2].X - (centeredX + 15f)) > 0.01f)
+                MathF.Abs(positions[2].X - (centeredX - 15f)) > 0.01f)
                 throw new InvalidOperationException("Settings categories lost their staggered layout.");
             level.GetType().GetMethod("Click", Instance)!.Invoke(level, ["GAMEPLAY"]);
             if (!DesktopDisplay.IsGameplayPage)
@@ -162,12 +162,23 @@ internal sealed class MenuProbe
                 [nameValue]);
             if (!DesktopDisplay.CapturesInput)
                 throw new InvalidOperationException("Player Name did not capture text input.");
+            if (!TextInputEXT.IsTextInputActive())
+                throw new InvalidOperationException("Player Name did not start native text input.");
             var textInput = typeof(TextInputEXT).GetMethod("OnTextInput", Static)!;
             for (var i = 0; i < 17; i++) textInput.Invoke(null, ['A']);
             var editingText = (string?)editingItems.GetValue(1)!.GetType().GetField("text", Instance)!
                 .GetValue(editingItems.GetValue(1));
             if (editingText != "  " + new string('A', 16) + "_")
                 throw new InvalidOperationException("Player Name did not enforce the 16-character limit.");
+            textInput.Invoke(null, ['\r']);
+            DesktopDisplay.Update();
+            var expectedName = new string('A', 16);
+            var cachedName = (System.Text.StringBuilder?)game.GetType().GetField("gamerName", Static)!.GetValue(null);
+            if (Port.Bridge.PlayerIdentity.Name != expectedName || cachedName?.ToString() != expectedName)
+                throw new InvalidOperationException("Software Return did not save and immediately refresh the displayed player name.");
+            Port.Bridge.PlayerIdentity.Configure(DesktopStorage.SaveDirectory);
+            if (Port.Bridge.PlayerIdentity.Name != expectedName)
+                throw new InvalidOperationException("Edited player name did not reload from the save directory.");
             level.GetType().GetMethod("Cancel", Instance)!.Invoke(level, null);
             if (DesktopDisplay.IsGameplayPage)
                 throw new InvalidOperationException("Player Name cancel did not return to Settings.");
@@ -229,9 +240,10 @@ internal sealed class MenuProbe
                 throw new InvalidOperationException("Settings Graphics entry did not open.");
             var graphicsItems = (Array)baseType.GetField("item", Instance)!.GetValue(level)!;
             var graphicsText = graphicsItems.GetValue(1)!.GetType().GetField("text", Instance)!;
-            if (graphicsItems.Length != 6 ||
+            if (graphicsItems.Length != 7 ||
                 !((string?)graphicsText.GetValue(graphicsItems.GetValue(1)))!.StartsWith("RES0LUTI0N:", StringComparison.Ordinal) ||
-                (string?)graphicsText.GetValue(graphicsItems.GetValue(4)) != "ASSETS")
+                !((string?)graphicsText.GetValue(graphicsItems.GetValue(4)))!.StartsWith("SAFE AREA:", StringComparison.Ordinal) ||
+                (string?)graphicsText.GetValue(graphicsItems.GetValue(5)) != "ASSETS")
                 throw new InvalidOperationException("Graphics category rows differ.");
             var graphics = (GraphicsDeviceManager)game.Services.GetService(typeof(IGraphicsDeviceManager))!;
             var initialVSync = graphics.SynchronizeWithVerticalRetrace;
@@ -241,6 +253,15 @@ internal sealed class MenuProbe
             level.GetType().GetMethod("Click", Instance)!.Invoke(level, [initialVSync ? "VSYNC: OFF" : "VSYNC: ON"]);
             if (graphics.SynchronizeWithVerticalRetrace != initialVSync)
                 throw new InvalidOperationException("Settings VSync did not restore.");
+            var initialSafeArea = DesktopDisplay.SafeAreaEnabled;
+            level.GetType().GetMethod("Click", Instance)!.Invoke(level,
+                [initialSafeArea ? "SAFE AREA: ON" : "SAFE AREA: OFF"]);
+            if (DesktopDisplay.SafeAreaEnabled == initialSafeArea)
+                throw new InvalidOperationException("Safe Area did not toggle.");
+            level.GetType().GetMethod("Click", Instance)!.Invoke(level,
+                [initialSafeArea ? "SAFE AREA: OFF" : "SAFE AREA: ON"]);
+            if (DesktopDisplay.SafeAreaEnabled != initialSafeArea)
+                throw new InvalidOperationException("Safe Area did not restore.");
             var initialFlash = DesktopDisplay.ReduceFlashing;
             level.GetType().GetMethod("Click", Instance)!.Invoke(level,
                 [initialFlash ? "R3DUCE FLASH1NG: ON" : "R3DUCE FLASH1NG: OFF"]);
@@ -332,9 +353,11 @@ internal sealed class MenuProbe
             if (!assetCaptured || !DesktopDisplay.IsAssetPage)
                 throw new InvalidOperationException("Assets page was not rendered.");
             var assetItems = (Array)baseType.GetField("item", Instance)!.GetValue(level)!;
-            if (assetItems.Length != 4 ||
+            if (assetItems.Length != 5 ||
                 !((string)assetItems.GetValue(0)!.GetType().GetField("text", Instance)!
-                    .GetValue(assetItems.GetValue(0))!).StartsWith("I MAED:", StringComparison.Ordinal))
+                    .GetValue(assetItems.GetValue(0))!).StartsWith("I MAED:", StringComparison.Ordinal) ||
+                (string?)assetItems.GetValue(3)!.GetType().GetField("text", Instance)!
+                    .GetValue(assetItems.GetValue(3)) != "REIMPORT")
                 throw new InvalidOperationException("Assets rows differ.");
             var before = AssetChoices.NormalImported;
             level.GetType().GetMethod("Click", Instance)!.Invoke(level, ["I MAED:"]);

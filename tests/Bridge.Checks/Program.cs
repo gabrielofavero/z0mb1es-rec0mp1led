@@ -7,6 +7,8 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.GamerServices;
 using Port.Bridge;
 
+VibrationChecks.Run();
+
 if (typeof(GamerServicesComponent).BaseType != typeof(GameComponent) ||
     typeof(SignedInGamer).BaseType != typeof(Gamer) ||
     typeof(SignedInGamerCollection).BaseType != typeof(ReadOnlyCollection<SignedInGamer>) ||

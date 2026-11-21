@@ -1,6 +1,12 @@
 # Documentation
 
+For build prerequisites, all platform variants, and terminal launch commands, see [Build and run Z0MB1ES](build-and-run.md).
+
 Start with the [architecture](foundation/architecture.md) and the [plan index](plans/done/2026-11-06-initial-implementation/implementation-prompts.md). The [installer design](../installer/README.md) describes player-facing setup.
+
+The [Linux x64 package guide](../installer/linux/README.md) covers the in-progress `.deb` and `.rpm` build and first-launch import flow.
+
+The [Android APK guide](../installer/android/README.md) covers Z0MB1ES (on teh ph0ne), its content-free player package and on-device import based on the iOS setup flow.
 
 ## Foundation
 
@@ -19,6 +25,8 @@ Start with the [architecture](foundation/architecture.md) and the [plan index](p
 
 - [Content coverage](runtime/content-coverage.md), [audio portability](runtime/audio-portability.md), and [asset comparison](runtime/asset-comparison.md): assets, conversion, and local Xbox/PC comparisons.
 - [Menu bring-up](runtime/menu-bringup.md) and [desktop input](runtime/desktop-input.md): visible game loop and controls.
+- [Platform host boundary](runtime/platform-host.md): shared preparation, explicit data paths, and Windows adapter responsibilities.
+- [Persistent platform import](runtime/platform-import.md): staged app-data assets, verification, rollback, and first-launch/Reimport host APIs.
 - [Offline services](runtime/offline-services.md) and [media/phone behavior](runtime/media-phone-behavior.md): saves, service screens, audio, and desktop fallbacks.
 
 ## Records
@@ -31,7 +39,7 @@ Start with the [architecture](foundation/architecture.md) and the [plan index](p
 - [Asset swap Prompt 2](records/asset-swap-p2.md): guarded phone renderer and visual probes.
 - [Asset swap Prompt 3](records/asset-swap-p3.md): offline optional imports and ASSETS Settings selection.
 - [Asset swap Prompt 4](records/asset-swap-p4.md): visual matrix, installer validation, and remaining release checks.
-- [FFmpeg redistribution follow-up](records/ffmpeg-redistribution.md): LGPL converter, matching source package, and audited installer hashes.
+- [FFmpeg redistribution follow-up](records/ffmpeg-redistribution.md): historical converter/source-package audit; FFmpeg is now retired.
 
 ## Plans
 

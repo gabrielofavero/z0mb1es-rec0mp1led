@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <uses-feature android:glEsVersion="0x00030000" android:required="true" />
+  <uses-feature android:name="android.hardware.gamepad" android:required="false" />
+  <application android:appCategory="game" android:allowBackup="false" android:icon="@drawable/icon" android:label="Z0MB1ES" android:theme="@android:style/Theme.Material.NoActionBar.Fullscreen" android:extractNativeLibs="true" android:supportsRtl="true" />
+</manifest>
