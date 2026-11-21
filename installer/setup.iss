@@ -1,10 +1,12 @@
 #define RepoRoot ".."
 #define Payload "out\payload"
+#define AppVersion "1.1.0"
 
 [Setup]
 AppId={{F393AB61-549B-416A-B34E-E1AB2E96AF07}
 AppName=Z0MB1ES
-AppVersion=1.1.0
+AppVersion={#AppVersion}
+VersionInfoVersion={#AppVersion}
 DefaultDirName={localappdata}\Programs\Z0MB1ES
 DisableDirPage=yes
 DefaultGroupName=Z0MB1ES
@@ -12,7 +14,7 @@ PrivilegesRequired=lowest
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 OutputDir=out
-OutputBaseFilename=Z0MB1ES-1.1.0-x64-windows
+OutputBaseFilename=Z0MB1ES-{#AppVersion}-x64-windows
 Compression=lzma2/fast
 SolidCompression=no
 WizardStyle=modern

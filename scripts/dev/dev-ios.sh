@@ -3,7 +3,7 @@
 _zombies_help() {
     printf '%s\n' 'iOS: build-game (content-free unsigned device IPA)' \
         '     build-bundled phone.xap zombies-360 time-viking-360 (personal IPA)' \
-        'Sign, install, and launch with your sideloading tool; see build-and-run.md.'
+        'Sign, install, and launch with your sideloading tool; see docs/build-and-run.md.'
 }
 _zombies_action() {
     case "$1" in

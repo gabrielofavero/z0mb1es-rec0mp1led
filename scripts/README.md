@@ -6,7 +6,7 @@ This folder contains repeatable build and staging scripts. Release audits must i
 
 `stage-local-run.ps1` copies the authored runtime, a verified locally prepared DLL, and locally prepared content into a new ignored `private/run/` directory. FNA resolves `TitleContainer` files beside the launcher, so this stage mirrors the eventual install layout.
 
-Device commands live in `scripts/dev/`, following the Blitz Recomp layout. See [build and run](../build-and-run.md#device-development-scripts) for platform setup, examples, and output paths.
+Device commands live in `scripts/dev/`, following the Blitz Recomp layout. See [build and run](../docs/build-and-run.md#device-development-scripts) for platform setup, examples, and output paths.
 
 - `dev-windows.ps1`: dot-source for `build-game`, `run-game`, `build-installer`, and `run-installer`. Prepared builds use `private/run/current/`; build options are `-XapPath`, `-AudioConverterPath`, and `-ArtStorePath`. Setup defaults to `installer/out/Z0MB1ES-1.1.0-x64-windows.exe`.
 - `dev-android.ps1`: dot-source on Windows for `bootstrap-android`, `build-apk`, `install-apk`, `run-android`, and `log-android`. Device commands accept `-Serial` and `-AdbPath`. The current builder produces the content-free `out/android/Z0MB1ES-1.1.0-arm64-android.apk`.

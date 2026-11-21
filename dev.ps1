@@ -7,5 +7,5 @@ if ($IsWindows) {
 } elseif ($IsLinux) {
     . "$PSScriptRoot/scripts/dev/dev-linux.ps1"
 } else {
-    throw 'See build-and-run.md for supported platforms.'
+    throw 'See docs/build-and-run.md for supported platforms.'
 }

@@ -38,14 +38,14 @@ Generated packages and installers use `Z0MB1ES-<version>-<architecture>-<os>.<ex
 
 ## Shared prerequisites
 
-Install .NET SDK **10.0.302**; [global.json](global.json) disables SDK roll-forward. Desktop projects target `net10.0`. Dependency and packaging pins live in:
+Install .NET SDK **10.0.302**; [global.json](../global.json) disables SDK roll-forward. Desktop projects target `net10.0`. Dependency and packaging pins live in:
 
-- [Shared FNA and managed dependencies](config/dependencies.json)
-- [Windows runtime packs](installer/config/runtime-packs.json)
-- [macOS packaging inputs](config/macos-packaging.json)
-- [Linux packaging inputs](config/linux-packaging.json)
-- [Android tooling and packages](config/android-packaging.json)
-- [iOS native and metadata inputs](config/ios-packaging.json)
+- [Shared FNA and managed dependencies](../config/dependencies.json)
+- [Windows runtime packs](../installer/config/runtime-packs.json)
+- [macOS packaging inputs](../config/macos-packaging.json)
+- [Linux packaging inputs](../config/linux-packaging.json)
+- [Android tooling and packages](../config/android-packaging.json)
+- [iOS native and metadata inputs](../config/ios-packaging.json)
 
 Bootstrap official FNA 26.11, Mono.Cecil, and the shared dependency cache:
 
@@ -77,9 +77,9 @@ CARGO_TARGET_DIR=out/audio-converter cargo build --release --offline \
   --manifest-path tools/audio-converter/Cargo.toml
 ```
 
-Output is `out/audio-converter/release/port-audio-converter.exe` on Windows and `out/audio-converter/release/port-audio-converter` on Unix. Windows checks it against [config/content-tools.json](config/content-tools.json). macOS/Linux record its platform-specific hash. iOS uses its separate native converter recipe below.
+Output is `out/audio-converter/release/port-audio-converter.exe` on Windows and `out/audio-converter/release/port-audio-converter` on Unix. Windows checks it against [config/content-tools.json](../config/content-tools.json). macOS/Linux record its platform-specific hash. iOS uses its separate native converter recipe below.
 
-For personal preparation, supply the exact supported phone XAP identified by [config/supported-versions.json](config/supported-versions.json). The default developer path is `game/Z0MB1ES (on teh ph0ne) v1.0.0.0.xap`. The original phone game's `1.0.0.0` version is independent of this port's `1.1.0` release.
+For personal preparation, supply the exact supported phone XAP identified by [config/supported-versions.json](../config/supported-versions.json). The default developer path is `game/Z0MB1ES (on teh ph0ne) v1.0.0.0.xap`. The original phone game's `1.0.0.0` version is independent of this port's `1.1.0` release.
 
 Keep original packages and prepared game material in ignored `game/` or `private/` locations. Standard desktop/mobile importer package audits reject embedded game content. There is no asset-inclusive Windows/macOS/Linux installer switch.
 
@@ -113,7 +113,7 @@ Run setup from PowerShell using its explicit output path:
 run-installer -InstallerPath 'installer/out/Z0MB1ES-1.1.0-x64-windows.exe'
 ```
 
-After installation, use the Z0MB1ES shortcut. The [Windows installer guide](installer/README.md) documents silent installation and optional artwork switches.
+After installation, use the Z0MB1ES shortcut. The [Windows installer guide](../installer/README.md) documents silent installation and optional artwork switches.
 
 ### Personal folder with prepared assets
 
@@ -143,7 +143,7 @@ Use an Apple Silicon Mac, the shared SDK/FNA setup, Python 3, Rust 1.100.0, and 
 
 Provide the four reviewed ARM64 libraries in `out/deps/native/osx-arm64/`: `libSDL3.0.dylib`, `libFNA3D.0.dylib`, `libFAudio.0.dylib`, and `libtheorafile.dylib`. Their exact hashes are in the macOS pin file; the source is the FNA Apple daily archive dated 2026-11-06. Provide the pinned .NET 10.0.10 macOS runtime/host/ASP.NET runtime packages in `out/deps/cache/`.
 
-For the frozen artwork importer, initialize the sibling `xnb_parse` checkout and install [the importer requirements](installer/linux/requirements-build.txt) into the selected Python environment. The recorded macOS environment uses Python 3.9.6 and macholib 1.16.4. Then:
+For the frozen artwork importer, initialize the sibling `xnb_parse` checkout and install [the importer requirements](../installer/linux/requirements-build.txt) into the selected Python environment. The recorded macOS environment uses Python 3.9.6 and macholib 1.16.4. Then:
 
 ```sh
 sh installer/macos/build-art.sh
@@ -407,7 +407,7 @@ The launcher command opens the Android app; it does not run gameplay on the desk
 
 ### Personal APK with embedded game assets
 
-Android already has an implemented bundled build pipeline. The [implementation log](docs/records/implementation-log.md) records a signed APK containing **788 bundled files**, with the payload audit and APK signature checks passing. The game and optional artwork are prepared on the desktop, embedded in the APK, then verified and extracted to app-private storage on the device. This edition skips the on-device source-package importer.
+Android already has an implemented bundled build pipeline. The [implementation log](records/implementation-log.md) records a signed APK containing **788 bundled files**, with the payload audit and APK signature checks passing. The game and optional artwork are prepared on the desktop, embedded in the APK, then verified and extracted to app-private storage on the device. This edition skips the on-device source-package importer.
 
 **Current importer integration:** The commands above describe the existing bundled CLI before the current working-tree importer rewrite. That rewrite replaced its `-XapPath`, `-ArtStorePath`, and `-SkipGameBuild` parameters with the importer-only build, and `MainActivity.RunPlayer` currently enters `ImportAssets.Store` without selecting `BundledAssets.Open`. Running those bundled commands against the importer-only wrapper will therefore fail parameter binding. The two build/startup selections need to be reconnected in this checkout to expose both editions together; bundled Android support and its separate audit already exist. The importer audit should continue to reject embedded content, while bundled builds use `audit-bundled.py`. No Android build was run to revalidate the bundled edition for 1.1.0 while writing this guide.
 
@@ -435,10 +435,10 @@ build-apk -SkipGameBuild
 The existing pipeline consists of:
 
 1. `build-game` creates the verified desktop stage and includes any selected prepared artwork.
-2. [android-bundle-prepare](tools/android-bundle-prepare/Program.cs) adapts that stage to the Android framework, bridge, and hooks, creating a new `private/android/build-*/preinstalled/` payload and its receipt.
+2. [android-bundle-prepare](../tools/android-bundle-prepare/Program.cs) adapts that stage to the Android framework, bridge, and hooks, creating a new `private/android/build-*/preinstalled/` payload and its receipt.
 3. Android publish embeds that directory using `-p:BundledPayloadDirectory=<absolute-preinstalled-path>` and signs the APK with the existing private update key.
-4. [audit-bundled.py](installer/android/audit-bundled.py) compares the APK against the prepared payload, and `apksigner` verifies the signature.
-5. [BundledAssets.Open](src/Port.AndroidGame/BundledAssets.cs) verifies and extracts the embedded payload for gameplay; saves remain outside that versioned payload.
+4. [audit-bundled.py](../installer/android/audit-bundled.py) compares the APK against the prepared payload, and `apksigner` verifies the signature.
+5. [BundledAssets.Open](../src/Port.AndroidGame/BundledAssets.cs) verifies and extracts the embedded payload for gameplay; saves remain outside that versioned payload.
 
 ## iOS ARM64
 
@@ -516,4 +516,4 @@ The shell checks require Bash (Git Bash works on Windows). They cover platform s
 - A plain launcher executable needs its accompanying managed/native files. Move or copy the complete output folder, not only `Z0MB1ES` or `Z0MB1ES.exe`.
 - Direct desktop runs require a graphical session and working graphics/audio libraries. Installing through `adb`, building under WSL, or producing an IPA does not itself validate rendering or gameplay.
 
-Additional details: [Windows installer](installer/README.md), [macOS](installer/macos/README.md), [Linux](installer/linux/README.md), [Android](installer/android/README.md), [iOS](installer/ios/README.md), and [desktop converter](tools/audio-converter/README.md).
+Additional details: [Windows installer](../installer/README.md), [macOS](../installer/macos/README.md), [Linux](../installer/linux/README.md), [Android](../installer/android/README.md), [iOS](../installer/ios/README.md), and [desktop converter](../tools/audio-converter/README.md).

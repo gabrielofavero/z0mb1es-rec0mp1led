@@ -28,8 +28,8 @@ try {
     }
     $script:AdbExitCode = 0
     # This existing file stands in for an APK, avoiding any generated fixture.
-    install-apk -ApkPath "$root/build-and-run.md" -Serial 'device serial' -AdbPath Mock-Adb
-    Assert-Arguments @('-s', 'device serial', 'install', '-r', (Resolve-Path "$root/build-and-run.md").Path)
+    install-apk -ApkPath "$root/docs/build-and-run.md" -Serial 'device serial' -AdbPath Mock-Adb
+    Assert-Arguments @('-s', 'device serial', 'install', '-r', (Resolve-Path "$root/docs/build-and-run.md").Path)
     $pin = Get-Content -Raw "$root/config/android-packaging.json" | ConvertFrom-Json
     run-android -AdbPath Mock-Adb
     Assert-Arguments @('shell', 'monkey', '-p', $pin.applicationId, '-c', 'android.intent.category.LAUNCHER', '1')

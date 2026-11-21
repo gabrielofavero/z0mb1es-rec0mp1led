@@ -4,7 +4,7 @@ _zombies_help() {
     printf '%s\n' 'macOS: build-game [-XapPath path] [-AudioConverterPath path] [-ArtStorePath path]' \
         '       run-game [-List] [-Build current]' \
         '       build-installer [--output directory]' \
-        '       run-installer [path-to-app-or-pkg]' 'See build-and-run.md for prerequisites.'
+        '       run-installer [path-to-app-or-pkg]' 'See docs/build-and-run.md for prerequisites.'
 }
 _zombies_action() {
     case "$1" in

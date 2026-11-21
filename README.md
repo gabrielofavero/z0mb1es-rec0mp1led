@@ -23,7 +23,7 @@ The additions are pretty basic. They focus mainly on making the game accessible 
 
 Find published builds on the [Releases page](https://github.com/gabrielofavero/z0mb1es-rec0mp1led/releases). The Windows installer asks for the game assets during setup. Linux, macOS, and mobile builds ask for the assets on first launch, then prepare and store them on your device for future sessions.
 
-You can also build the games from the terminal. See [Build and run](build-and-run.md) for instructions for every platform, including how to build for mobile with assets already included to skip on-device import.
+You can also build the games from the terminal. See [Build and run](docs/build-and-run.md) for instructions for every platform, including how to build for mobile with assets already included to skip on-device import.
 
 ## Asset swapping
 

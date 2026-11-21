@@ -1,6 +1,6 @@
 # Documentation
 
-For build prerequisites, all platform variants, and terminal launch commands, see [Build and run Z0MB1ES](../build-and-run.md).
+For build prerequisites, all platform variants, and terminal launch commands, see [Build and run Z0MB1ES](build-and-run.md).
 
 Start with the [architecture](foundation/architecture.md) and the [plan index](plans/done/2026-11-06-initial-implementation/implementation-prompts.md). The [installer design](../installer/README.md) describes player-facing setup.
 

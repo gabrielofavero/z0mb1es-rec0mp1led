@@ -4,7 +4,7 @@ _zombies_help() {
     printf '%s\n' 'Linux: build-game (publish self-contained host/tools)' \
         '       build-installer (publish and package .deb/.rpm)' \
         '       run-game (launch the installed importer)' \
-        'See build-and-run.md for native/art/nFPM prerequisites and personal asset preparation.'
+        'See docs/build-and-run.md for native/art/nFPM prerequisites and personal asset preparation.'
 }
 _zombies_publish_linux() {
     [ "$(uname -s)" = Linux ] && [ "$(uname -m)" = x86_64 ] || {
