@@ -4,6 +4,8 @@ if ($IsWindows) {
     . "$PSScriptRoot/scripts/dev/dev-android.ps1"
 } elseif ($IsMacOS) {
     . "$PSScriptRoot/scripts/dev/desktop.ps1"
+} elseif ($IsLinux) {
+    . "$PSScriptRoot/scripts/dev/dev-linux.ps1"
 } else {
-    throw 'Use source ./dev.sh on Linux; see build-and-run.md for supported workflows.'
+    throw 'See build-and-run.md for supported platforms.'
 }

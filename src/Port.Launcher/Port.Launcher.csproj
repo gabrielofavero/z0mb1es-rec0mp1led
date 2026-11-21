@@ -8,6 +8,7 @@
     <ApplicationIcon Condition="'$(RuntimeIdentifier)' == '' or '$(RuntimeIdentifier)' == 'win-x64'">../../assets/icon/icon.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="../Port.IosBundled/CaseMappedContentManager.cs" Link="CaseMappedContentManager.cs" />
     <ProjectReference Include="../Port.Bridge/Port.Bridge.csproj" />
     <ProjectReference Include="../Port.Hooks/Port.Hooks.csproj" />
     <ProjectReference Include="../Port.Prepare/Port.Prepare.csproj" />

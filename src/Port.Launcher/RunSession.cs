@@ -103,6 +103,8 @@ internal static class RunSession
             host.ConfigureStorage(paths);
             if (OperatingSystem.IsMacOS() &&
                 !MacFlashingWarning.ShowAsync(DesktopStorage.SaveDirectory).GetAwaiter().GetResult()) return 0;
+            if (OperatingSystem.IsLinux() &&
+                !LinuxImportView.ShowFlashingWarningAsync(DesktopStorage.SaveDirectory).GetAwaiter().GetResult()) return 0;
             GameContent.Configure(content);
             AssetChoices.Initialize(artStore, artNormal, artViking, artEndless);
             var assembly = Assembly.LoadFrom(dll);
@@ -121,7 +123,14 @@ internal static class RunSession
             } : null;
             DesktopAchievements.Configure();
             host.ConfigureInput(game);
-            game.Content.RootDirectory = Path.Combine(content, "Content");
+            var contentDirectory = Path.Combine(content, "Content");
+            if (OperatingSystem.IsLinux())
+            {
+                game.Content.Dispose();
+                game.Content = new Port.IosGame.CaseMappedContentManager(game.Services, contentDirectory, Console.WriteLine);
+            }
+            else
+                game.Content.RootDirectory = contentDirectory;
             var monitor = new RunMonitor(game, gameType, frameLimit, windowed, probeServices,
                 probeMode, probeMenus, probeArtToggle, probeResize);
             game.Components.Add(monitor);
@@ -134,6 +143,8 @@ internal static class RunSession
             }
             Console.WriteLine($"RUN_END updates={monitor.Updates} frames={monitor.Frames} menuReached={monitor.MenuReached} menuAnimated={monitor.MenuAnimated} rendered={monitor.RenderedMenu} serviceScreens={monitor.ServiceScreens} serviceVerified={monitor.ServiceStatesVerified} modeProbe={probeMode} modeVerified={monitor.ModeVerified} artToggleVerified={monitor.ArtToggleVerified} menusVerified={monitor.MenusVerified} artDraws={AssetDraw.Replacements} originalDraws={AssetDraw.OriginalDraws} artUnique={AssetDraw.UsedCount} artSample={AssetDraw.UsedSample} inputSamples={DesktopInput.Samples} activeSamples={DesktopInput.ActiveSamples} mouseSamples={DesktopInput.MouseSamples} keyboardSamples={DesktopInput.KeyboardSamples} movementSeen={monitor.MovementSeen} aimSeen={monitor.AimSeen} clickSeen={monitor.ClickSeen} backSeen={monitor.BackSeen} pauseSeen={monitor.PauseSeen} hostQuit={monitor.HostQuit} timedOut={monitor.TimedOut}");
             if (reimportRequested) return 10;
+            // A clean interactive exit can happen before the diagnostic menu sample is captured.
+            if (frameLimit is null && !probeServices && !probeMenus && probeMode is null) return 0;
             return monitor.MenuReached && monitor.MenuAnimated && monitor.RenderedMenu &&
                 monitor.Frames >= 2 && !monitor.TimedOut && (!probeServices || monitor.ServiceStatesVerified) &&
                 (probeMode is null || monitor.ModeVerified) && (!probeArtToggle || monitor.ArtToggleVerified) &&

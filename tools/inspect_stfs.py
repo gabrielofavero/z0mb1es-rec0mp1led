@@ -139,7 +139,7 @@ def inspect(package: Path, extract_dir: Path | None, only_paths: set[str] | None
     if extract_dir is not None:
         private_root = Path(os.environ.get("PORT_ASSET_PRIVATE", str(REPO / "private"))).resolve()
         target_root = extract_dir.resolve()
-        if not target_root.is_relative_to(private_root) or target_root == private_root:
+        if private_root not in target_root.parents:
             raise ValueError("extraction must target a new subdirectory under private/")
         if target_root.exists():
             raise ValueError("extraction target already exists")

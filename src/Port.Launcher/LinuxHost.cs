@@ -22,6 +22,7 @@ internal static class LinuxHost
             var assetRoot = Path.Combine(data, "assets");
             var saveRoot = Path.Combine(data, "saves");
             var pictureRoot = Path.Combine(data, "pictures");
+            if (!await LinuxImportView.ShowFlashingWarningAsync(saveRoot)) return 0;
             Directory.CreateDirectory(data);
             var tools = new GamePreparationTools(
                 Path.Combine(program, "tools", "inspect_assembly"),
@@ -62,7 +63,8 @@ internal static class LinuxHost
                     await process.WaitForExitAsync(token);
                     if (process.ExitCode is 0 or 10) return process.ExitCode == 10;
                     launchFailure = true;
-                    view.Error("The game could not start. See the app's log for details.");
+                    Console.Error.WriteLine($"Game process exited with code {process.ExitCode}.");
+                    LinuxImportView.ShowFatal("The game exited with an error. See the app's log for details.");
                     return false;
                 });
             view.FinishProgress();
@@ -93,6 +95,26 @@ internal static class LinuxHost
 internal sealed class LinuxImportView(bool optionalArt) : IGameFilePicker, IAssetImportView, IDisposable
 {
     private Process? progress;
+
+    public static Task<bool> ShowFlashingWarningAsync(string saveDirectory) =>
+        FirstLaunchWarning.EnsureAsync(saveDirectory, async enabled =>
+        {
+            var warning = FirstLaunchWarning.Text.Replace("\n\n", " ");
+            const string reduceAndContinue = "Reduce Flashing & Continue";
+            var keepChoice = enabled ? reduceAndContinue : "Continue";
+            var changeChoice = enabled ? "Standard Effects & Continue" : reduceAndContinue;
+            var choice = await Dialog(CancellationToken.None, changeChoice,
+                ["--question", "--default-cancel", "--icon=dialog-warning", "--no-markup", "--width=480",
+                 "--title=" + FirstLaunchWarning.Title, "--text=" + warning,
+                 "--ok-label=" + keepChoice, "--cancel-label=Quit", "--extra-button=" + changeChoice]);
+            return choice switch
+            {
+                null => (bool?)null,
+                "" => enabled,
+                _ when choice == changeChoice => !enabled,
+                _ => throw new IOException("Unexpected flashing lights warning response.")
+            };
+        });
 
     public async Task<ImportChoices?> ChooseAsync(bool hasValidInstall, CancellationToken token)
     {
@@ -203,7 +225,10 @@ internal sealed class LinuxImportView(bool optionalArt) : IGameFilePicker, IAsse
         return info;
     }
 
-    private static async Task<string?> Dialog(CancellationToken token, params string[] arguments)
+    private static Task<string?> Dialog(CancellationToken token, params string[] arguments) =>
+        Dialog(token, extraButton: null, arguments);
+
+    private static async Task<string?> Dialog(CancellationToken token, string? extraButton, string[] arguments)
     {
         using var process = Process.Start(NewDialog(arguments))
             ?? throw new IOException("Could not open a Linux file dialog.");
@@ -212,7 +237,8 @@ internal sealed class LinuxImportView(bool optionalArt) : IGameFilePicker, IAsse
         await process.WaitForExitAsync(token);
         var value = (await output).TrimEnd('\r', '\n');
         if (process.ExitCode == 0) return value;
-        if (process.ExitCode == 1) return null;
+        // Zenity emits the extra button's label on stdout with the same exit code as Cancel.
+        if (process.ExitCode == 1) return value == extraButton ? value : null;
         throw new IOException("Linux dialog failed: " + (await error).Trim());
     }
 }

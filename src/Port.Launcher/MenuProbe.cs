@@ -120,7 +120,7 @@ internal sealed class MenuProbe
             var centeredX = DesktopDisplay.SceneSize.X / (2f * menuScale);
             if (MathF.Abs(positions[0].X - (centeredX - 85f)) > 0.01f ||
                 MathF.Abs(positions[1].X - (centeredX + 115f)) > 0.01f ||
-                MathF.Abs(positions[2].X - (centeredX + 15f)) > 0.01f)
+                MathF.Abs(positions[2].X - (centeredX - 15f)) > 0.01f)
                 throw new InvalidOperationException("Settings categories lost their staggered layout.");
             level.GetType().GetMethod("Click", Instance)!.Invoke(level, ["GAMEPLAY"]);
             if (!DesktopDisplay.IsGameplayPage)

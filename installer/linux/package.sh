@@ -5,6 +5,7 @@ repo=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
 cd "$repo"
 test "$(uname -m)" = x86_64 || { echo 'Linux x64 build host is required' >&2; exit 1; }
 work=$(mktemp -d /tmp/z0mb1es-package.XXXXXX)
+trap 'rm -rf "$work"' EXIT
 stage="$work/app"
 packages="$work/packages"
 output=out/linux/packages
@@ -40,7 +41,7 @@ for library in SDL3 FNA3D FAudio; do
   cp "$stage/lib$library.so.0" "$stage/lib$library.so"
 done
 cp config/supported-versions.json "$stage/config/"
-sha256sum "$stage/tools/port-audio-converter" | sed 's|.*/| |' > "$stage/config/linux-converter.sha256"
+(cd "$stage/tools" && sha256sum port-audio-converter) > "$stage/config/linux-converter.sha256"
 cp tools/audio-converter/vendor/gameframe-wma/LICENSE-APACHE "$stage/notices/gameframe-wma-LICENSE-APACHE"
 cp tools/audio-converter/vendor/qoaudio/LICENSE "$stage/notices/qoaudio-LICENSE"
 cp LICENSE "$stage/notices/Port-GPL-2.0.txt"

@@ -30,7 +30,7 @@ Like Blitz Recomp, platform commands live under `scripts/dev/`, with root entry 
 | Android ARM64 (Windows host) | `. ./scripts/dev/dev-android.ps1` | `bootstrap-android`, `build-apk`, `install-apk`, `run-android`, `log-android` |
 | iOS ARM64 (Mac host) | `source ./dev.sh --platform ios` | `build-game`, `build-bundled`, `dev-help` |
 
-`. ./dev.ps1` remains compatible: on Windows it loads desktop and Android commands; on macOS it loads the prepared desktop commands. `source ./dev.sh` detects macOS or Linux. Select iOS explicitly on its Mac build host. For a single command without changing your shell, use `bash ./dev.sh --platform mac build-installer` or `bash ./dev.sh --platform ios build-game`.
+`. ./dev.ps1` loads desktop and Android commands on Windows, the prepared desktop commands on macOS, and the Linux commands on Linux. `source ./dev.sh` detects macOS or Linux. Select iOS explicitly on its Mac build host. For a single command without changing your shell, use `bash ./dev.sh --platform mac build-installer` or `bash ./dev.sh --platform ios build-game`.
 
 The commands wrap the platform recipes below and retain their prerequisites, audits, and output locations. On Windows/macOS, `build-game` prepares a personal desktop folder. On Linux, it publishes the self-contained host/tools to `private/linux-publish/`; preparing personal assets remains the explicit CLI workflow below. Linux `run-game` opens the installed importer. On iOS, `build-game` produces the content-free unsigned IPA; signing/installing remains a sideloading step.
 

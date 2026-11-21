@@ -163,7 +163,7 @@ def source_files(kind: str, source: Path, mapping: dict, inventory: dict, stage:
         inputs[name] = {"sha256": meta["sha256"], "size": [meta["width"], meta["height"]], "type": meta["type"], "surfaceFormat": meta["surfaceFormat"], "mipCount": meta["mipCount"]}
         if kind.endswith("360"):
             inputs[name]["packageEntry"] = meta["packageEntry"]
-    return identity | {"textures": inputs}, images
+    return {**identity, "textures": inputs}, images
 
 
 def derive_vignette(mapping: dict, images: dict, phone_root: Path, inventory: dict) -> tuple[np.ndarray, str] | None:
@@ -479,7 +479,7 @@ def main() -> None:
     args = parser.parse_args()
     try:
         store = args.store.resolve()
-        if not store.is_relative_to(PRIVATE.resolve()) or store == PRIVATE.resolve():
+        if PRIVATE.resolve() not in store.parents:
             raise ValueError("prepared art must stay under ignored private/")
         inventory = load(ROOT / "docs/records/asset-swap-inventory.json")
         if args.action == "prepare":
