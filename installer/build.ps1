@@ -109,6 +109,7 @@ foreach ($name in @('LICENSE.TXT','THIRD-PARTY-NOTICES.TXT')) {
     Copy-Item -LiteralPath (Join-Path $runtimeNoticeRoot $name) -Destination (Join-Path $notices "dotnet-$name") -Force
 }
 Copy-Item -LiteralPath (Join-Path $repo 'tools/audio-converter/vendor/gameframe-wma/LICENSE-APACHE') -Destination (Join-Path $notices 'gameframe-wma-LICENSE-APACHE') -Force
+Copy-Item -LiteralPath (Join-Path $repo 'tools/audio-converter/vendor/gameframe-wma/THIRD_PARTY.md') -Destination (Join-Path $notices 'gameframe-wma-THIRD-PARTY.txt') -Force
 Copy-Item -LiteralPath (Join-Path $repo 'tools/audio-converter/vendor/qoaudio/LICENSE') -Destination (Join-Path $notices 'qoaudio-LICENSE') -Force
 $tools = Join-Path $payload 'tools'
 New-Item -ItemType Directory -Force -Path $tools | Out-Null
@@ -166,7 +167,7 @@ $allowedRuntime = @(
     'notices/Python-LICENSE.txt','notices/Pillow-LICENSE','notices/NumPy-LICENSE.txt',
     'notices/PyInstaller-COPYING.txt','notices/dotnet-LICENSE.TXT',
     'notices/dotnet-THIRD-PARTY-NOTICES.TXT',
-    'notices/gameframe-wma-LICENSE-APACHE','notices/qoaudio-LICENSE'
+    'notices/gameframe-wma-LICENSE-APACHE','notices/gameframe-wma-THIRD-PARTY.txt','notices/qoaudio-LICENSE'
 )
 foreach ($folder in @('helper','runtime','tools','config')) {
     $folderPath = Join-Path $payload $folder

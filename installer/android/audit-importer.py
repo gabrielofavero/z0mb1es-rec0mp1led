@@ -53,6 +53,7 @@ def audit(apk):
                     assert int.from_bytes(row[48:56], 'little') >= 16384, 'ELF alignment: ' + name
         assert package.read('assets/notices/audio/gameframe-wma.txt')
         assert package.read('assets/notices/audio/qoaudio.txt')
+        assert package.read('assets/notices/audio/gameframe-wma-THIRD-PARTY.txt')
         assert 'AndroidManifest.xml' in names and 'classes.dex' in names
     print(f'ANDROID_IMPORTER_AUDIT_OK inputs={len(entries)} bytes={apk.stat().st_size} sha256={hashlib.sha256(apk.read_bytes()).hexdigest()}')
 

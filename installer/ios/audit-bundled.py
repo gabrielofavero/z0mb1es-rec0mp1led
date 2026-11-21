@@ -8,6 +8,7 @@ import subprocess
 import tempfile
 import zipfile
 from pathlib import Path
+from audit_audio import audit_audio
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('ipa', type=Path)
@@ -48,6 +49,7 @@ with zipfile.ZipFile(args.ipa) as archive:
         binary.flush()
         symbols = subprocess.check_output(['/usr/bin/nm', '-gU', binary.name], text=True)
     exported = {row.split()[-1] for row in symbols.splitlines() if row.split()}
+    audit_audio(archive, prefix, exported)
     for name in ('_SDL_RunApp', '_FNA3D_CreateDevice', '_FAudioCreate'):
         if name not in exported:
             raise SystemExit('Missing native export: ' + name)

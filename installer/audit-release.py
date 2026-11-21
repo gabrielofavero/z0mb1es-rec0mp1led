@@ -30,7 +30,7 @@ RUNTIME_FILES = {
     "notices/Python-LICENSE.txt", "notices/Pillow-LICENSE", "notices/NumPy-LICENSE.txt",
     "notices/PyInstaller-COPYING.txt", "notices/dotnet-LICENSE.TXT",
     "notices/dotnet-THIRD-PARTY-NOTICES.TXT",
-    "notices/gameframe-wma-LICENSE-APACHE", "notices/qoaudio-LICENSE",
+    "notices/gameframe-wma-LICENSE-APACHE", "notices/gameframe-wma-THIRD-PARTY.txt", "notices/qoaudio-LICENSE",
 }
 SENSITIVE = {
     "developer path": re.compile(rb"(?:[A-Za-z]:[/\\](?:Users|ProgramData|Gabriel)[/\\]|/home/[A-Za-z0-9_-]+/)", re.I),
@@ -135,6 +135,7 @@ def audit_audio_converter(payload: Path, findings: list[str]) -> str:
     for name, source in {
         "gameframe-wma-LICENSE-APACHE": ROOT / "tools/audio-converter/vendor/gameframe-wma/LICENSE-APACHE",
         "qoaudio-LICENSE": ROOT / "tools/audio-converter/vendor/qoaudio/LICENSE",
+        "gameframe-wma-THIRD-PARTY.txt": ROOT / "tools/audio-converter/vendor/gameframe-wma/THIRD_PARTY.md",
     }.items():
         installed = payload / "runtime/notices" / name
         if installed.is_file() and installed.read_bytes() != source.read_bytes():

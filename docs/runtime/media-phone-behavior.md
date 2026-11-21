@@ -1,5 +1,7 @@
 # Media and phone-only behavior (Prompt 11)
 
+The FFmpeg command below records an earlier diagnostic fixture. Current builds use the vendored Rust WMA-to-QOA converter; FFmpeg is not a build or runtime prerequisite.
+
 The supported original DLL calls `Music.LoadSong`, `Music.Start`, `Music.Update`, `Music.Stop`, `Music.Pause`, and `Music.Resume` around its `MediaPlayer` operations. `BaseTimeMgr.Pause` and `UnPause` call the original music methods. `Sound.Init` loads 19 `sfx/fx/` keys into a dictionary; `Sound.Play`, `PlayExplode`, `PlaySword`, and `PlayHit` call `SoundEffect.Play`. The content preparer supplies local Ogg companions for the original three WMA songs; all other sound XNBs are unchanged. Media playback follows the original calls through FNA, with the completion adaptation below.
 
 Endless selects only `sfx/music/endless` (about 302 seconds). The original `Music.Update(2)` resets its play counter when playback stops, then starts the same song on the following update. It does not alternate tracks. Normal Zombies and Time Viking keep their original finite-song behavior.

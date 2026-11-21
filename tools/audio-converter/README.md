@@ -13,3 +13,5 @@ CARGO_TARGET_DIR=out/audio-converter cargo build --release --offline --manifest-
 On Windows PowerShell, set `$env:CARGO_TARGET_DIR = 'out/audio-converter'` and run the same `cargo build` command. Windows release packaging verifies the resulting executable against `config/content-tools.json`. Linux and macOS packaging compile it from the same vendored source and record the actual executable hash inside their packages.
 
 Usage: `port-audio-converter <supported.wma> <new.qoa>`. The caller checks the exact XAP fingerprint before conversion. This converter rejects other ASF/WMA layouts.
+
+For iOS, `sh installer/ios/native/build.sh` compiles a static library with Rust 1.100.0 and the `aarch64-apple-ios` target. `sh installer/ios/native/build.sh osx-arm64` builds the matching macOS dylib for import checks and personal payload preparation. Both use the two-path `z0_audio_convert` C ABI in `src/lib.rs`. The iOS adapter serializes conversions to limit peak PCM-buffer memory. Converter license notices are embedded in the IPA; this path uses no FFmpeg and generates no companion source download.

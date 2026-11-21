@@ -8,7 +8,7 @@ using Port.Hooks;
 
 internal static class MusicPlaybackChecks
 {
-    // Supply an ignored, locally converted ~0.25 second Vorbis clip. Exercise the
+    // Supply an ignored, locally converted ~0.25 second QOA or Vorbis clip. Exercise the
     // real prepared Music methods and FNA clock without waiting five minutes.
     internal static void Run(string gamePath, string clipPath, string nativeDirectory)
     {
@@ -45,9 +45,14 @@ internal static class MusicPlaybackChecks
         }
         try
         {
+            // Surface native loading/format errors before the game's music handler catches them.
+            MediaPlayer.Play(song);
+            Require(MediaPlayer.State == MediaState.Playing && song.Duration > TimeSpan.Zero,
+                "FNA could not play the supplied audio clip.");
+            MediaPlayer.Stop();
             Start(2);
             Require(song.Duration.TotalSeconds is > 0.1 and < 0.4,
-                "Expected a ~0.25 second local Vorbis clip.");
+                "Expected a ~0.25 second local audio clip.");
             Thread.Sleep(80);
             Call("Pause");
             var pausedAt = MediaPlayer.PlayPosition;

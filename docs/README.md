@@ -39,7 +39,7 @@ The [Android APK guide](../installer/android/README.md) covers Z0MB1ES (on teh p
 - [Asset swap Prompt 2](records/asset-swap-p2.md): guarded phone renderer and visual probes.
 - [Asset swap Prompt 3](records/asset-swap-p3.md): offline optional imports and ASSETS Settings selection.
 - [Asset swap Prompt 4](records/asset-swap-p4.md): visual matrix, installer validation, and remaining release checks.
-- [FFmpeg redistribution follow-up](records/ffmpeg-redistribution.md): LGPL converter, matching source package, and audited installer hashes.
+- [FFmpeg redistribution follow-up](records/ffmpeg-redistribution.md): historical converter/source-package audit; FFmpeg is now retired.
 
 ## Plans
 

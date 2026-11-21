@@ -8,6 +8,7 @@ import subprocess
 import tempfile
 import zipfile
 from pathlib import Path
+from audit_audio import audit_audio
 
 repo = Path(__file__).resolve().parents[2]
 parser = argparse.ArgumentParser(description=__doc__)
@@ -46,6 +47,12 @@ with zipfile.ZipFile(ipa) as archive:
     native = repo / 'out/ios/native/libz0audio.a'
     if hashlib.sha256(native.read_bytes()).hexdigest() != converter:
         raise SystemExit('Converter identity differs from native input')
+    with tempfile.NamedTemporaryFile() as binary:
+        binary.write(executable)
+        binary.flush()
+        symbols = subprocess.check_output(['/usr/bin/nm', '-gU', binary.name], text=True)
+    exported = {line.split()[-1] for line in symbols.splitlines() if line.split()}
+    audit_audio(archive, prefix, exported)
     if args.game_host:
         if (info['CFBundleShortVersionString'] != '1.1.0' or info['CFBundleVersion'] != '21'
                 or info['CFBundleDisplayName'] != 'Z0MB1ES' or info['CFBundleExecutable'] != 'Z0MB1ES'):
@@ -73,11 +80,6 @@ with zipfile.ZipFile(ipa) as archive:
                        for name in runtime_names)
         if hashlib.sha256(rows.encode()).hexdigest() != pin['runtimeCatalogSha256']:
             raise SystemExit('Unexpected iOS runtime metadata catalog')
-        with tempfile.NamedTemporaryFile() as binary:
-            binary.write(executable)
-            binary.flush()
-            symbols = subprocess.check_output(['/usr/bin/nm', '-gU', binary.name], text=True)
-        exported = {line.split()[-1] for line in symbols.splitlines() if line.split()}
         for name in ('SDL_RunApp', 'FNA3D_CreateDevice', 'FAudioCreate', 'z0_audio_convert'):
             if '_' + name not in exported:
                 raise SystemExit('Missing linked native symbol: ' + name)
@@ -96,7 +98,7 @@ with zipfile.ZipFile(ipa) as archive:
         if name in icon_names:
             continue
         lower = name.lower()
-        if lower.endswith(('.xap', '.xnb', '.wma', '.ogg', '.png', '.jpg', '.jpeg')) or any(
+        if lower.endswith(('.xap', '.xnb', '.wma', '.ogg', '.qoa', '.png', '.jpg', '.jpeg')) or any(
             token in lower for token in ('zombieswp7', 'content-manifest', 'patch-manifest', 'game-metadata', 'phone-original', 'optional-art', 'embedded.mobileprovision')
         ):
             raise SystemExit(f'Unexpected probe payload: {name}')

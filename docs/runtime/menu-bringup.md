@@ -19,13 +19,13 @@ FNA's `TitleContainer` resolves the game's custom `chardef/`, scene, and other p
 
 ## Reproduce the fresh local run
 
-From the repository root, after [offline dependency setup](../foundation/dependencies.md), with the supported XAP and pinned FFmpeg executable available:
+From the repository root, after [offline dependency setup](../foundation/dependencies.md), with the supported XAP and pinned Rust audio-converter executable available:
 
 ```powershell
 ./scripts/build-offline.ps1
 dotnet tools/prepare-cli/bin/Release/net10.0/prepare.dll --xap 'game/Z0MB1ES (on teh ph0ne) v1.0.0.0.xap' --output private/preparation-my-net10
-$ffmpeg = '<absolute path to pinned ffmpeg.exe>'
-dotnet tools/content-prepare/bin/Release/net10.0/content-prepare.dll --xap 'game/Z0MB1ES (on teh ph0ne) v1.0.0.0.xap' --preparation private/preparation-my-net10 --ffmpeg $ffmpeg --output private/content-prepared/my-net10
+$converter = 'out/audio-converter/release/port-audio-converter.exe'
+dotnet tools/content-prepare/bin/Release/net10.0/content-prepare.dll --xap 'game/Z0MB1ES (on teh ph0ne) v1.0.0.0.xap' --preparation private/preparation-my-net10 --converter $converter --output private/content-prepared/my-net10
 dotnet tools/abi_check/bin/Release/net10.0/abi_check.dll --inventory generated/evidence-from-xap.json --dll private/preparation-my-net10/original-xap/ZombiesWP7.dll --fna out/deps/managed/FNA.dll --bridge src/Port.Bridge/bin/Release/net10.0/Port.Bridge.dll --output generated/abi-report-bridge-net10.json
 dotnet tools/prepare-cli/bin/Release/net10.0/prepare.dll rewrite --xap 'game/Z0MB1ES (on teh ph0ne) v1.0.0.0.xap' --dll private/preparation-my-net10/original-xap/ZombiesWP7.dll --abi-report generated/abi-report-bridge-net10.json --fna out/deps/managed/FNA.dll --bridge src/Port.Bridge/bin/Release/net10.0/Port.Bridge.dll --output private/prepared/my-net10-base
 dotnet tools/prepare-cli/bin/Release/net10.0/prepare.dll hook --xap 'game/Z0MB1ES (on teh ph0ne) v1.0.0.0.xap' --dll private/preparation-my-net10/original-xap/ZombiesWP7.dll --prepared private/prepared/my-net10-base/ZombiesWP7.dll --hooks src/Port.Hooks/bin/Release/net10.0/Port.Hooks.dll --output private/prepared/my-net10-hook

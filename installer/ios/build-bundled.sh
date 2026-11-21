@@ -17,8 +17,8 @@ xcodebuild -checkFirstLaunchStatus
 dotnet workload list | rg '26\.0\.11017' >/dev/null || { echo 'Requires iOS workload 26.0.11017' >&2; exit 1; }
 dotnet build src/Port.Hooks -c Release --source out/deps/cache -p:NuGetAudit=false
 python3 installer/ios/stage-game-inputs.py
-test -f out/ios/native/libz0audio.a || sh installer/ios/native/build.sh
-test -f out/ios/checks/native/libz0audio.dylib || sh installer/ios/native/build.sh osx-arm64
+sh installer/ios/native/build.sh
+sh installer/ios/native/build.sh osx-arm64
 mkdir -p "$repo/private/ios-bundled"
 personal_output=$(mktemp -d "$repo/private/ios-bundled/preparation-XXXXXXXX")
 # The preparer requires a new path; retain its parent as a local build record.

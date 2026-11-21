@@ -1,5 +1,4 @@
 using System.Runtime.InteropServices;
-using System.Text;
 using System.IO.Compression;
 using Mono.Cecil;
 using Port.Content;
@@ -75,11 +74,35 @@ try
 
     if (args is [var xap, var library])
     {
-        using var native = new LocalConverter(library);
-        var output = ExecutionProbe.ImportXap(xap, imports, native,
+        using var native = new LocalLibrary(library);
+        NativeLibrary.SetDllImportResolver(typeof(NativeAudioConverter).Assembly,
+            (name, _, _) => name == "__Internal" ? native.Handle : nint.Zero);
+        var mobile = new NativeAudioConverter(native.ToolSha256);
+        if (mobile.OutputExtension != ".qoa") throw new Exception("iOS converter must produce QOA.");
+        try { mobile.Convert(badXap, Path.Combine(root, "bad.qoa"), null); throw new Exception("Invalid audio accepted."); }
+        catch (InvalidDataException) { }
+        if (File.Exists(Path.Combine(root, "bad.qoa"))) throw new Exception("Failed conversion left an output file.");
+        var output = ExecutionProbe.ImportXap(xap, imports, mobile,
             s => { if (!s.StartsWith("content=", StringComparison.Ordinal)) Console.WriteLine(s); });
-        if (Directory.GetFiles(Path.Combine(output, "content"), "*.ogg", SearchOption.AllDirectories).Length != 3)
+        if (Directory.GetFiles(Path.Combine(output, "content"), "*.qoa", SearchOption.AllDirectories).Length != 3)
             throw new Exception("Expected exactly three converted songs.");
+        foreach (var song in Directory.GetFiles(Path.Combine(output, "content"), "*.qoa", SearchOption.AllDirectories))
+        {
+            using var stream = File.OpenRead(song);
+            Span<byte> header = new byte[16];
+            stream.ReadExactly(header);
+            if (!header[..4].SequenceEqual("qoaf"u8) || header[8] != 2 ||
+                (header[9] << 16 | header[10] << 8 | header[11]) != 44100)
+                throw new Exception("Invalid QOA music: " + song);
+            var samples = System.Buffers.Binary.BinaryPrimitives.ReadUInt32BigEndian(header[4..8]);
+            var expected = Path.GetFileNameWithoutExtension(song) switch
+            {
+                "endless" => 302.04517, "epicopus" => 817.94612, "timeviking" => 907.66803,
+                _ => throw new Exception("Unexpected song: " + song)
+            };
+            if (Math.Abs(samples / 44100.0 - expected) > 0.15)
+                throw new Exception("Converted music duration changed: " + song);
+        }
         // A failed repeat must not mutate the prior successful output.
         var priorManifest = File.ReadAllText(Path.Combine(output, "content", "content-manifest.json"));
         Console.WriteLine(ExecutionProbe.ResumeImport(imports));
@@ -109,26 +132,14 @@ sealed class UnavailableConverter : IContentAudioConverter
         throw new InvalidOperationException("injected converter failure");
 }
 
-sealed class LocalConverter : IContentAudioConverter, IDisposable
+sealed class LocalLibrary : IDisposable
 {
-    private readonly nint handle;
-    private readonly ConvertAudio convert;
-    public LocalConverter(string library)
+    public nint Handle { get; }
+    public string ToolSha256 { get; }
+    public LocalLibrary(string library)
     {
-        handle = NativeLibrary.Load(Path.GetFullPath(library));
-        convert = Marshal.GetDelegateForFunctionPointer<ConvertAudio>(NativeLibrary.GetExport(handle, "z0_audio_convert"));
+        Handle = NativeLibrary.Load(Path.GetFullPath(library));
         ToolSha256 = System.Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(library))).ToLowerInvariant();
     }
-    public string ToolSha256 { get; }
-    public void Convert(string input, string output, Action<long>? onProgress)
-    {
-        var error = new StringBuilder(512);
-        if (convert(input, output, error, error.Capacity) < 0) throw new InvalidDataException(error.ToString());
-    }
-    public void Dispose() => NativeLibrary.Free(handle);
-    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    private delegate int ConvertAudio(
-        [MarshalAs(UnmanagedType.LPUTF8Str)] string input,
-        [MarshalAs(UnmanagedType.LPUTF8Str)] string output,
-        [Out] StringBuilder error, int capacity);
+    public void Dispose() => NativeLibrary.Free(Handle);
 }

@@ -90,7 +90,7 @@ This is a content-free UIKit feasibility probe, not an iOS game release. A local
 
 The experimental baseline is .NET SDK **10.0.302**, iOS manifest/ref **26.0.11017**, full **Xcode 26.0.1**, and `ios-arm64`. The probe deployment minimum is iOS 15.0; this is not a promised game support floor. [.NET's release notes](https://github.com/dotnet/macios/wiki/.NET-10-release-notes) require Xcode 26 / macOS 15.6 or newer for this baseline. Simulator builds and Command Line Tools are insufficient.
 
-With that SDK selected, install its baseline workload using `dotnet workload install ios --skip-manifest-update`. Put the three reviewed archives from the [converter source table](../ffmpeg/README.md) in ignored `private/ffmpeg-macos/source`, or set `IOS_AUDIO_SOURCES` to their directory. The native recipe verifies every archive before extraction. `pkg-config`, `make`, Python 3, and `rg` must be available.
+With that SDK selected, install its baseline workload using `dotnet workload install ios --skip-manifest-update`. Install Rust **1.100.0** and its `aarch64-apple-ios` target (`rustup target add aarch64-apple-ios --toolchain 1.100.0`). Python 3 and `rg` must be available. The converter builds offline from vendored source; no FFmpeg/Xiph source archives are needed.
 
 For the pinned Xcode version, sign in to [Apple's downloads](https://developer.apple.com/download/all/?q=Xcode%2026.0.1) with a regular Apple Account and select the Apple silicon archive. Complete free registration if prompted; [paid Developer Program membership is not required](https://developer.apple.com/xcode/resources/). Expand the `.xip`, place the app at `/Applications/Xcode_26.0.1.app`, and complete Xcode's first-launch setup. The Mac App Store may offer a different version from this experiment's pin. When using the repository-local SDK, first run `export PATH="$PWD/out/tooling/dotnet:$PATH"` from the repository root.
 
@@ -120,9 +120,9 @@ This experiment intentionally retains successful attempts in app-private Applica
 
 ## Audio implementation and local checks
 
-`native/audio.c` calls libavformat/libavcodec/libavutil and libvorbis directly; it never starts FFmpeg or calls its CLI entry point. It accepts the pinned stereo 44.1 kHz WMA v2 format, queues decoded planar-float samples in a bounded FIFO, encodes Vorbis quality 5, flushes decoder/encoder, and muxes Ogg. Each conversion owns its state, supporting the shared preparer's three concurrent calls. The shared content verifier checks the Ogg header before accepting output. Conversion progress currently reports stage completion rather than native sample progress.
+`native/build.sh` builds the existing vendored Rust converter from `tools/audio-converter`. On iOS it produces a static library exporting the same two-path `z0_audio_convert` C ABI used by Android; on macOS it produces the dylib used by import and bundled-payload checks. The managed adapters declare `.qoa` output, and the shared content verifier checks the QOA header before committing output. The pinned FNA SongReader and FAudio support QOA playback.
 
-The native build disables programs, networking, GPL and nonfree components, and unneeded codecs. Source versions are FFmpeg `239f2c733d` (8.1.1), libogg 1.3.6, and libvorbis 1.3.7, with the same archive hashes as desktop. The generated SHA-256 identifies the combined static archive and is recorded in the content manifest's legacy converter-hash field. It is a build identity, not a reviewed iOS release pin. The current macOS check archive hash is recorded in the implementation log; an iOS archive must be built and reviewed separately.
+The decoder accepts only the supported phone XAP's stereo 44.1 kHz WMA v2 layout. Each conversion owns its state; iOS serializes song conversions because the decoder buffers a song's PCM. Progress reports stage completion. IPA scripts refresh the converter on every build, using Cargo's source tracking, and remove stale FFmpeg notices. The converter identity is the hash of the actual library used for preparation. The IPA contains the vendored decoder's Apache-2.0 and encoder's MIT notices. No converter matching-source ZIP is generated or required alongside it.
 
 ```sh
 sh installer/ios/native/build.sh osx-arm64
@@ -133,7 +133,7 @@ dotnet run --project tests/IosProbe.Checks -c Release --no-build -- --generate o
 dotnet run --project tests/IosProbe.Checks -c Release --no-build -- --resume out/ios/restart-check
 ```
 
-These checks passed on macOS and were repeated after Xcode installation. The full iOS executable and unsigned IPA also built with zero warnings/errors and passed the audit. None of these results establishes device support.
+The historical FFmpeg version passed these checks on macOS and after Xcode installation. The Rust/QOA migration passed real-XAP import and all three duration checks on macOS, plus FNA playback checks for pause/resume, finite modes, and Endless looping. The content-free game and execution-probe IPAs built with zero warnings/errors and passed their payload/native-symbol audits. Prior device results do not establish the new converter’s music playback or import performance.
 
 ## Remaining execution gate and fallback
 
@@ -145,4 +145,4 @@ After generated IL passes on a real device, add that actual FNA host and test th
 
 ## Distribution constraints
 
-This recipe links FFmpeg statically into the app, unlike the desktop converter process. Desktop executable notices alone do not cover this arrangement. Before distributing a probe or release, assemble the applicable FFmpeg LGPL notices, Xiph notices, matching source/build scripts and a usable relinking/rebuild route for the static combination, plus Mono.Cecil/.NET notices; review the resulting artifact. Retain the matching source archives, static libraries and build scripts for that work; the local build does not establish license compliance or authorize publication. For this probe and Plan 1, proprietary game IL, music, artwork, extracted files and metadata-roundtrip DLLs stay on the importing device or in ignored developer storage. A future Plan 2 personal build keeps proprietary inputs and output in ignored local storage on the player’s Mac; proprietary files must never be committed or exposed through public releases/logs/plaintext artifacts.
+The converter uses the vendored Apache-2.0/MIT decoder and encoder described in [the converter guide](../../tools/audio-converter/README.md). Their notices are embedded in the IPA. FFmpeg and its separate source-package/relinking workflow have been retired; old build hashes and device reports above document the earlier implementation and do not validate this converter on a device. Other bundled dependencies retain their own notices. For this probe and Plan 1, proprietary game IL, music, artwork, extracted files and metadata-roundtrip DLLs stay on the importing device or in ignored developer storage. A future Plan 2 personal build keeps proprietary inputs and output in ignored local storage on the player’s Mac; proprietary files must never be committed or exposed through public releases/logs/plaintext artifacts.

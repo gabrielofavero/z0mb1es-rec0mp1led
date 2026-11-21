@@ -1,5 +1,4 @@
 using System.Runtime.InteropServices;
-using System.Text;
 using Port.Content;
 
 namespace Port.IosProbe;
@@ -7,18 +6,22 @@ namespace Port.IosProbe;
 public sealed class NativeAudioConverter(string identity) : IContentAudioConverter
 {
     public string ToolSha256 => identity;
+    public string OutputExtension => ".qoa";
+    private readonly object gate = new();
 
     public void Convert(string input, string output, Action<long>? onProgress)
     {
-        var error = new StringBuilder(512);
-        var result = Transcode(input, output, error, error.Capacity);
-        if (result != 0) throw new InvalidDataException($"In-process audio conversion failed: {error}");
-        // ContentPreparer reports completion and verifies the Ogg identification header.
+        // The decoder buffers a song's PCM. Limit peak memory on the importing device.
+        lock (gate)
+        {
+            if (Transcode(input, output) != 0)
+                throw new InvalidDataException("In-process audio conversion failed.");
+        }
+        // ContentPreparer reports completion and verifies the QOA header.
     }
 
     [DllImport("__Internal", EntryPoint = "z0_audio_convert", CallingConvention = CallingConvention.Cdecl)]
     private static extern int Transcode(
         [MarshalAs(UnmanagedType.LPUTF8Str)] string input,
-        [MarshalAs(UnmanagedType.LPUTF8Str)] string output,
-        [Out] StringBuilder error, int errorCapacity);
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string output);
 }

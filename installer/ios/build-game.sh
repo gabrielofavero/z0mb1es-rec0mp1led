@@ -17,7 +17,7 @@ xcodebuild -checkFirstLaunchStatus
 dotnet workload list | rg '26\.0\.11017' >/dev/null || { echo 'Requires iOS workload 26.0.11017' >&2; exit 1; }
 dotnet build src/Port.Hooks -c Release --source out/deps/cache -p:NuGetAudit=false
 python3 installer/ios/stage-game-inputs.py
-test -f out/ios/native/libz0audio.a || sh installer/ios/native/build.sh
+sh installer/ios/native/build.sh
 # A fresh package also prevents this pinned SDK reusing an old compiled Info.plist.
 dotnet build src/Port.IosGame -t:Rebuild -c Release -p:NuGetAudit=false -bl:out/ios/game-build.binlog
 dotnet run --project tests/IosGame.Checks -c Release -- --game-bundle \

@@ -5,7 +5,6 @@ using System.Security.Cryptography;
 using Port.Prepare;
 using Port.Content;
 using System.Runtime.InteropServices;
-using System.Text;
 using Mono.Cecil;
 using Port.Art;
 using Port.IosGame;
@@ -302,13 +301,17 @@ sealed class CheckAudio : IContentAudioConverter, IDisposable
         ToolSha256 = System.Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path))).ToLowerInvariant();
     }
     public string ToolSha256 { get; }
+    public string OutputExtension => ".qoa";
+    private readonly object gate = new();
     public void Convert(string input, string output, Action<long>? progress)
     {
-        var error = new StringBuilder(512);
-        if (convert(input, output, error, error.Capacity) != 0) throw new InvalidDataException(error.ToString());
+        lock (gate)
+        {
+            if (convert(input, output) != 0) throw new InvalidDataException("In-process audio conversion failed.");
+        }
     }
     public void Dispose() => NativeLibrary.Free(handle);
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate int ConvertAudio([MarshalAs(UnmanagedType.LPUTF8Str)] string input,
-        [MarshalAs(UnmanagedType.LPUTF8Str)] string output, [Out] StringBuilder error, int capacity);
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string output);
 }

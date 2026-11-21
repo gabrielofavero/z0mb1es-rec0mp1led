@@ -63,7 +63,7 @@ Build the authored desktop projects and preparation tools:
 
 This uses the local NuGet cache and expects the bootstrap outputs, including its Windows native files, even when building on another desktop host. Packaging additionally needs the pinned runtime `.nupkg` files in the cache locations checked by each platform script. Bootstrap does not provision every platform's packaging toolchain.
 
-Windows, macOS, Linux, and Android use the vendored Rust WMA-to-QOA converter. Install Rust **1.100.0** and build the desktop converter on the desktop where it will run:
+Windows, macOS, Linux, Android, and iOS use the vendored Rust WMA-to-QOA converter. Install Rust **1.100.0** and build the desktop converter on the desktop where it will run:
 
 ```powershell
 $env:CARGO_TARGET_DIR = 'out/audio-converter'
@@ -455,17 +455,13 @@ dotnet workload install ios --skip-manifest-update
 dotnet workload list
 ```
 
-Confirm that the installed iOS workload is 26.0.11017. Complete Xcode's initial setup before packaging. Also provide Python 3, `rg`, `make`, `pkg-config`, the shared FNA/bridge/hooks builds, and `out/deps/cache/fnalibs-apple-2026-11-06.zip` matching `config/ios-packaging.json`.
+Confirm that the installed iOS workload is 26.0.11017. Complete Xcode's initial setup before packaging. Also provide Python 3, `rg`, Rust 1.100.0, the shared FNA/bridge/hooks builds, and `out/deps/cache/fnalibs-apple-2026-11-06.zip` matching `config/ios-packaging.json`.
 
 `installer/ios/stage-game-inputs.py` extracts five pinned `iphoneos` static libraries, generates icons, and checks the exact preparation-assembly and runtime-catalog hashes. Rebuilt assemblies that differ from those pins require a reviewed update before packaging can pass.
 
-The iOS converter is still the FFmpeg/Ogg implementation, independent of the desktop/Android Rust converter. Put these reviewed source archives in `private/ffmpeg-macos/source/`, or point `IOS_AUDIO_SOURCES` at their directory:
+The iOS converter uses the same vendored Rust WMA-to-QOA implementation as desktop and Android. Install Rust **1.100.0** with the `aarch64-apple-ios` target (`rustup target add aarch64-apple-ios --toolchain 1.100.0`). No FFmpeg, libogg, libvorbis source downloads, or companion source ZIPs are needed for this converter. Its Apache-2.0 and MIT notices are embedded in the IPA.
 
-- `ffmpeg-239f2c733d.tar.gz`
-- `libogg-1.3.6.tar.gz`
-- `libvorbis-1.3.7.tar.xz`
-
-Their source locations and checksums are in [the converter source table](installer/ffmpeg/README.md). The iOS native script verifies those checksums before compiling. Both IPA scripts build `out/ios/native/libz0audio.a` if absent; after native source changes, rebuild it explicitly with `sh installer/ios/native/build.sh` rather than reusing an old archive.
+The IPA scripts run `installer/ios/native/build.sh` on every build; Cargo recompiles changed sources and the script refreshes `out/ios/native/libz0audio.a`, its identity, and notices. The bundled build also builds the macOS check dylib from the same Rust source.
 
 ### Importer IPA
 

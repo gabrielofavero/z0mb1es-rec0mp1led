@@ -43,6 +43,7 @@ done
 cp config/supported-versions.json "$stage/config/"
 (cd "$stage/tools" && sha256sum port-audio-converter) > "$stage/config/linux-converter.sha256"
 cp tools/audio-converter/vendor/gameframe-wma/LICENSE-APACHE "$stage/notices/gameframe-wma-LICENSE-APACHE"
+cp tools/audio-converter/vendor/gameframe-wma/THIRD_PARTY.md "$stage/notices/gameframe-wma-THIRD-PARTY.txt"
 cp tools/audio-converter/vendor/qoaudio/LICENSE "$stage/notices/qoaudio-LICENSE"
 cp LICENSE "$stage/notices/Port-GPL-2.0.txt"
 cp out/deps/fna-26.11/FNA/licenses/LICENSE "$stage/notices/FNA-LICENSE.txt"

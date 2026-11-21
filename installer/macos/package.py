@@ -69,6 +69,7 @@ with tempfile.TemporaryDirectory(prefix='z0mb1es-macos-') as temporary:
         ('out/deps/fna-26.11/FNA/lib/Theorafile/licenses/LICENSE', 'Theorafile-LICENSE.txt')):
         shutil.copy2(repo / source, notices / target)
     shutil.copy2(repo / 'tools/audio-converter/vendor/gameframe-wma/LICENSE-APACHE', notices / 'gameframe-wma-LICENSE-APACHE')
+    shutil.copy2(repo / 'tools/audio-converter/vendor/gameframe-wma/THIRD_PARTY.md', notices / 'gameframe-wma-THIRD-PARTY.txt')
     shutil.copy2(repo / 'tools/audio-converter/vendor/qoaudio/LICENSE', notices / 'qoaudio-LICENSE')
     for path in app.rglob('*'):
         if path.is_file() and (path.suffix.lower() in ('.xap', '.xnb', '.wma', '.ogg', '.qoa')

@@ -2,6 +2,10 @@
 set -eu
 repo=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
 cd "$repo"
+if [ -x "$repo/out/tooling/dotnet/dotnet" ]; then
+  export PATH="$repo/out/tooling/dotnet:$PATH"
+fi
+export DEVELOPER_DIR=${DEVELOPER_DIR:-/Applications/Xcode_26.0.1.app/Contents/Developer}
 [ "$(dotnet --version)" = 10.0.302 ] || { echo 'Requires .NET SDK 10.0.302' >&2; exit 1; }
 # This baseline matches the iOS manifest shipped in the pinned SDK. Do not silently
 # accept a newer workload/Xcode pairing; review and update the experiment together.
@@ -14,11 +18,11 @@ esac
 dotnet workload list | rg '26\.0\.11017' >/dev/null || {
   echo 'Requires iOS workload manifest 26.0.11017; install with --skip-manifest-update using the pinned SDK.' >&2; exit 1;
 }
-test -f out/ios/native/libz0audio.a || sh installer/ios/native/build.sh
+sh installer/ios/native/build.sh
 test -f out/ios/native/converter-identity.txt
 project=src/Port.IosProbe/Port.IosProbe.csproj
 dotnet restore "$project"
-dotnet build "$project" -c Release --no-restore \
+dotnet build "$project" -t:Rebuild -c Release --no-restore \
   -p:EnableCodeSigning=false -p:BuildIpa=true \
   -p:UseInterpreter=true -p:PublishAot=false -p:TrimMode=copy \
   -bl:out/ios/probe-build.binlog

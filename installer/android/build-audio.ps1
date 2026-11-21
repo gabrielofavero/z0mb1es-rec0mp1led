@@ -29,6 +29,7 @@ try {
     $identity = (Get-FileHash out/android/native/libport_audio_converter.so).Hash.ToLowerInvariant()
     [IO.File]::WriteAllText((Join-Path $root 'out/android/native/converter-identity.txt'), $identity)
     Copy-Item tools/audio-converter/vendor/gameframe-wma/LICENSE-APACHE out/android/native/notices/gameframe-wma.txt -Force
+    Copy-Item tools/audio-converter/vendor/gameframe-wma/THIRD_PARTY.md out/android/native/notices/gameframe-wma-THIRD-PARTY.txt -Force
     Copy-Item tools/audio-converter/vendor/qoaudio/LICENSE out/android/native/notices/qoaudio.txt -Force
 } finally {
     $env:CARGO_HOME = $oldCargo
